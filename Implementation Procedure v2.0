@@ -1,5 +1,20 @@
 OPERATIVE Implementation procedure for test time compute scaling LLMs  v2
 
+***This is still the general, high level instructions***
+***To be added: the instructions to go element by element and in the context of the topic and problem statement, generate a response***
+***When added to each of the steps below this will result in the Data Sheet, Standard Procedure, Guidance Document, Checklist, and Problem Solution to be expressed through the matrices, not coincident with them***
+***Generating the answers through the matrices themselves is what creates the reasoning traces***
+***This makes the elements of each semantic component used in the generation of the Four Documents akin to a seed, from which the reasoning traces and the answer sprout***
+***Anyways, it's been a long road to this point and I stopped just short of the finish line***
+***However, the general procedure is very simple and iterative, so the comment above is sufficient until I fix it up****
+***I hope to implement the framework on one of your problem statements***
+***Feedback is welcome***
+
+
+ryan@chirality.ai
+
+
+
 These are instructions to the LLM to actually generate knowledge in response to a problem statement, following the framework.
 1) review the Problem Statement and parse it and allocate it to categories given by the elements of [A] and [B].
 2) based on the problem statement matrices [A] and [B], generate a Data Sheet that contains the necessary user inputs and sufficient other categories to properly define the problem solution according to the statements in elements of [C].
