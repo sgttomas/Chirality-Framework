@@ -5,7 +5,7 @@
 ![OpenAI API](https://img.shields.io/badge/Powered_by-OpenAI_API-orange)
 
 This repository contains a NextJS starter app built on top of the [Responses API](https://platform.openai.com/docs/api-reference/responses).
-It leverages built-in tools (web search and file search) and implements a chat interface with multi-turn conversation handling.
+It leverages built-in tools ([web search](https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses) and [file search](https://platform.openai.com/docs/guides/tools-file-search)) and implements a chat interface with multi-turn conversation handling.
 
 Features:
 
