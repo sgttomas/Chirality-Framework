@@ -22,7 +22,7 @@
     "cmdk": "^1.0.0",
     "lucide-react": "^0.441.0",
     "next": "^15.2.2",
-    "openai": "^4.87.0",
+    "openai": "^4.87.3",
     "partial-json": "^0.1.7",
     "react": "^18",
     "react-dom": "^18",

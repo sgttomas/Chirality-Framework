@@ -5,7 +5,7 @@ const openai = new OpenAI();
 export async function POST(request: Request) {
   const { vectorStoreId, fileId } = await request.json();
   try {
-    const vectorStore = await openai.beta.vectorStores.files.create(
+    const vectorStore = await openai.vectorStores.files.create(
       vectorStoreId,
       {
         file_id: fileId,
