@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import ToolCall from "./tool-call";
 import Message from "./message";
 import Annotations from "./annotations";
@@ -18,6 +18,14 @@ const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
   const scrollToBottom = () => {
     itemsEndRef.current?.scrollIntoView({ behavior: "instant" });
   };
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      onSendMessage(inputMessageText);
+      setinputMessageText("");
+    }
+  }, [onSendMessage, inputMessageText]);
 
   useEffect(() => {
     scrollToBottom();
@@ -64,13 +72,7 @@ const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
                       className="mb-2 resize-none border-0 focus:outline-none text-sm bg-transparent px-0 pb-6 pt-2"
                       value={inputMessageText}
                       onChange={(e) => setinputMessageText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          onSendMessage(inputMessageText);
-                          setinputMessageText("");
-                        }
-                      }}
+                      onKeyDown={handleKeyDown}
                     />
                   </div>
                   <button
