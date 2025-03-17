@@ -14,13 +14,15 @@ interface ChatProps {
 const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
   const itemsEndRef = useRef<HTMLDivElement>(null);
   const [inputMessageText, setinputMessageText] = useState<string>("");
+  // This state is used to provide better user experience for non-English IMEs such as Japanese
+  const [isComposing, setIsComposing] = useState(false);
 
   const scrollToBottom = () => {
     itemsEndRef.current?.scrollIntoView({ behavior: "instant" });
   };
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+    if (event.key === "Enter" && !event.shiftKey && !isComposing) {
       event.preventDefault();
       onSendMessage(inputMessageText);
       setinputMessageText("");
@@ -73,6 +75,8 @@ const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
                       value={inputMessageText}
                       onChange={(e) => setinputMessageText(e.target.value)}
                       onKeyDown={handleKeyDown}
+                      onCompositionStart={() => setIsComposing(true)}
+                      onCompositionEnd={() => setIsComposing(false)}
                     />
                   </div>
                   <button
