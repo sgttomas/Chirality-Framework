@@ -170,6 +170,7 @@ export const processMessages = async () => {
 
       case "response.output_item.added": {
         const { item } = data || {};
+        console.log("event", data);
         // New item coming in
         if (!item || !item.type) {
           break;
@@ -243,7 +244,7 @@ export const processMessages = async () => {
       case "response.output_item.done": {
         // After output item is done, adding tool call ID
         const { item } = data || {};
-
+        console.log("event", data);
         const toolCallMessage = chatMessages.find((m) => m.id === item.id);
         if (toolCallMessage && toolCallMessage.type === "tool_call") {
           toolCallMessage.call_id = item.call_id;
@@ -251,20 +252,42 @@ export const processMessages = async () => {
         }
         conversationItems.push(item);
         setConversationItems([...conversationItems]);
+        if (toolCallMessage  && toolCallMessage.type === "tool_call" && toolCallMessage.tool_type === "function_call") {
+          // Handle tool call (execute function)
+          const toolResult = await handleTool(
+            toolCallMessage.name as keyof typeof functionsMap,
+            toolCallMessage.parsedArguments
+          );
+
+          // Record tool output
+          toolCallMessage.output = JSON.stringify(toolResult);
+          setChatMessages([...chatMessages]);
+          conversationItems.push({
+            type: "function_call_output",
+            call_id: toolCallMessage.call_id,
+            status: "completed",
+            output: JSON.stringify(toolResult),
+          });
+          setConversationItems([...conversationItems]);
+
+          // Create another turn after tool output has been added
+          await processMessages();
+        }
       }
 
       case "response.function_call_arguments.delta": {
         // Streaming arguments delta to show in the chat
         functionArguments += data.delta || "";
         let parsedFunctionArguments = {};
-        if (functionArguments.length > 0) {
-          parsedFunctionArguments = parse(functionArguments);
-        }
+        
 
         const toolCallMessage = chatMessages.find((m) => m.id === data.item_id);
         if (toolCallMessage && toolCallMessage.type === "tool_call") {
           toolCallMessage.arguments = functionArguments;
           try {
+            if (functionArguments.length > 0) {
+              parsedFunctionArguments = parse(functionArguments);
+            }
             toolCallMessage.parsedArguments = parsedFunctionArguments;
           } catch {
             // partial JSON can fail parse; ignore
@@ -287,26 +310,7 @@ export const processMessages = async () => {
           toolCallMessage.parsedArguments = parse(finalArgs);
           toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
-
-          // Handle tool call (execute function)
-          const toolResult = await handleTool(
-            toolCallMessage.name as keyof typeof functionsMap,
-            toolCallMessage.parsedArguments
-          );
-
-          // Record tool output
-          toolCallMessage.output = JSON.stringify(toolResult);
-          setChatMessages([...chatMessages]);
-          conversationItems.push({
-            type: "function_call_output",
-            call_id: toolCallMessage.call_id,
-            status: "completed",
-            output: JSON.stringify(toolResult),
-          });
-          setConversationItems([...conversationItems]);
-
-          // Create another turn after tool output has been added
-          await processMessages();
+          
         }
         break;
       }
