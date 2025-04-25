@@ -124,8 +124,6 @@ export const processMessages = async () => {
       case "response.output_text.annotation.added": {
         const { delta, item_id, annotation } = data;
 
-        console.log("event", data);
-
         let partial = "";
         if (typeof delta === "string") {
           partial = delta;
@@ -170,7 +168,6 @@ export const processMessages = async () => {
 
       case "response.output_item.added": {
         const { item } = data || {};
-        console.log("event", data);
         // New item coming in
         if (!item || !item.type) {
           break;
@@ -244,7 +241,6 @@ export const processMessages = async () => {
       case "response.output_item.done": {
         // After output item is done, adding tool call ID
         const { item } = data || {};
-        console.log("event", data);
         const toolCallMessage = chatMessages.find((m) => m.id === item.id);
         if (toolCallMessage && toolCallMessage.type === "tool_call") {
           toolCallMessage.call_id = item.call_id;
@@ -252,7 +248,11 @@ export const processMessages = async () => {
         }
         conversationItems.push(item);
         setConversationItems([...conversationItems]);
-        if (toolCallMessage  && toolCallMessage.type === "tool_call" && toolCallMessage.tool_type === "function_call") {
+        if (
+          toolCallMessage &&
+          toolCallMessage.type === "tool_call" &&
+          toolCallMessage.tool_type === "function_call"
+        ) {
           // Handle tool call (execute function)
           const toolResult = await handleTool(
             toolCallMessage.name as keyof typeof functionsMap,
@@ -279,7 +279,6 @@ export const processMessages = async () => {
         // Streaming arguments delta to show in the chat
         functionArguments += data.delta || "";
         let parsedFunctionArguments = {};
-        
 
         const toolCallMessage = chatMessages.find((m) => m.id === data.item_id);
         if (toolCallMessage && toolCallMessage.type === "tool_call") {
@@ -310,7 +309,6 @@ export const processMessages = async () => {
           toolCallMessage.parsedArguments = parse(finalArgs);
           toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
-          
         }
         break;
       }
