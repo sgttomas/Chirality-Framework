@@ -367,19 +367,7 @@ export const processMessages = async () => {
         break;
       }
 
-      case "response.code_interpreter_call.interpreting": {
-        const { code_interpreter_call } = data;
-        const toolCallMessage = chatMessages.find(
-          (m) => m.id === code_interpreter_call.id
-        );
-        if (toolCallMessage && toolCallMessage.type === "tool_call") {
-          toolCallMessage.status = "searching";
-          setChatMessages([...chatMessages]);
-        }
-        break;
-      }
-
-      case "response.code_interpreter_call.code.delta": {
+      case "response.code_interpreter_call_code.delta": {
         const { delta } = data;
         const toolCallMessage = [...chatMessages]
           .reverse()
@@ -391,13 +379,19 @@ export const processMessages = async () => {
         break;
       }
 
-      case "response.code_interpreter_call.code.done": {
+      case "response.code_interpreter_call_code.done": {
         const { code } = data;
         const toolCallMessage = [...chatMessages]
           .reverse()
-          .find((m) => m.type === "tool_call" && m.tool_type === "code_interpreter_call" && m.status !== "completed") as ToolCallItem | undefined;
+          .find(
+            (m) =>
+              m.type === "tool_call" &&
+              m.tool_type === "code_interpreter_call" &&
+              m.status !== "completed"
+          ) as ToolCallItem | undefined;
         if (toolCallMessage) {
           toolCallMessage.code = code;
+          toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
         }
         break;

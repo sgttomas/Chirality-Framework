@@ -100,10 +100,20 @@ function CodeInterpreterCell({ toolCall }: ToolCallProps) {
     <div className="flex flex-col w-[70%] relative mb-[-8px]">
       <div className="flex flex-col text-sm rounded-[16px]">
         <div className="font-semibold p-3 pl-0 text-gray-700 rounded-b-none flex gap-2">
-          <div className="flex gap-2 items-center text-blue-500 ml-[-8px] cursor-pointer" onClick={() => setOpen(!open)}>
+          <div
+            className="flex gap-2 items-center text-blue-500 ml-[-8px] cursor-pointer"
+            onClick={() => setOpen(!open)}
+          >
             <Code2 size={16} />
-            <div className="text-sm font-medium">Code executed</div>
-            <ChevronDown size={16} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
+            <div className="text-sm font-medium">
+              {toolCall.status === "completed"
+                ? "Code executed"
+                : "Running code interpreter..."}
+            </div>
+            <ChevronDown
+              size={16}
+              className={open ? "rotate-180 transition-transform" : "transition-transform"}
+            />
           </div>
         </div>
         {open && (
