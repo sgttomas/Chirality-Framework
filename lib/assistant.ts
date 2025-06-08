@@ -353,6 +353,32 @@ export const processMessages = async () => {
         break;
       }
 
+      case "response.code_interpreter_call.in_progress": {
+        const { code_interpreter_call } = data;
+        chatMessages.push({
+          type: "tool_call",
+          tool_type: "code_interpreter_call",
+          status: "in_progress",
+          id: code_interpreter_call.id,
+          code: "",
+          files: [],
+        });
+        setChatMessages([...chatMessages]);
+        break;
+      }
+
+      case "response.code_interpreter_call.interpreting": {
+        const { code_interpreter_call } = data;
+        const toolCallMessage = chatMessages.find(
+          (m) => m.id === code_interpreter_call.id
+        );
+        if (toolCallMessage && toolCallMessage.type === "tool_call") {
+          toolCallMessage.status = "searching";
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
+
       case "response.code_interpreter_call.code.delta": {
         const { delta } = data;
         const toolCallMessage = [...chatMessages]
