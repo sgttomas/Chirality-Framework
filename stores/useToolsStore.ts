@@ -32,6 +32,8 @@ interface StoreState {
   functionsEnabled: boolean;
   //previousFunctionsEnabled: boolean;
   setFunctionsEnabled: (enabled: boolean) => void;
+  codeInterpreterEnabled: boolean;
+  setCodeInterpreterEnabled: (enabled: boolean) => void;
   vectorStore: VectorStore | null;
   setVectorStore: (store: VectorStore) => void;
   webSearchConfig: WebSearchConfig;
@@ -63,6 +65,10 @@ const useToolsStore = create<StoreState>()(
       previousFunctionsEnabled: true,
       setFunctionsEnabled: (enabled) => {
         set({ functionsEnabled: enabled });
+      },
+      codeInterpreterEnabled: false,
+      setCodeInterpreterEnabled: (enabled) => {
+        set({ codeInterpreterEnabled: enabled });
       },
       setVectorStore: (store) => set({ vectorStore: store }),
       setWebSearchConfig: (config) => set({ webSearchConfig: config }),

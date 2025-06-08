@@ -23,7 +23,11 @@ export interface MessageItem {
 // Custom items to display in chat
 export interface ToolCallItem {
   type: "tool_call";
-  tool_type: "file_search_call" | "web_search_call" | "function_call";
+  tool_type:
+    | "file_search_call"
+    | "web_search_call"
+    | "function_call"
+    | "code_interpreter_call";
   status: "in_progress" | "completed" | "failed" | "searching";
   id: string;
   name?: string | null;
@@ -31,6 +35,8 @@ export interface ToolCallItem {
   arguments?: string;
   parsedArguments?: any;
   output?: string | null;
+  code?: string;
+  files?: { file_id: string; mime_type: string }[];
 }
 
 export type Item = MessageItem | ToolCallItem;
@@ -234,6 +240,18 @@ export const processMessages = async () => {
             setChatMessages([...chatMessages]);
             break;
           }
+          case "code_interpreter_call": {
+            chatMessages.push({
+              type: "tool_call",
+              tool_type: "code_interpreter_call",
+              status: item.status || "in_progress",
+              id: item.id,
+              code: "",
+              files: [],
+            });
+            setChatMessages([...chatMessages]);
+            break;
+          }
         }
         break;
       }
@@ -329,6 +347,46 @@ export const processMessages = async () => {
         const toolCallMessage = chatMessages.find((m) => m.id === item_id);
         if (toolCallMessage && toolCallMessage.type === "tool_call") {
           toolCallMessage.output = output;
+          toolCallMessage.status = "completed";
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
+
+      case "response.code_interpreter_call.code.delta": {
+        const { delta } = data;
+        const toolCallMessage = [...chatMessages]
+          .reverse()
+          .find((m) => m.type === "tool_call" && m.tool_type === "code_interpreter_call" && m.status !== "completed") as ToolCallItem | undefined;
+        if (toolCallMessage) {
+          toolCallMessage.code = (toolCallMessage.code || "") + delta;
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
+
+      case "response.code_interpreter_call.code.done": {
+        const { code } = data;
+        const toolCallMessage = [...chatMessages]
+          .reverse()
+          .find((m) => m.type === "tool_call" && m.tool_type === "code_interpreter_call" && m.status !== "completed") as ToolCallItem | undefined;
+        if (toolCallMessage) {
+          toolCallMessage.code = code;
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
+
+      case "response.code_interpreter_call.completed": {
+        const { code_interpreter_call } = data;
+        const toolCallMessage = chatMessages.find((m) => m.id === code_interpreter_call.id);
+        if (toolCallMessage && toolCallMessage.type === "tool_call") {
+          const files = code_interpreter_call.results
+            .filter((r: any) => r.type === "files")
+            .flatMap((r: any) => r.files);
+          toolCallMessage.files = files;
+          const logsObj = code_interpreter_call.results.find((r: any) => r.type === "logs");
+          if (logsObj) toolCallMessage.output = (logsObj as any).logs;
           toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
         }
