@@ -408,15 +408,12 @@ export const processMessages = async () => {
       }
 
       case "response.code_interpreter_call.completed": {
-        const { item_id, code_interpreter_call } = data;
+        const { item_id } = data;
         const toolCallMessage = chatMessages.find(
           (m) => m.type === "tool_call" && m.id === item_id
         ) as ToolCallItem | undefined;
         if (toolCallMessage) {
-          const files = (code_interpreter_call.results || [])
-            .filter((r: any) => r.type === "files")
-            .flatMap((r: any) => r.files);
-          toolCallMessage.files = files;
+          toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
         }
         break;

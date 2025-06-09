@@ -2,6 +2,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("file_id");
   const containerId = searchParams.get("container_id");
+  const filename = searchParams.get("filename");
   if (!fileId) {
     return new Response(JSON.stringify({ error: "Missing file_id" }), {
       status: 400,
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     return new Response(blob, {
       headers: {
         "Content-Type": res.headers.get("Content-Type") || "application/octet-stream",
-        "Content-Disposition": `attachment; filename=${fileId}`,
+        "Content-Disposition": `attachment; filename=${filename ?? fileId}`,
       },
     });
   } catch (err) {
