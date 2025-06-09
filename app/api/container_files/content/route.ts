@@ -1,13 +1,18 @@
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("file_id");
+  const containerId = searchParams.get("container_id");
+  const filename = searchParams.get("filename");
   if (!fileId) {
     return new Response(JSON.stringify({ error: "Missing file_id" }), {
       status: 400,
     });
   }
   try {
-    const res = await fetch(`https://api.openai.com/v1/container-files/${fileId}/content`, {
+    const url = containerId
+      ? `https://api.openai.com/v1/containers/${containerId}/files/${fileId}/content`
+      : `https://api.openai.com/v1/container-files/${fileId}/content`;
+    const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
@@ -17,7 +22,7 @@ export async function GET(request: Request) {
     return new Response(blob, {
       headers: {
         "Content-Type": res.headers.get("Content-Type") || "application/octet-stream",
-        "Content-Disposition": `attachment; filename=${fileId}`,
+        "Content-Disposition": `attachment; filename=${filename ?? fileId}`,
       },
     });
   } catch (err) {

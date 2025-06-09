@@ -31,6 +31,22 @@ const Message: React.FC<MessageProps> = ({ message }) => {
                 <ReactMarkdown>
                   {message.content[0].text as string}
                 </ReactMarkdown>
+                {message.content[0].annotations &&
+                  message.content[0].annotations
+                    .filter(
+                      (a) =>
+                        a.type === "container_file_citation" &&
+                        a.filename &&
+                        /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(a.filename)
+                    )
+                    .map((a, i) => (
+                      <img
+                        key={i}
+                        src={`/api/container_files/content?file_id=${a.fileId}${a.containerId ? `&container_id=${a.containerId}` : ""}${a.filename ? `&filename=${encodeURIComponent(a.filename)}` : ""}`}
+                        alt={a.filename || ""}
+                        className="mt-2 max-w-full"
+                      />
+                    ))}
               </div>
             </div>
           </div>
