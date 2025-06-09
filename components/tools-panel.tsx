@@ -3,6 +3,7 @@ import React from "react";
 import FileSearchSetup from "./file-search-setup";
 import WebSearchConfig from "./websearch-config";
 import FunctionsView from "./functions-view";
+import McpConfig from "./mcp-config";
 import PanelConfig from "./panel-config";
 import useToolsStore from "@/stores/useToolsStore";
 
@@ -14,6 +15,8 @@ export default function ContextPanel() {
     setWebSearchEnabled,
     functionsEnabled,
     setFunctionsEnabled,
+    mcpEnabled,
+    setMcpEnabled,
   } = useToolsStore();
   return (
     <div className="h-full p-8 w-full bg-[#f9f9f9] rounded-t-xl md:rounded-none border-l-1 border-stone-100">
@@ -41,6 +44,14 @@ export default function ContextPanel() {
           setEnabled={setFunctionsEnabled}
         >
           <FunctionsView />
+        </PanelConfig>
+        <PanelConfig
+          title="MCP"
+          tooltip="Allows to call tools via remote MCP server"
+          enabled={mcpEnabled}
+          setEnabled={setMcpEnabled}
+        >
+          <McpConfig />
         </PanelConfig>
       </div>
     </div>

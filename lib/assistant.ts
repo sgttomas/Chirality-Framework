@@ -23,7 +23,11 @@ export interface MessageItem {
 // Custom items to display in chat
 export interface ToolCallItem {
   type: "tool_call";
-  tool_type: "file_search_call" | "web_search_call" | "function_call";
+  tool_type:
+    | "file_search_call"
+    | "web_search_call"
+    | "function_call"
+    | "mcp_call";
   status: "in_progress" | "completed" | "failed" | "searching";
   id: string;
   name?: string | null;
@@ -234,6 +238,20 @@ export const processMessages = async () => {
             setChatMessages([...chatMessages]);
             break;
           }
+          case "mcp_call": {
+            chatMessages.push({
+              type: "tool_call",
+              tool_type: "mcp_call",
+              status: "in_progress",
+              id: item.id,
+              name: item.name,
+              arguments: item.arguments || "",
+              parsedArguments: item.arguments ? parse(item.arguments) : {},
+              output: null,
+            });
+            setChatMessages([...chatMessages]);
+            break;
+          }
         }
         break;
       }
@@ -272,6 +290,15 @@ export const processMessages = async () => {
 
           // Create another turn after tool output has been added
           await processMessages();
+        }
+        if (
+          toolCallMessage &&
+          toolCallMessage.type === "tool_call" &&
+          toolCallMessage.tool_type === "mcp_call"
+        ) {
+          toolCallMessage.output = item.output;
+          toolCallMessage.status = "completed";
+          setChatMessages([...chatMessages]);
         }
       }
 
@@ -334,6 +361,8 @@ export const processMessages = async () => {
         }
         break;
       }
+
+
 
       // Handle other events as needed
     }
