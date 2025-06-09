@@ -94,6 +94,65 @@ function WebSearchCell({ toolCall }: ToolCallProps) {
   );
 }
 
+function McpCallCell({ toolCall }: ToolCallProps) {
+  return (
+    <div className="flex flex-col w-[70%] relative mb-[-8px]">
+      <div>
+        <div className="flex flex-col text-sm rounded-[16px]">
+          <div className="font-semibold p-3 pl-0 text-gray-700 rounded-b-none flex gap-2">
+            <div className="flex gap-2 items-center text-blue-500 ml-[-8px]">
+              <Zap size={16} />
+              <div className="text-sm font-medium">
+                {toolCall.status === "completed"
+                  ? `Called ${toolCall.name} via MCP tool`
+                  : `Calling ${toolCall.name} via MCP tool...`}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#fafafa] rounded-xl py-2 ml-4 mt-2">
+            <div className="max-h-96 overflow-y-scroll text-xs border-b mx-6 p-2">
+              <SyntaxHighlighter
+                customStyle={{
+                  backgroundColor: "#fafafa",
+                  padding: "8px",
+                  paddingLeft: "0px",
+                  marginTop: 0,
+                  marginBottom: 0,
+                }}
+                language="json"
+                style={coy}
+              >
+                {JSON.stringify(toolCall.parsedArguments, null, 2)}
+              </SyntaxHighlighter>
+            </div>
+            <div className="max-h-96 overflow-y-scroll mx-6 p-2 text-xs">
+              {toolCall.output ? (
+                <SyntaxHighlighter
+                  customStyle={{
+                    backgroundColor: "#fafafa",
+                    padding: "8px",
+                    paddingLeft: "0px",
+                    marginTop: 0,
+                  }}
+                  language="json"
+                  style={coy}
+                >
+                  {JSON.stringify(JSON.parse(toolCall.output), null, 2)}
+                </SyntaxHighlighter>
+              ) : (
+                <div className="text-zinc-500 flex items-center gap-2 py-2">
+                  <Clock size={16} /> Waiting for result...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CodeInterpreterCell({ toolCall }: ToolCallProps) {
   const [open, setOpen] = React.useState(false);
   return (
@@ -159,6 +218,8 @@ export default function ToolCall({ toolCall }: ToolCallProps) {
             return <FileSearchCell toolCall={toolCall} />;
           case "web_search_call":
             return <WebSearchCell toolCall={toolCall} />;
+          case "mcp_call":
+            return <McpCallCell toolCall={toolCall} />;
           case "code_interpreter_call":
             return <CodeInterpreterCell toolCall={toolCall} />;
           default:
