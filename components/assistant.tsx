@@ -30,9 +30,30 @@ export default function Assistant() {
     }
   };
 
+  const handleApprovalResponse = async (
+    approve: boolean,
+    id: string
+  ) => {
+    const approvalItem = {
+      type: "mcp_approval_response",
+      approve,
+      approval_request_id: id,
+    } as any;
+    try {
+      addConversationItem(approvalItem);
+      await processMessages();
+    } catch (error) {
+      console.error("Error sending approval response:", error);
+    }
+  };
+
   return (
     <div className="h-full p-4 w-full bg-white">
-      <Chat items={chatMessages} onSendMessage={handleSendMessage} />
+      <Chat
+        items={chatMessages}
+        onSendMessage={handleSendMessage}
+        onApprovalResponse={handleApprovalResponse}
+      />
     </div>
   );
 }

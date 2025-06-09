@@ -40,7 +40,26 @@ export interface ToolCallItem {
   files?: { file_id: string; mime_type: string }[];
 }
 
-export type Item = MessageItem | ToolCallItem;
+export interface McpListToolsItem {
+  type: "mcp_list_tools";
+  id: string;
+  server_label: string;
+  tools: { name: string; description?: string }[];
+}
+
+export interface McpApprovalRequestItem {
+  type: "mcp_approval_request";
+  id: string;
+  server_label: string;
+  name: string;
+  arguments?: string;
+}
+
+export type Item =
+  | MessageItem
+  | ToolCallItem
+  | McpListToolsItem
+  | McpApprovalRequestItem;
 
 export const handleTurn = async (
   messages: any[],
@@ -206,6 +225,27 @@ export const processMessages = async () => {
             });
             setChatMessages([...chatMessages]);
             setConversationItems([...conversationItems]);
+            break;
+          }
+          case "mcp_list_tools": {
+            chatMessages.push({
+              type: "mcp_list_tools",
+              id: item.id,
+              server_label: item.server_label,
+              tools: item.tools || [],
+            });
+            setChatMessages([...chatMessages]);
+            break;
+          }
+          case "mcp_approval_request": {
+            chatMessages.push({
+              type: "mcp_approval_request",
+              id: item.id,
+              server_label: item.server_label,
+              name: item.name,
+              arguments: item.arguments,
+            });
+            setChatMessages([...chatMessages]);
             break;
           }
           case "function_call": {

@@ -4,14 +4,21 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import ToolCall from "./tool-call";
 import Message from "./message";
 import Annotations from "./annotations";
-import { Item } from "@/lib/assistant";
+import McpToolsList from "./mcp-tools-list";
+import McpApproval from "./mcp-approval";
+import { Item, McpApprovalRequestItem } from "@/lib/assistant";
 
 interface ChatProps {
   items: Item[];
   onSendMessage: (message: string) => void;
+  onApprovalResponse: (approve: boolean, id: string) => void;
 }
 
-const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
+const Chat: React.FC<ChatProps> = ({
+  items,
+  onSendMessage,
+  onApprovalResponse,
+}) => {
   const itemsEndRef = useRef<HTMLDivElement>(null);
   const [inputMessageText, setinputMessageText] = useState<string>("");
   // This state is used to provide better user experience for non-English IMEs such as Japanese
@@ -53,6 +60,13 @@ const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
                         />
                       )}
                   </div>
+                ) : item.type === "mcp_list_tools" ? (
+                  <McpToolsList item={item} />
+                ) : item.type === "mcp_approval_request" ? (
+                  <McpApproval
+                    item={item as McpApprovalRequestItem}
+                    onRespond={onApprovalResponse}
+                  />
                 ) : null}
               </React.Fragment>
             ))}
