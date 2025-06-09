@@ -124,6 +124,8 @@ export const processMessages = async () => {
 
   let assistantMessageContent = "";
   let functionArguments = "";
+  // For streaming MCP tool call arguments
+  let mcpArguments = "";
 
   await handleTurn(allConversationItems, tools, async ({ event, data }) => {
     switch (event) {
@@ -242,6 +244,7 @@ export const processMessages = async () => {
             break;
           }
           case "mcp_call": {
+            mcpArguments = item.arguments || "";
             chatMessages.push({
               type: "tool_call",
               tool_type: "mcp_call",
@@ -252,6 +255,8 @@ export const processMessages = async () => {
               parsedArguments: item.arguments ? parse(item.arguments) : {},
               output: null,
             });
+            setChatMessages([...chatMessages]);
+            break;
           }
           case "code_interpreter_call": {
             chatMessages.push({
@@ -352,6 +357,39 @@ export const processMessages = async () => {
         }
         break;
       }
+      // Streaming MCP tool call arguments
+      case "response.mcp_call_arguments.delta": {
+        // Append delta to MCP arguments
+        mcpArguments += data.delta || "";
+        let parsedMcpArguments: any = {};
+        const toolCallMessage = chatMessages.find((m) => m.id === data.item_id);
+        if (toolCallMessage && toolCallMessage.type === "tool_call") {
+          toolCallMessage.arguments = mcpArguments;
+          try {
+            if (mcpArguments.length > 0) {
+              parsedMcpArguments = parse(mcpArguments);
+            }
+            toolCallMessage.parsedArguments = parsedMcpArguments;
+          } catch {
+            // partial JSON can fail parse; ignore
+          }
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
+      case "response.mcp_call_arguments.done": {
+        // Final MCP arguments string received
+        const { item_id, arguments: finalArgs } = data;
+        mcpArguments = finalArgs;
+        const toolCallMessage = chatMessages.find((m) => m.id === item_id);
+        if (toolCallMessage && toolCallMessage.type === "tool_call") {
+          toolCallMessage.arguments = finalArgs;
+          toolCallMessage.parsedArguments = parse(finalArgs);
+          toolCallMessage.status = "completed";
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
 
       case "response.web_search_call.completed": {
         const { item_id, output } = data;
@@ -412,6 +450,11 @@ export const processMessages = async () => {
           toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
         }
+        break;
+      }
+
+      default: {
+        console.log("event", event, data);
         break;
       }
 
