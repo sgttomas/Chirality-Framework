@@ -37,6 +37,12 @@ export default function ContextPanel() {
           <WebSearchConfig />
         </PanelConfig>
         <PanelConfig
+          title="Code Interpreter"
+          tooltip="Allows the assistant to run Python code"
+          enabled={codeInterpreterEnabled}
+          setEnabled={setCodeInterpreterEnabled}
+        />
+        <PanelConfig
           title="Functions"
           tooltip="Allows to use locally defined functions"
           enabled={functionsEnabled}
@@ -44,12 +50,6 @@ export default function ContextPanel() {
         >
           <FunctionsView />
         </PanelConfig>
-        <PanelConfig
-          title="Code Interpreter"
-          tooltip="Allows the assistant to run Python code"
-          enabled={codeInterpreterEnabled}
-          setEnabled={setCodeInterpreterEnabled}
-        />
       </div>
     </div>
   );
