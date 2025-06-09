@@ -1,8 +1,12 @@
 import { ExternalLinkIcon } from "lucide-react";
 
 export type Annotation = {
-  type: "file_citation" | "url_citation" | "file_path";
+  type:
+    | "file_citation"
+    | "url_citation"
+    | "container_file_citation";
   fileId?: string;
+  containerId?: string;
   url?: string;
   title?: string;
   filename?: string;
@@ -30,14 +34,14 @@ const AnnotationPill = ({ annotation }: { annotation: Annotation }) => {
           </div>
         </a>
       );
-    case "file_path":
+    case "container_file_citation":
       return (
         <a
-          href={`/api/container_files/content?file_id=${annotation.fileId}`}
+          href={`/api/container_files/content?file_id=${annotation.fileId}${annotation.containerId ? `&container_id=${annotation.containerId}` : ""}`}
           download
           className={`${className} flex items-center gap-1`}
         >
-          <span className="truncate">{annotation.fileId}</span>
+          <span className="truncate">{annotation.filename || annotation.fileId}</span>
           <ExternalLinkIcon size={12} className="shrink-0" />
         </a>
       );
@@ -54,7 +58,7 @@ const Annotations = ({ annotations }: { annotations: Annotation[] }) => {
             ((annotation.type === "file_citation" &&
               a.fileId === annotation.fileId) ||
               (annotation.type === "url_citation" && a.url === annotation.url) ||
-              (annotation.type === "file_path" && a.fileId === annotation.fileId))
+              (annotation.type === "container_file_citation" && a.fileId === annotation.fileId))
         )
       ) {
         acc.push(annotation);

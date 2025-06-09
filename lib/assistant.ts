@@ -36,7 +36,12 @@ export interface ToolCallItem {
   parsedArguments?: any;
   output?: string | null;
   code?: string;
-  files?: { file_id: string; mime_type: string }[];
+  files?: {
+    file_id: string;
+    mime_type: string;
+    container_id?: string;
+    filename?: string;
+  }[];
 }
 
 export type Item = MessageItem | ToolCallItem;
@@ -388,6 +393,21 @@ export const processMessages = async () => {
         if (toolCallMessage) {
           toolCallMessage.code = code;
           toolCallMessage.status = "completed";
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
+
+      case "response.code_interpreter_call.completed": {
+        const { item_id, code_interpreter_call } = data;
+        const toolCallMessage = chatMessages.find(
+          (m) => m.type === "tool_call" && m.id === item_id
+        ) as ToolCallItem | undefined;
+        if (toolCallMessage) {
+          const files = (code_interpreter_call.results || [])
+            .filter((r: any) => r.type === "files")
+            .flatMap((r: any) => r.files);
+          toolCallMessage.files = files;
           setChatMessages([...chatMessages]);
         }
         break;

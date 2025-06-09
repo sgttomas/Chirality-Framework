@@ -133,11 +133,11 @@ function CodeInterpreterCell({ toolCall }: ToolCallProps) {
             {toolCall.files.map((f) => (
               <a
                 key={f.file_id}
-                href={`/api/container_files/content?file_id=${f.file_id}`}
+                href={`/api/container_files/content?file_id=${f.file_id}${f.container_id ? `&container_id=${f.container_id}` : ""}`}
                 download
                 className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#ededed] text-xs text-zinc-500"
               >
-                {f.file_id}
+                {f.filename || f.file_id}
                 <Download size={12} />
               </a>
             ))}
