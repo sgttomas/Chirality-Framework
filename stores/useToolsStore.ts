@@ -67,7 +67,7 @@ const useToolsStore = create<StoreState>()(
         server_label: "",
         server_url: "",
         allowed_tools: "",
-        skip_approval: false,
+        skip_approval: true,
       },
       fileSearchEnabled: false,
       previousFileSearchEnabled: false,
