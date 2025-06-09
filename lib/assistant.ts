@@ -40,7 +40,26 @@ export interface ToolCallItem {
   files?: { file_id: string; mime_type: string }[];
 }
 
-export type Item = MessageItem | ToolCallItem;
+export interface McpListToolsItem {
+  type: "mcp_list_tools";
+  id: string;
+  server_label: string;
+  tools: { name: string; description?: string }[];
+}
+
+export interface McpApprovalRequestItem {
+  type: "mcp_approval_request";
+  id: string;
+  server_label: string;
+  name: string;
+  arguments?: string;
+}
+
+export type Item =
+  | MessageItem
+  | ToolCallItem
+  | McpListToolsItem
+  | McpApprovalRequestItem;
 
 export const handleTurn = async (
   messages: any[],
@@ -318,6 +337,7 @@ export const processMessages = async () => {
           toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
         }
+        break;
       }
 
       case "response.function_call_arguments.delta": {
@@ -453,8 +473,41 @@ export const processMessages = async () => {
         break;
       }
 
-      default: {
-        console.log("event", event, data);
+      case "response.completed": {
+        console.log("response completed", data);
+        const { response } = data;
+
+        // Handle MCP tools list
+        const mcpListToolsMessage = response.output.find(
+          (m: Item) => m.type === "mcp_list_tools"
+        );
+
+        if (mcpListToolsMessage) {
+          chatMessages.push({
+            type: "mcp_list_tools",
+            id: mcpListToolsMessage.id,
+            server_label: mcpListToolsMessage.server_label,
+            tools: mcpListToolsMessage.tools || [],
+          });
+          setChatMessages([...chatMessages]);
+        }
+
+        // Handle MCP approval request
+        const mcpApprovalRequestMessage = response.output.find(
+          (m: Item) => m.type === "mcp_approval_request"
+        );
+
+        if (mcpApprovalRequestMessage) {
+          chatMessages.push({
+            type: "mcp_approval_request",
+            id: mcpApprovalRequestMessage.id,
+            server_label: mcpApprovalRequestMessage.server_label,
+            name: mcpApprovalRequestMessage.name,
+            arguments: mcpApprovalRequestMessage.arguments,
+          });
+          setChatMessages([...chatMessages]);
+        }
+
         break;
       }
 
