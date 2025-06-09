@@ -7,6 +7,8 @@ import Annotations from "./annotations";
 import McpToolsList from "./mcp-tools-list";
 import McpApproval from "./mcp-approval";
 import { Item, McpApprovalRequestItem } from "@/lib/assistant";
+import LoadingMessage from "./loading-message";
+import useConversationStore from "@/stores/useConversationStore";
 
 interface ChatProps {
   items: Item[];
@@ -23,6 +25,7 @@ const Chat: React.FC<ChatProps> = ({
   const [inputMessageText, setinputMessageText] = useState<string>("");
   // This state is used to provide better user experience for non-English IMEs such as Japanese
   const [isComposing, setIsComposing] = useState(false);
+  const { isAssistantLoading } = useConversationStore();
 
   const scrollToBottom = () => {
     itemsEndRef.current?.scrollIntoView({ behavior: "instant" });
@@ -73,6 +76,7 @@ const Chat: React.FC<ChatProps> = ({
                 ) : null}
               </React.Fragment>
             ))}
+            {isAssistantLoading && <LoadingMessage />}
             <div ref={itemsEndRef} />
           </div>
         </div>
@@ -100,7 +104,7 @@ const Chat: React.FC<ChatProps> = ({
                     disabled={!inputMessageText}
                     data-testid="send-button"
                     className="flex size-8 items-end justify-center rounded-full bg-black text-white transition-colors hover:opacity-70 focus-visible:outline-none focus-visible:outline-black disabled:bg-[#D7D7D7] disabled:text-[#f4f4f4] disabled:hover:opacity-100"
-                    onClick={() => {
+                  onClick={() => {
                       onSendMessage(inputMessageText);
                       setinputMessageText("");
                     }}

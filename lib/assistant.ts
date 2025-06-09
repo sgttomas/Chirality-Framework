@@ -140,6 +140,7 @@ export const processMessages = async () => {
     conversationItems,
     setChatMessages,
     setConversationItems,
+    setAssistantLoading,
   } = useConversationStore.getState();
 
   const tools = getTools();
@@ -202,6 +203,7 @@ export const processMessages = async () => {
         }
 
         setChatMessages([...chatMessages]);
+        setAssistantLoading(false);
         break;
       }
 
@@ -211,6 +213,7 @@ export const processMessages = async () => {
         if (!item || !item.type) {
           break;
         }
+        setAssistantLoading(false);
         // Handle differently depending on the item type
         switch (item.type) {
           case "message": {
