@@ -28,13 +28,16 @@ const Chat: React.FC<ChatProps> = ({
     itemsEndRef.current?.scrollIntoView({ behavior: "instant" });
   };
 
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey && !isComposing) {
-      event.preventDefault();
-      onSendMessage(inputMessageText);
-      setinputMessageText("");
-    }
-  }, [onSendMessage, inputMessageText]);
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !event.shiftKey && !isComposing) {
+        event.preventDefault();
+        onSendMessage(inputMessageText);
+        setinputMessageText("");
+      }
+    },
+    [onSendMessage, inputMessageText, isComposing]
+  );
 
   useEffect(() => {
     scrollToBottom();

@@ -11,8 +11,9 @@ export default function McpToolsList({ item }: Props) {
     <div className="flex flex-col">
       <div className="flex">
         <div className="mr-4 rounded-[16px] px-4 py-2 md:mr-24 text-black bg-white font-light">
-          <div className="font-semibold mb-2">
-            {item.server_label} tools list
+          <div className="text-sm mb-2">
+            Server <span className="font-semibold">{item.server_label}</span>{" "}
+            tools list
           </div>
           <div className="space-y-2 text-sm">
             {item.tools.map((tool) => (

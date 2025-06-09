@@ -227,27 +227,6 @@ export const processMessages = async () => {
             setConversationItems([...conversationItems]);
             break;
           }
-          case "mcp_list_tools": {
-            chatMessages.push({
-              type: "mcp_list_tools",
-              id: item.id,
-              server_label: item.server_label,
-              tools: item.tools || [],
-            });
-            setChatMessages([...chatMessages]);
-            break;
-          }
-          case "mcp_approval_request": {
-            chatMessages.push({
-              type: "mcp_approval_request",
-              id: item.id,
-              server_label: item.server_label,
-              name: item.name,
-              arguments: item.arguments,
-            });
-            setChatMessages([...chatMessages]);
-            break;
-          }
           case "function_call": {
             functionArguments += item.arguments || "";
             chatMessages.push({
@@ -358,6 +337,7 @@ export const processMessages = async () => {
           toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
         }
+        break;
       }
 
       case "response.function_call_arguments.delta": {
@@ -493,8 +473,41 @@ export const processMessages = async () => {
         break;
       }
 
-      default: {
-        console.log("event", event, data);
+      case "response.completed": {
+        console.log("response completed", data);
+        const { response } = data;
+
+        // Handle MCP tools list
+        const mcpListToolsMessage = response.output.find(
+          (m: Item) => m.type === "mcp_list_tools"
+        );
+
+        if (mcpListToolsMessage) {
+          chatMessages.push({
+            type: "mcp_list_tools",
+            id: mcpListToolsMessage.id,
+            server_label: mcpListToolsMessage.server_label,
+            tools: mcpListToolsMessage.tools || [],
+          });
+          setChatMessages([...chatMessages]);
+        }
+
+        // Handle MCP approval request
+        const mcpApprovalRequestMessage = response.output.find(
+          (m: Item) => m.type === "mcp_approval_request"
+        );
+
+        if (mcpApprovalRequestMessage) {
+          chatMessages.push({
+            type: "mcp_approval_request",
+            id: mcpApprovalRequestMessage.id,
+            server_label: mcpApprovalRequestMessage.server_label,
+            name: mcpApprovalRequestMessage.name,
+            arguments: mcpApprovalRequestMessage.arguments,
+          });
+          setChatMessages([...chatMessages]);
+        }
+
         break;
       }
 
