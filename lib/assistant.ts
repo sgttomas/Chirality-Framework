@@ -6,6 +6,12 @@ import { getTools } from "./tools/tools";
 import { Annotation } from "@/components/annotations";
 import { functionsMap } from "@/config/functions";
 
+const normalizeAnnotation = (annotation: any): Annotation => ({
+  ...annotation,
+  fileId: annotation.file_id ?? annotation.fileId,
+  containerId: annotation.container_id ?? annotation.containerId,
+});
+
 export interface ContentItem {
   type: "input_text" | "output_text" | "refusal" | "output_audio";
   annotations?: Annotation[];
@@ -167,7 +173,7 @@ export const processMessages = async () => {
             if (annotation) {
               contentItem.annotations = [
                 ...(contentItem.annotations ?? []),
-                annotation,
+                normalizeAnnotation(annotation),
               ];
             }
           }
@@ -187,6 +193,7 @@ export const processMessages = async () => {
         switch (item.type) {
           case "message": {
             const text = item.content?.text || "";
+            const annotations = item.content?.annotations?.map(normalizeAnnotation) || [];
             chatMessages.push({
               type: "message",
               role: "assistant",
@@ -194,6 +201,7 @@ export const processMessages = async () => {
                 {
                   type: "output_text",
                   text,
+                  ...(annotations.length > 0 ? { annotations } : {}),
                 },
               ],
             });
@@ -203,6 +211,7 @@ export const processMessages = async () => {
                 {
                   type: "output_text",
                   text,
+                  ...(annotations.length > 0 ? { annotations } : {}),
                 },
               ],
             });
