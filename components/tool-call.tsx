@@ -138,7 +138,14 @@ function McpCallCell({ toolCall }: ToolCallProps) {
                   language="json"
                   style={coy}
                 >
-                  {JSON.stringify(JSON.parse(toolCall.output), null, 2)}
+                  {(() => {
+                    try {
+                      const parsed = JSON.parse(toolCall.output!);
+                      return JSON.stringify(parsed, null, 2);
+                    } catch {
+                      return toolCall.output!;
+                    }
+                  })()}
                 </SyntaxHighlighter>
               ) : (
                 <div className="text-zinc-500 flex items-center gap-2 py-2">
