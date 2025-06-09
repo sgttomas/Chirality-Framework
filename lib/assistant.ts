@@ -33,6 +33,7 @@ export interface ToolCallItem {
     | "file_search_call"
     | "web_search_call"
     | "function_call"
+    | "mcp_call"
     | "code_interpreter_call";
   status: "in_progress" | "completed" | "failed" | "searching";
   id: string;
@@ -50,7 +51,26 @@ export interface ToolCallItem {
   }[];
 }
 
-export type Item = MessageItem | ToolCallItem;
+export interface McpListToolsItem {
+  type: "mcp_list_tools";
+  id: string;
+  server_label: string;
+  tools: { name: string; description?: string }[];
+}
+
+export interface McpApprovalRequestItem {
+  type: "mcp_approval_request";
+  id: string;
+  server_label: string;
+  name: string;
+  arguments?: string;
+}
+
+export type Item =
+  | MessageItem
+  | ToolCallItem
+  | McpListToolsItem
+  | McpApprovalRequestItem;
 
 export const handleTurn = async (
   messages: any[],
@@ -134,6 +154,8 @@ export const processMessages = async () => {
 
   let assistantMessageContent = "";
   let functionArguments = "";
+  // For streaming MCP tool call arguments
+  let mcpArguments = "";
 
   await handleTurn(allConversationItems, tools, async ({ event, data }) => {
     switch (event) {
@@ -193,7 +215,8 @@ export const processMessages = async () => {
         switch (item.type) {
           case "message": {
             const text = item.content?.text || "";
-            const annotations = item.content?.annotations?.map(normalizeAnnotation) || [];
+            const annotations =
+              item.content?.annotations?.map(normalizeAnnotation) || [];
             chatMessages.push({
               type: "message",
               role: "assistant",
@@ -254,6 +277,21 @@ export const processMessages = async () => {
             setChatMessages([...chatMessages]);
             break;
           }
+          case "mcp_call": {
+            mcpArguments = item.arguments || "";
+            chatMessages.push({
+              type: "tool_call",
+              tool_type: "mcp_call",
+              status: "in_progress",
+              id: item.id,
+              name: item.name,
+              arguments: item.arguments || "",
+              parsedArguments: item.arguments ? parse(item.arguments) : {},
+              output: null,
+            });
+            setChatMessages([...chatMessages]);
+            break;
+          }
           case "code_interpreter_call": {
             chatMessages.push({
               type: "tool_call",
@@ -305,6 +343,16 @@ export const processMessages = async () => {
           // Create another turn after tool output has been added
           await processMessages();
         }
+        if (
+          toolCallMessage &&
+          toolCallMessage.type === "tool_call" &&
+          toolCallMessage.tool_type === "mcp_call"
+        ) {
+          toolCallMessage.output = item.output;
+          toolCallMessage.status = "completed";
+          setChatMessages([...chatMessages]);
+        }
+        break;
       }
 
       case "response.function_call_arguments.delta": {
@@ -335,6 +383,39 @@ export const processMessages = async () => {
         functionArguments = finalArgs;
 
         // Mark the tool_call as "completed" and parse the final JSON
+        const toolCallMessage = chatMessages.find((m) => m.id === item_id);
+        if (toolCallMessage && toolCallMessage.type === "tool_call") {
+          toolCallMessage.arguments = finalArgs;
+          toolCallMessage.parsedArguments = parse(finalArgs);
+          toolCallMessage.status = "completed";
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
+      // Streaming MCP tool call arguments
+      case "response.mcp_call_arguments.delta": {
+        // Append delta to MCP arguments
+        mcpArguments += data.delta || "";
+        let parsedMcpArguments: any = {};
+        const toolCallMessage = chatMessages.find((m) => m.id === data.item_id);
+        if (toolCallMessage && toolCallMessage.type === "tool_call") {
+          toolCallMessage.arguments = mcpArguments;
+          try {
+            if (mcpArguments.length > 0) {
+              parsedMcpArguments = parse(mcpArguments);
+            }
+            toolCallMessage.parsedArguments = parsedMcpArguments;
+          } catch {
+            // partial JSON can fail parse; ignore
+          }
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
+      case "response.mcp_call_arguments.done": {
+        // Final MCP arguments string received
+        const { item_id, arguments: finalArgs } = data;
+        mcpArguments = finalArgs;
         const toolCallMessage = chatMessages.find((m) => m.id === item_id);
         if (toolCallMessage && toolCallMessage.type === "tool_call") {
           toolCallMessage.arguments = finalArgs;
@@ -416,6 +497,44 @@ export const processMessages = async () => {
           toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
         }
+        break;
+      }
+
+      case "response.completed": {
+        console.log("response completed", data);
+        const { response } = data;
+
+        // Handle MCP tools list
+        const mcpListToolsMessage = response.output.find(
+          (m: Item) => m.type === "mcp_list_tools"
+        );
+
+        if (mcpListToolsMessage) {
+          chatMessages.push({
+            type: "mcp_list_tools",
+            id: mcpListToolsMessage.id,
+            server_label: mcpListToolsMessage.server_label,
+            tools: mcpListToolsMessage.tools || [],
+          });
+          setChatMessages([...chatMessages]);
+        }
+
+        // Handle MCP approval request
+        const mcpApprovalRequestMessage = response.output.find(
+          (m: Item) => m.type === "mcp_approval_request"
+        );
+
+        if (mcpApprovalRequestMessage) {
+          chatMessages.push({
+            type: "mcp_approval_request",
+            id: mcpApprovalRequestMessage.id,
+            server_label: mcpApprovalRequestMessage.server_label,
+            name: mcpApprovalRequestMessage.name,
+            arguments: mcpApprovalRequestMessage.arguments,
+          });
+          setChatMessages([...chatMessages]);
+        }
+
         break;
       }
 
