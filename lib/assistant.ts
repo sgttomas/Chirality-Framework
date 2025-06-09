@@ -354,24 +354,51 @@ export const processMessages = async () => {
       }
 
       case "response.code_interpreter_call.in_progress": {
-        const { code_interpreter_call } = data;
+        // Start a new code interpreter tool call
+        const codeCall = (data as any).code_interpreter_call;
+        if (!codeCall) {
+          console.error("Missing code_interpreter_call data:", data);
+          break;
+        }
         chatMessages.push({
           type: "tool_call",
           tool_type: "code_interpreter_call",
           status: "in_progress",
-          id: code_interpreter_call.id,
+          id: codeCall.id,
           code: "",
           files: [],
         });
         setChatMessages([...chatMessages]);
         break;
       }
+      // case "response.code_interpreter_call.interpreting": {
+      //   // Code interpreter is processing the code
+      //   const codeCall = (data as any).code_interpreter_call;
+      //   if (codeCall) {
+      //     const toolCallMessage = chatMessages.find(
+      //       (m) =>
+      //         m.type === "tool_call" &&
+      //         m.tool_type === "code_interpreter_call" &&
+      //         m.id === codeCall.id
+      //     );
+      //     if (toolCallMessage) {
+      //       toolCallMessage.status = "interpreting";
+      //       setChatMessages([...chatMessages]);
+      //     }
+      //   }
+      //   break;
+      // }
 
       case "response.code_interpreter_call_code.delta": {
         const { delta } = data;
         const toolCallMessage = [...chatMessages]
           .reverse()
-          .find((m) => m.type === "tool_call" && m.tool_type === "code_interpreter_call" && m.status !== "completed") as ToolCallItem | undefined;
+          .find(
+            (m) =>
+              m.type === "tool_call" &&
+              m.tool_type === "code_interpreter_call" &&
+              m.status !== "completed"
+          ) as ToolCallItem | undefined;
         if (toolCallMessage) {
           toolCallMessage.code = (toolCallMessage.code || "") + delta;
           setChatMessages([...chatMessages]);
@@ -398,14 +425,21 @@ export const processMessages = async () => {
       }
 
       case "response.code_interpreter_call.completed": {
-        const { code_interpreter_call } = data;
-        const toolCallMessage = chatMessages.find((m) => m.id === code_interpreter_call.id);
+        const codeCall = (data as any).code_interpreter_call;
+        if (!codeCall) {
+          console.error(
+            "Missing code_interpreter_call data on completed:",
+            data
+          );
+          break;
+        }
+        const toolCallMessage = chatMessages.find((m) => m.id === codeCall.id);
         if (toolCallMessage && toolCallMessage.type === "tool_call") {
-          const files = code_interpreter_call.results
+          const files = codeCall.results
             .filter((r: any) => r.type === "files")
             .flatMap((r: any) => r.files);
           toolCallMessage.files = files;
-          const logsObj = code_interpreter_call.results.find((r: any) => r.type === "logs");
+          const logsObj = codeCall.results.find((r: any) => r.type === "logs");
           if (logsObj) toolCallMessage.output = (logsObj as any).logs;
           toolCallMessage.status = "completed";
           setChatMessages([...chatMessages]);
