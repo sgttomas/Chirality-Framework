@@ -27,7 +27,8 @@ export interface ToolCallItem {
     | "file_search_call"
     | "web_search_call"
     | "function_call"
-    | "mcp_call";
+    | "mcp_call"
+    | "code_interpreter_call";
   status: "in_progress" | "completed" | "failed" | "searching";
   id: string;
   name?: string | null;
@@ -35,6 +36,8 @@ export interface ToolCallItem {
   arguments?: string;
   parsedArguments?: any;
   output?: string | null;
+  code?: string;
+  files?: { file_id: string; mime_type: string }[];
 }
 
 export type Item = MessageItem | ToolCallItem;
@@ -249,6 +252,16 @@ export const processMessages = async () => {
               parsedArguments: item.arguments ? parse(item.arguments) : {},
               output: null,
             });
+          }
+          case "code_interpreter_call": {
+            chatMessages.push({
+              type: "tool_call",
+              tool_type: "code_interpreter_call",
+              status: item.status || "in_progress",
+              id: item.id,
+              code: "",
+              files: [],
+            });
             setChatMessages([...chatMessages]);
             break;
           }
@@ -362,7 +375,45 @@ export const processMessages = async () => {
         break;
       }
 
+      case "response.code_interpreter_call_code.delta": {
+        const { delta, item_id } = data;
+        const toolCallMessage = [...chatMessages]
+          .reverse()
+          .find(
+            (m) =>
+              m.type === "tool_call" &&
+              m.tool_type === "code_interpreter_call" &&
+              m.status !== "completed" &&
+              m.id === item_id
+          ) as ToolCallItem | undefined;
+        // Accumulate deltas to show the code streaming
+        if (toolCallMessage) {
+          toolCallMessage.code = (toolCallMessage.code || "") + delta;
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
 
+      case "response.code_interpreter_call_code.done": {
+        const { code, item_id } = data;
+        const toolCallMessage = [...chatMessages]
+          .reverse()
+          .find(
+            (m) =>
+              m.type === "tool_call" &&
+              m.tool_type === "code_interpreter_call" &&
+              m.status !== "completed" &&
+              m.id === item_id
+          ) as ToolCallItem | undefined;
+
+        // Mark the call as completed and set the code
+        if (toolCallMessage) {
+          toolCallMessage.code = code;
+          toolCallMessage.status = "completed";
+          setChatMessages([...chatMessages]);
+        }
+        break;
+      }
 
       // Handle other events as needed
     }

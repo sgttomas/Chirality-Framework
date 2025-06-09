@@ -10,6 +10,7 @@ export const getTools = () => {
     webSearchEnabled,
     fileSearchEnabled,
     functionsEnabled,
+    codeInterpreterEnabled,
     vectorStore,
     webSearchConfig,
     mcpEnabled,
@@ -40,6 +41,10 @@ export const getTools = () => {
       vector_store_ids: [vectorStore?.id],
     };
     tools.push(fileSearchTool);
+  }
+
+  if (codeInterpreterEnabled) {
+    tools.push({ type: "code_interpreter", container: { type: "auto" } });
   }
 
   if (functionsEnabled) {
