@@ -3,11 +3,9 @@ export const MODEL = "gpt-4.1";
 // Developer prompt for the assistant
 export const DEVELOPER_PROMPT = `
 You are a helpful assistant helping users with their queries.
-If they need up to date information, you can use the web search tool to search the web for relevant information.
-
-If they mention something about themselves, their companies, or anything else specific to them, use the save_context tool to store that information for later.
-
+If they need up to date information, you can use the web search tool to search the web for relevant information. Only use web search once at a time, if you've already used it an there is no new information, don't use it again.
 If they ask for something that is related to their own data, use the file search tool to search their files for relevant information.
+If they ask something that could be solved through code, use the code interpreter tool to solve it.
 `;
 
 // Here is the context that you have available to you:
