@@ -1,7 +1,7 @@
 import React from "react";
 
 import { ToolCallItem } from "@/lib/assistant";
-import { BookOpenText, Clock, Globe, Zap, Code2, Download, ChevronDown } from "lucide-react";
+import { BookOpenText, Clock, Globe, Zap, Code2, Download } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { coy } from "react-syntax-highlighter/dist/esm/styles/prism";
 
@@ -110,30 +110,24 @@ function CodeInterpreterCell({ toolCall }: ToolCallProps) {
                 ? "Code executed"
                 : "Running code interpreter..."}
             </div>
-            <ChevronDown
-              size={16}
-              className={open ? "rotate-180 transition-transform" : "transition-transform"}
-            />
           </div>
         </div>
-        {open && (
-          <div className="bg-[#fafafa] rounded-xl py-2 ml-4 mt-2">
-            <div className="mx-6 p-2 text-xs">
-              <SyntaxHighlighter
-                customStyle={{ backgroundColor: "#fafafa", padding: "8px", paddingLeft: "0px", marginTop: 0 }}
-                language="python"
-                style={coy}
-              >
-                {toolCall.code || ""}
-              </SyntaxHighlighter>
-            </div>
+        <div className="bg-[#fafafa] rounded-xl py-2 ml-4 mt-2">
+          <div className="mx-6 p-2 text-xs">
+            <SyntaxHighlighter
+              customStyle={{
+                backgroundColor: "#fafafa",
+                padding: "8px",
+                paddingLeft: "0px",
+                marginTop: 0,
+              }}
+              language="python"
+              style={coy}
+            >
+              {toolCall.code || ""}
+            </SyntaxHighlighter>
           </div>
-        )}
-        {toolCall.output && (
-          <div className="bg-[#fafafa] rounded-xl py-2 ml-4 mt-2 mx-6 p-2 text-xs whitespace-pre-wrap">
-            {toolCall.output}
-          </div>
-        )}
+        </div>
         {toolCall.files && toolCall.files.length > 0 && (
           <div className="flex gap-2 mt-2 ml-4 flex-wrap">
             {toolCall.files.map((f) => (
