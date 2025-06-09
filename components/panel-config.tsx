@@ -18,14 +18,14 @@ export default function PanelConfig({
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
   disabled?: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   const handleToggle = () => {
     setEnabled(!enabled);
   };
 
   return (
-    <div className="space-y-4 mb-10">
+    <div className="space-y-4 mb-6">
       <div className="flex justify-between items-center">
         <TooltipProvider>
           <Tooltip>

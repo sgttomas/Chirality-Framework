@@ -14,6 +14,8 @@ export default function ContextPanel() {
     setWebSearchEnabled,
     functionsEnabled,
     setFunctionsEnabled,
+    codeInterpreterEnabled,
+    setCodeInterpreterEnabled,
   } = useToolsStore();
   return (
     <div className="h-full p-8 w-full bg-[#f9f9f9] rounded-t-xl md:rounded-none border-l-1 border-stone-100">
@@ -34,6 +36,12 @@ export default function ContextPanel() {
         >
           <WebSearchConfig />
         </PanelConfig>
+        <PanelConfig
+          title="Code Interpreter"
+          tooltip="Allows the assistant to run Python code"
+          enabled={codeInterpreterEnabled}
+          setEnabled={setCodeInterpreterEnabled}
+        />
         <PanelConfig
           title="Functions"
           tooltip="Allows to use locally defined functions"
