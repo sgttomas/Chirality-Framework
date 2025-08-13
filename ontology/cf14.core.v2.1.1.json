@@ -1,0 +1,321 @@
+{
+  "id": "cf14.core.v2.1.1",
+  "version": "2.1.1",
+  "ontology_registry": {
+    "version": "14.2.1",
+    "date": "2025-08-13",
+    "domains_supported": ["general", "software_engineering", "business_strategy", "research_methods"],
+    "modalities": {
+      "process": ["Normative", "Operative", "Evaluative"],
+      "decision": ["Necessity", "Sufficiency", "Completeness", "Consistency"],
+      "knowledge_hierarchy": ["Data", "Information", "Knowledge", "Wisdom"],
+      "action": ["Guiding", "Applying", "Judging", "Reviewing"]
+    },
+    "external_mappings": {
+      "UFO": "https://ufo-ontology.org/v1"
+    }
+  },
+  "stations": [
+    {
+      "id": 1,
+      "name": "Problem Statement",
+      "description": "Initial problem domain specification",
+      "inputs": ["A", "B"],
+      "outputs": ["A", "B"],
+      "operations": ["axiomatic"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 2,
+      "name": "Requirements",
+      "description": "Derived requirements from A*B operation",
+      "inputs": ["A", "B"],
+      "outputs": ["C"],
+      "operations": ["multiplication"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 3,
+      "name": "Objectives",
+      "description": "Objectives from element-wise and addition operations",
+      "inputs": ["A", "C", "J"],
+      "outputs": ["F", "D"],
+      "operations": ["element_wise_multiplication", "addition"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 4,
+      "name": "Verification",
+      "description": "Verification through K*J operation",
+      "inputs": ["K", "J"],
+      "outputs": ["X"],
+      "operations": ["multiplication"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 5,
+      "name": "Validation",
+      "description": "Context transformation from verification",
+      "inputs": ["X"],
+      "outputs": ["Z"],
+      "operations": ["transformation"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 6,
+      "name": "Evaluation",
+      "description": "Evaluation through G*T operation",
+      "inputs": ["G", "T"],
+      "outputs": ["E"],
+      "operations": ["multiplication"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 7,
+      "name": "Assessment",
+      "description": "Assessment through R×E cross product",
+      "inputs": ["R", "E"],
+      "outputs": ["M"],
+      "operations": ["cross_product"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 8,
+      "name": "Implementation",
+      "description": "Implementation through M×X operation",
+      "inputs": ["M", "X"],
+      "outputs": ["W"],
+      "operations": ["cross_product"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 9,
+      "name": "Reflection",
+      "description": "Reflection through W×P operation",
+      "inputs": ["W", "P"],
+      "outputs": ["U"],
+      "operations": ["cross_product"],
+      "ufo_type": "Situation"
+    },
+    {
+      "id": 10,
+      "name": "Resolution",
+      "description": "Final resolution through U×H operation",
+      "inputs": ["U", "H"],
+      "outputs": ["N"],
+      "operations": ["cross_product"],
+      "ufo_type": "Situation"
+    }
+  ],
+  "components": [
+    {
+      "name": "A",
+      "kind": "matrix",
+      "dimensions": [3, 4],
+      "station": "Problem Statement",
+      "type": "axiomatic",
+      "description": "Problem Statement matrix",
+      "row_modality": "process",
+      "col_modality": "action",
+      "ufo_type": "Endurant"
+    },
+    {
+      "name": "B",
+      "kind": "matrix",
+      "dimensions": [4, 4],
+      "station": "Problem Statement",
+      "type": "axiomatic",
+      "description": "Decision Framework matrix",
+      "row_modality": "knowledge_hierarchy",
+      "col_modality": "decision",
+      "ufo_type": "Endurant"
+    },
+    {
+      "name": "C",
+      "kind": "matrix",
+      "dimensions": [3, 4],
+      "station": "Requirements",
+      "type": "multiplication",
+      "description": "Requirements matrix (A * B)",
+      "row_modality": "process",
+      "col_modality": "decision",
+      "ufo_type": "Endurant"
+    },
+    {
+      "name": "J",
+      "kind": "matrix",
+      "dimensions": [3, 4],
+      "station": "Objectives",
+      "type": "truncation",
+      "description": "Truncated Decisions (first 3 rows of B)",
+      "row_modality": "knowledge_hierarchy",
+      "col_modality": "decision",
+      "ufo_type": "Endurant"
+    },
+    {
+      "name": "F",
+      "kind": "matrix",
+      "dimensions": [3, 4],
+      "station": "Objectives",
+      "type": "element_wise_multiplication",
+      "description": "Objectives matrix (J ⊙ C)",
+      "row_modality": "knowledge_hierarchy",
+      "col_modality": "decision",
+      "ufo_type": "Endurant"
+    },
+    {
+      "name": "D",
+      "kind": "matrix",
+      "dimensions": [3, 4],
+      "station": "Objectives",
+      "type": "addition",
+      "description": "Solution Objectives matrix (A + F)",
+      "row_modality": "process",
+      "col_modality": "action",
+      "ufo_type": "Endurant"
+    },
+    {
+      "name": "P",
+      "kind": "array",
+      "dimensions": [1, 4],
+      "station": "Reflection",
+      "type": "extraction",
+      "description": "Validity Parameters (4th row of Validation matrix Z)",
+      "col_modality": "decision",
+      "ufo_type": "Endurant"
+    },
+    {
+      "name": "H",
+      "kind": "scalar",
+      "dimensions": [1, 1],
+      "station": "Resolution",
+      "type": "extraction",
+      "description": "Consistency Dialectic (4th element of Array P)",
+      "ufo_type": "Endurant"
+    }
+  ],
+  "semantic_operations": [
+    {
+      "name": "multiplication",
+      "symbol": "*",
+      "description": "Semantic intersection of two terms",
+      "precedence": 1,
+      "examples": [
+        {"input": ["sufficient", "reason"], "output": "justification"},
+        {"input": ["analysis", "judgment"], "output": "informed decision"},
+        {"input": ["precision", "durability"], "output": "reliability"}
+      ]
+    },
+    {
+      "name": "addition",
+      "symbol": "+",
+      "description": "Semantic concatenation/fusion of terms",
+      "precedence": 2,
+      "examples": [
+        {"input": ["faisal", "has", "seven", "balloons"], "output": "faisal has seven balloons"}
+      ]
+    },
+    {
+      "name": "cross_product",
+      "symbol": "×",
+      "description": "Expansion across dimensional axes",
+      "precedence": 3,
+      "formula": "(U × V)[i,j] := *(U[i], V[j])"
+    },
+    {
+      "name": "element_wise_multiplication",
+      "symbol": "⊙",
+      "description": "Element-wise semantic multiplication",
+      "formula": "F[i,j] := *(J[i,j], C[i,j])"
+    },
+    {
+      "name": "matrix_multiplication",
+      "description": "Full matrix semantic multiplication",
+      "formula": "C[i,j] := +(*(A[i,1], B[1,j]), *(A[i,2], B[2,j]), ...)"
+    }
+  ],
+  "graph_schema": {
+    "node_types": [
+      {
+        "name": "Document",
+        "properties": ["id", "name", "version", "topic", "ontology_id", "created_at"],
+        "ufo_type": "Artifact"
+      },
+      {
+        "name": "Component",
+        "properties": ["id", "name", "kind", "station", "dimensions", "operation_type"],
+        "ufo_type": "Endurant"
+      },
+      {
+        "name": "Cell",
+        "properties": ["row", "col", "resolved", "operation"],
+        "ufo_type": "Mode"
+      },
+      {
+        "name": "Term",
+        "properties": ["value", "semantic_role", "ontological_category"],
+        "ufo_type": "Mode"
+      },
+      {
+        "name": "SemanticOperation",
+        "properties": ["type", "timestamp", "model_vendor", "model_name", "model_version"],
+        "ufo_type": "Event"
+      },
+      {
+        "name": "Station",
+        "properties": ["id", "name", "description", "position"],
+        "ufo_type": "Situation"
+      }
+    ],
+    "relationships": [
+      "HAS_COMPONENT", "HAS_CELL", "RESOLVES_TO", "CONTAINS_TERM",
+      "DERIVED_FROM", "INPUT_TO", "PRODUCES", "PRODUCES_TERM",
+      "DERIVES_CELL", "OCCURS_AT", "POSITIONED_AT", "AT_STATION",
+      "SEMANTICALLY_MULTIPLIED_WITH", "SEMANTICALLY_ADDED_TO",
+      "SEMANTIC_INTERSECTION_OF", "SEMANTIC_DERIVATION"
+    ],
+    "constraints": [
+      "CREATE CONSTRAINT station_name IF NOT EXISTS FOR (s:Station) REQUIRE s.name IS UNIQUE",
+      "CREATE CONSTRAINT component_id IF NOT EXISTS FOR (c:Component) REQUIRE c.id IS UNIQUE",
+      "CREATE CONSTRAINT operation_id IF NOT EXISTS FOR (op:SemanticOperation) REQUIRE op.operation_id IS UNIQUE"
+    ],
+    "indexes": [
+      "CREATE INDEX term_value IF NOT EXISTS FOR (t:Term) ON (t.value)",
+      "CREATE INDEX operation_timestamp IF NOT EXISTS FOR (op:SemanticOperation) ON (op.timestamp)",
+      "CREATE INDEX component_station IF NOT EXISTS FOR (c:Component) ON (c.station)"
+    ]
+  },
+  "validation_rules": [
+    {
+      "rule": "matrix_dimensions",
+      "description": "Operations must respect dimensional constraints",
+      "validation": "A[3×4] * B[4×4] = C[3×4]"
+    },
+    {
+      "rule": "station_sequence",
+      "description": "Components created in sequential station order",
+      "validation": "station_id >= previous_station_id"
+    },
+    {
+      "rule": "single_resolution",
+      "description": "One resolved term per operation",
+      "validation": "semantic_operation.outputs.length == 1"
+    },
+    {
+      "rule": "modality_alignment",
+      "description": "Row/column labels match ontological modalities",
+      "validation": "component.row_labels ∈ modalities[component.row_modality]"
+    }
+  ],
+  "provenance_requirements": {
+    "semantic_operation": {
+      "required_fields": ["model_vendor", "model_name", "model_version", "timestamp"],
+      "timestamp_format": "ISO 8601",
+      "model_metadata": "exact as published by vendor"
+    },
+    "component": {
+      "required_fields": ["ontology_id", "operation_type", "created_at"],
+      "derivation_chain": "link to parent operations and components"
+    }
+  }
+}
