@@ -1,16 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import neo4j from 'neo4j-driver';
-
-const driver = neo4j.driver(
-  process.env.NEO4J_URI!,
-  neo4j.auth.basic(
-    process.env.NEO4J_USERNAME!,
-    process.env.NEO4J_PASSWORD!
-  )
-);
+import { NextRequest, NextResponse } from 'next/server'
+import { neo4jDriver } from '@/lib/neo4j'
 
 export async function POST(request: NextRequest) {
-  const session = driver.session();
+  const session = neo4jDriver.session();
   
   try {
     const body = await request.json();
@@ -173,6 +165,82 @@ export async function POST(request: NextRequest) {
           })),
           data: matrix_data
         }
+      });
+    }
+    
+    if (query_type === 'get_all_by_station') {
+      // Query to get all matrices at a specific station
+      const result = await session.run(`
+        MATCH (c:Component)-[:AT_STATION]->(s:Station {name: $station})
+        OPTIONAL MATCH (c)-[:HAS_CELL]->(cell:Cell)
+        OPTIONAL MATCH (cell)-[:RESOLVES_TO]->(resolved:Term)
+        OPTIONAL MATCH (c)-[:HAS_AXIS]->(axis:Axis)
+        WITH c, 
+             collect({
+               cell: cell,
+               row: cell.row,
+               col: cell.col,
+               resolved: resolved.value,
+               operation: cell.operation,
+               notes: cell.notes
+             }) as cells,
+             collect({
+               axis: axis,
+               name: axis.name,
+               position: axis.position,
+               labels: axis.labels
+             }) as axes
+        ORDER BY c.id DESC
+        RETURN c, cells, axes
+      `, { station });
+
+      const components = result.records.map(record => {
+        const component = record.get('c').properties;
+        const cells = record.get('cells');
+        const axes = record.get('axes');
+
+        // Reconstruct matrix structure
+        const shape = component.shape || [0, 0];
+        const rows = shape[0];
+        const cols = shape[1];
+        
+        const sortedAxes = axes.sort((a: any, b: any) => a.axis?.properties?.position - b.axis?.properties?.position);
+        
+        const matrix_data: any[][] = Array(rows).fill(null).map(() => Array(cols).fill(null));
+        
+        cells.forEach((cellData: any) => {
+          if (cellData.cell) {
+            const row = cellData.row;
+            const col = cellData.col;
+            if (row < rows && col < cols) {
+              matrix_data[row][col] = {
+                resolved: cellData.resolved || '',
+                operation: cellData.operation || '',
+                notes: cellData.notes || ''
+              };
+            }
+          }
+        });
+
+        return {
+          id: component.id,
+          name: component.name,
+          kind: component.kind,
+          station: component.station,
+          dimensions: shape,
+          operation_type: component.operation_type,
+          ontology_id: component.ontology_id,
+          domain: component.domain,
+          cf14_version: component.cf14_version,
+          row_labels: sortedAxes[0]?.labels || [],
+          col_labels: sortedAxes[1]?.labels || [],
+          data: matrix_data
+        };
+      });
+
+      return NextResponse.json({
+        success: true,
+        components: components
       });
     }
 

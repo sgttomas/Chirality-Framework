@@ -1,13 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import neo4j from 'neo4j-driver';
-
-const driver = neo4j.driver(
-  process.env.NEO4J_URI!,
-  neo4j.auth.basic(
-    process.env.NEO4J_USERNAME!,
-    process.env.NEO4J_PASSWORD!
-  )
-);
+import { NextRequest, NextResponse } from 'next/server'
+import { neo4jDriver } from '@/lib/neo4j'
 
 interface ChiralityDocument {
   version: string;
@@ -42,7 +34,7 @@ interface Cell {
 }
 
 export async function POST(request: NextRequest) {
-  const session = driver.session();
+  const session = neo4jDriver.session();
   
   try {
     const body: ChiralityDocument = await request.json();
