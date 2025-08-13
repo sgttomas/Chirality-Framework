@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "components": [
+    {
+      "title": "Matrix C",
+      "kind": "matrix",
+      "shape": [3, 4],
+      "axes": [
+        ["Normative", "Operative", "Evaluative"],
+        ["Determinacy", "Sufficiency", "Completeness", "Consistency"]
+      ],
+      "station": "Requirements",
+      "ontology": {
+        "rows_name": "Normative/Operative/Evaluative",
+        "cols_name": "Determinacy/Sufficiency/Completeness/Consistency",
+        "notes": null
+      },
+      "data": [
+        [
+          { "resolved": "Essential Values" },
+          { "resolved": "Justifiable Values" },
+          { "resolved": "Comprehensive Values" },
+          { "resolved": "Probabilistic Values" }
+        ],
+        ...
+      ]
+    }
+  ],
+  "meta": {
+    "source": "chirality_cli",
+    "mode": "matrix-grid"
+  }
+}

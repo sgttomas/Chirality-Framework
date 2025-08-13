@@ -1,0 +1,285 @@
+CF14_Normative_Spec.txt
+
+# CHIRALITY FRAMEWORK 14 - NORMATIVE SPECIFICATION
+
+---
+
+## 1. ONTOLOGY DEFINITION
+
+### 1.1 Core Meta-Ontological Framework
+
+The Chirality Framework is a meta-ontological, system-agnostic methodology for mapping solution spaces to problem statements in knowledge work contexts. It creates structured semantic relationships that serve as "semantic anchors" to guide Large Language Models through problem-solving processes.
+
+### 1.2 Ontological Modalities
+
+#### 1.2.1 Process Modalities (Rows)
+- **Normative**: Standards, principles, and guiding frameworks
+- **Operative**: Execution, implementation, and operational activities  
+- **Evaluative**: Assessment, feedback, and quality control mechanisms
+
+#### 1.2.2 Decision Modalities (Columns)
+- **Necessity vs Contingency**: Essential vs optional requirements
+- **Sufficiency**: Adequacy of resources, information, or capabilities
+- **Completeness**: Comprehensive coverage of all required elements
+- **Consistency**: Coherence and harmony across all components
+
+#### 1.2.3 Knowledge Hierarchy (Alternative Row Modality)
+- **Data**: Raw facts and observations
+- **Information**: Contextualized and structured data
+- **Knowledge**: Understanding derived from information processing
+- **Wisdom**: Judgment and insight applied to knowledge
+
+#### 1.2.4 Action Modalities (Alternative Column Modality)
+- **Guiding**: Direction-setting and strategic orientation
+- **Applying**: Implementation and execution activities
+- **Judging**: Decision-making and evaluation processes
+- **Reviewing**: Assessment, feedback, and refinement activities
+
+### 1.3 Semantic Valley Progression Stations
+
+The framework follows a logical progression through ten stations, each representing a stage in the semantic problem-solving process:
+
+1. **Problem Statement** (Matrices A, B)
+2. **Requirements** (Matrix C = A * B)
+3. **Objectives** (Matrix D = A + F)  
+4. **Verification** (Matrix X = K * J)
+5. **Validation** (Matrix Z, transformed from X)
+6. **Evaluation** (Matrix E = G * T)
+7. **Assessment** (Tensor M = R × E)
+8. **Implementation** (Tensor W = M × X)
+9. **Reflection** (Tensor U = W × P)
+10. **Resolution** (Tensor N = U × H)
+
+### 1.4 Ontology Metadata and Versioning
+
+The normative ontology includes metadata for alignment with external ontologies such as UFO (Unified Foundational Ontology), enabling semantic interoperability.
+
+**Example Versioned Ontology Registry (JSON):**
+```json
+{
+    "ontology_registry": {
+        "version": "14.2.0",
+        "date": "2024-06-01",
+        "domains_supported": ["general", "software_engineering", "healthcare"],
+        "modalities": {
+            "process": ["normative", "operative", "evaluative"],
+            "decision": ["necessity", "sufficiency", "completeness", "consistency"],
+            "knowledge_hierarchy": ["data", "information", "knowledge", "wisdom"],
+            "action": ["guiding", "applying", "judging", "reviewing"]
+        },
+        "external_mappings": {
+            "UFO": "https://ufo.example.org/ontology/v1"
+        }
+    }
+}
+
+
+⸻
+
+2. SEMANTIC OPERATIONS FORMALISM
+
+2.1 Fundamental Semantic Operations
+
+Semantic operations define the mathematical and conceptual manipulation of semantic entities.
+
+2.1.1 Semantic Multiplication (*)
+
+Semantic multiplication resolves the meaning of terms by combining their semantic intersection into a coherent concept representing the unified meaning.
+
+Definition:
+A * B = semantic_intersection(A, B)
+
+Examples:
+	•	“sufficient” * “reason” = “justification”
+	•	“analysis” * “judgment” = “informed decision”
+	•	“precision” * “durability” = “reliability”
+	•	“probability” * “consequence” = “risk”
+
+2.1.2 Semantic Addition (+)
+
+Semantic addition concatenates words or sentence fragments to form longer statements while preserving individual semantic components.
+
+Definition:
+A + B = concatenate(A, B)
+
+Example:
+“faisal” + “has” + “seven” + “balloons” = “faisal has seven balloons”
+
+2.1.3 Semantic Cross Product (×)
+
+Semantic cross product generates new dimensions of meaning by applying one semantic framework to another, creating tensors that capture multi-dimensional relationships.
+
+Definition:
+A × B = apply_framework(A, B)
+
+2.2 Matrix Operations
+
+2.2.1 Semantic Matrix Multiplication
+
+Given matrices [A] (m×n) and [B] (n×p), the resulting matrix [C] (m×p) is calculated as:
+
+C(i,j) = Σ(k=1 to n) A(i,k) * B(k,j)
+
+Corrected Formula for 3×4 result from 3×4 and 4×4 matrices:
+
+For i ∈ {1,2,3}, j ∈ {1,2,3,4}:
+C(i,j) = A(i,1) * B(1,j) + A(i,2) * B(2,j) + A(i,3) * B(3,j) + A(i,4) * B(4,j)
+
+2.2.2 Matrix Transpose
+
+The transpose operation swaps rows and columns while preserving semantic relationships:
+
+A^T(i,j) = A(j,i)
+
+2.3 Order of Operations
+
+Semantic operations must be executed according to the following precedence:
+	1.	First: Semantic multiplication (*)
+	2.	Second: Semantic addition (+)
+	3.	Third: Semantic cross product (×)
+
+2.4 Provenance Requirements
+
+All semantic operations and resulting matrices/tensors must be annotated with provenance metadata to ensure traceability and reproducibility.
+
+Provenance Fields:
+	•	Vendor (e.g., tool or framework name)
+	•	Model (e.g., LLM or algorithm version)
+	•	Version (specific software or ontology version)
+	•	Timestamp (operation execution datetime)
+
+⸻
+
+3. GRAPH SCHEMA
+
+3.1 Node Types
+
+3.1.1 Core Semantic Entities
+	•	Document
+Attributes:
+	•	id: string (UUID)
+	•	name: string
+	•	station: integer (1-10)
+	•	created_at: datetime
+	•	metadata: json
+	•	Matrix/Tensor
+Attributes:
+	•	id: string (UUID)
+	•	document_id: string (foreign key)
+	•	name: string (A, B, C, D, F, J, K, X, Z, E, M, W, U, N)
+	•	station: integer (1-10)
+	•	dimensions: array[integer]
+	•	row_names: array[string]
+	•	column_names: array[string]
+	•	operation_type: enum (axiomatic, multiplication, addition, cross_product, transpose)
+	•	Cell
+Attributes:
+	•	id: string (UUID)
+	•	matrix_id: string (foreign key)
+	•	position: array[integer] (row, column indices)
+	•	resolved_term: string
+	•	raw_terms: array[string]
+	•	semantic_derivation: json
+	•	Term
+Attributes:
+	•	id: string (UUID)
+	•	value: string
+	•	semantic_role: enum (primitive, derived, composite)
+	•	ontological_category: string
+
+3.1.2 Process Tracking Entities
+	•	SemanticOperation
+Attributes:
+	•	id: string (UUID)
+	•	operation_type: enum (multiplication, addition, cross_product, transpose)
+	•	input_matrices: array[string] (matrix IDs)
+	•	output_matrix: string (matrix ID)
+	•	timestamp: datetime
+	•	provenance: json
+	•	Station
+Attributes:
+	•	id: integer (1-10)
+	•	name: string
+	•	description: string
+	•	required_inputs: array[string]
+	•	expected_outputs: array[string]
+	•	validation_rules: json
+
+3.2 Relationship Types
+
+3.2.1 Structural Relationships
+	•	(Document)-[:CONTAINS]->(Matrix)
+	•	(Matrix)-[:HAS_CELL]->(Cell)
+	•	(Cell)-[:CONTAINS_TERM]->(Term)
+	•	(Matrix)-[:DERIVED_FROM]->(Matrix) [via SemanticOperation]
+
+3.2.2 Process Relationships
+	•	(Matrix)-[:INPUT_TO]->(SemanticOperation)
+	•	(SemanticOperation)-[:PRODUCES]->(Matrix)
+	•	(SemanticOperation)-[:OCCURS_AT]->(Station)
+	•	(Matrix)-[:POSITIONED_AT]->(Station)
+
+3.2.3 Semantic Relationships
+	•	(Term)-[:SEMANTICALLY_MULTIPLIED_WITH]->(Term)
+	•	(Term)-[:SEMANTICALLY_ADDED_TO]->(Term)
+	•	(Term)-[:SEMANTIC_INTERSECTION_OF]->(Term)
+	•	(Cell)-[:SEMANTIC_DERIVATION]->(Cell)
+
+⸻
+
+4. DATA FLOW & PIPELINE (CONCEPTUAL)
+
+4.1 Framework Overview
+
+The Chirality Framework conceptualizes a semantic processing pipeline that transforms problem domain specifications into structured semantic matrices and tensors through a sequence of stations. Each station corresponds to a semantic operation or transformation step.
+
+4.2 Processing Pipeline
+	1.	Input: Problem domain specification, axiomatic primitives, and initial semantic matrices.
+	2.	Semantic Operations: Execution of normative semantic operations (multiplication, addition, cross product, transpose) across stations.
+	3.	Provenance Annotation: All generated semantic entities and operations are annotated with provenance metadata.
+	4.	Validation: Semantic entities and operations are validated against ontological constraints and station-specific rules.
+	5.	Integration: Normative semantic structures are combined with domain-specific extensions as needed.
+
+⸻
+
+5. INTEGRATION RULES
+
+5.1 Normative vs Domain-Specific Separation
+
+The framework distinguishes between the Normative Framework (Core) and Domain-Specific Implementations to maintain clarity and modularity.
+
+5.1.1 Normative Framework (Core)
+	•	Contains axiomatic matrices (e.g., A and B) derived from ontological primitives.
+	•	Defines strict semantic operations with formal mathematical and ontological grounding.
+	•	Station progression and validation rules are invariant and universally applicable.
+	•	Maintains meta-ontological relationships and semantic provenance.
+	•	Provides foundational modalities and semantic operation algorithms.
+
+5.1.2 Domain-Specific Implementations
+	•	Extend normative axioms with domain-specific deliverables (e.g., Array R topics).
+	•	Contextualize problem statements and validation criteria to domain needs.
+	•	Adapt output formats and quality metrics for specific use cases.
+	•	Implement domain-specific semantic operations and extensions while preserving normative core integrity.
+
+5.2 Provenance Metadata
+
+All normative and domain-specific semantic operations must include explicit provenance metadata, minimally including:
+	•	Vendor (tool or ontology provider)
+	•	Model (algorithm or LLM version)
+	•	Version (software or ontology version)
+	•	Timestamp (operation execution datetime)
+
+5.3 Versioning and Compatibility
+
+The framework follows semantic versioning:
+	•	Major: Core ontological framework revisions.
+	•	Minor: Enhancements to semantic operations and formalism.
+	•	Patch: Bug fixes and implementation improvements.
+
+Backward compatibility is maintained by additive graph schema changes and stable semantic operation interfaces. Domain implementations declare minimum framework version requirements to ensure compatibility.
+
+⸻
+
+END OF CF14 NORMATIVE SPECIFICATION
+
+---

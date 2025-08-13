@@ -1,0 +1,276 @@
+{
+  "id": "cf14.core.v2.0",
+  "version": "2.0.0",
+  "title": "Chirality Framework 14 - Core Ontology",
+  "description": "Normative ontology for CF14 semantic operations and knowledge generation pipeline",
+  "created": "2025-08-13",
+  "authors": ["CF14 Working Group"],
+  
+  "stations": [
+    {"name": "Problem Statement", "position": 1, "description": "Initial problem decomposition and axiomatic foundations"},
+    {"name": "Requirements", "position": 2, "description": "Semantic multiplication of problem and decision frameworks"},
+    {"name": "Objectives", "position": 3, "description": "Semantic addition of problem elements and derived objectives"},
+    {"name": "Verification", "position": 4, "description": "Transpose and multiply for verification matrix"},
+    {"name": "Validation", "position": 5, "description": "Context shift from verification to validation domain"},
+    {"name": "Evaluation", "position": 6, "description": "Cross-product evaluation of objectives against criteria"},
+    {"name": "Assessment", "position": 7, "description": "Tensor assessment of evaluation against topic domains"},
+    {"name": "Implementation", "position": 8, "description": "Implementation tensor from assessment and verification"},
+    {"name": "Reflection", "position": 9, "description": "Reflection tensor incorporating validity parameters"},
+    {"name": "Resolution", "position": 10, "description": "Final resolution applying consistency framework"}
+  ],
+  
+  "entities": [
+    {
+      "name": "Document",
+      "description": "A complete CF14 execution artifact containing all components for a knowledge generation session",
+      "ufo_class": "Artifact",
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "required": true},
+        "topic": {"type": "string", "required": true},
+        "created_at": {"type": "string", "format": "datetime", "required": true},
+        "ontology_id": {"type": "string", "required": true},
+        "knowledge_field": {"type": "string", "required": false}
+      }
+    },
+    {
+      "name": "Station",
+      "description": "A position in the semantic valley representing a stage of knowledge transformation",
+      "ufo_class": "Situation",
+      "properties": {
+        "name": {"type": "string", "required": true},
+        "position": {"type": "integer", "minimum": 1, "maximum": 10, "required": true},
+        "description": {"type": "string", "required": false}
+      }
+    },
+    {
+      "name": "Component",
+      "description": "Persistent semantic construct (Matrix, Tensor, or Array)",
+      "ufo_class": "Endurant",
+      "subtypes": ["Matrix", "Tensor", "Array"],
+      "properties": {
+        "id": {"type": "string", "format": "uuid", "required": true},
+        "name": {"type": "string", "required": true},
+        "kind": {"type": "string", "enum": ["matrix", "tensor", "array"], "required": true},
+        "station": {"type": "string", "required": true},
+        "dimensions": {"type": "array", "items": {"type": "integer"}, "required": true},
+        "row_labels": {"type": "array", "items": {"type": "string"}, "required": false},
+        "col_labels": {"type": "array", "items": {"type": "string"}, "required": false},
+        "operation_type": {"type": "string", "enum": ["axiomatic", "multiplication", "addition", "cross_product", "transpose"], "required": true}
+      }
+    },
+    {
+      "name": "Cell",
+      "description": "Individual element within a component matrix/tensor",
+      "ufo_class": "Mode",
+      "properties": {
+        "row": {"type": "integer", "minimum": 0, "required": true},
+        "col": {"type": "integer", "minimum": 0, "required": true},
+        "resolved": {"type": "string", "required": true},
+        "operation": {"type": "string", "required": true},
+        "notes": {"type": "string", "required": false}
+      }
+    },
+    {
+      "name": "Term",
+      "description": "Lexicalized semantic expression used in operations",
+      "ufo_class": "Mode",
+      "properties": {
+        "value": {"type": "string", "required": true},
+        "role": {"type": "string", "enum": ["raw", "resolved"], "required": true},
+        "semantic_type": {"type": "string", "required": false}
+      }
+    },
+    {
+      "name": "SemanticOperation",
+      "description": "Event representing a semantic transformation between terms",
+      "ufo_class": "Event",
+      "properties": {
+        "type": {"type": "string", "enum": ["multiplication", "addition", "cross_product"], "required": true},
+        "timestamp": {"type": "string", "format": "datetime", "required": true},
+        "model_vendor": {"type": "string", "required": true},
+        "model_name": {"type": "string", "required": true},
+        "model_version": {"type": "string", "required": true},
+        "operation_id": {"type": "string", "format": "uuid", "required": true}
+      }
+    },
+    {
+      "name": "KnowledgeField",
+      "description": "Domain of knowledge being addressed",
+      "ufo_class": "Kind",
+      "properties": {
+        "name": {"type": "string", "required": true},
+        "description": {"type": "string", "required": false}
+      }
+    },
+    {
+      "name": "ProblemStatement",
+      "description": "Specific problem being addressed by CF14 execution",
+      "ufo_class": "Situation",
+      "properties": {
+        "text": {"type": "string", "required": true},
+        "domain": {"type": "string", "required": false}
+      }
+    }
+  ],
+  
+  "relationships": [
+    {"name": "TRAVERSES", "domain": "Document", "range": "Station", "description": "Document processes through station"},
+    {"name": "NEXT", "domain": "Station", "range": "Station", "description": "Sequential station progression"},
+    {"name": "HAS_COMPONENT", "domain": "Document", "range": "Component", "description": "Document contains component"},
+    {"name": "AT_STATION", "domain": "Component", "range": "Station", "description": "Component positioned at station"},
+    {"name": "HAS_CELL", "domain": "Component", "range": "Cell", "description": "Component contains cell"},
+    {"name": "CONTAINS_TERM", "domain": "Cell", "range": "Term", "description": "Cell contains raw input term"},
+    {"name": "RESOLVES_TO", "domain": "Cell", "range": "Term", "description": "Cell resolves to output term"},
+    {"name": "PERTAINS_TO", "domain": "Component", "range": "KnowledgeField", "description": "Component addresses knowledge field"},
+    {"name": "ADDRESSES", "domain": "Component", "range": "ProblemStatement", "description": "Component addresses problem statement"},
+    {"name": "USED_TERM", "domain": "SemanticOperation", "range": "Term", "description": "Operation used term as input"},
+    {"name": "PRODUCED_TERM", "domain": "SemanticOperation", "range": "Term", "description": "Operation produced term as output"},
+    {"name": "DERIVES_CELL", "domain": "SemanticOperation", "range": "Cell", "description": "Operation derives cell content"}
+  ],
+  
+  "components": [
+    {
+      "name": "A",
+      "kind": "matrix",
+      "dimensions": [3, 4],
+      "station": "Problem Statement",
+      "operation_type": "axiomatic",
+      "description": "Problem Statement decomposition matrix",
+      "row_modalities": ["Normative", "Operative", "Evaluative"],
+      "col_modalities": ["Guiding", "Applying", "Judging", "Reviewing"]
+    },
+    {
+      "name": "B", 
+      "kind": "matrix",
+      "dimensions": [4, 4],
+      "station": "Problem Statement",
+      "operation_type": "axiomatic",
+      "description": "Decision framework matrix",
+      "row_modalities": ["Data", "Information", "Knowledge", "Wisdom"],
+      "col_modalities": ["Necessity", "Sufficiency", "Completeness", "Consistency"]
+    },
+    {
+      "name": "C",
+      "kind": "matrix", 
+      "dimensions": [3, 4],
+      "station": "Requirements",
+      "operation_type": "multiplication",
+      "description": "Requirements matrix (A * B)",
+      "row_modalities": ["Normative", "Operative", "Evaluative"],
+      "col_modalities": ["Necessity", "Sufficiency", "Completeness", "Consistency"]
+    },
+    {
+      "name": "J",
+      "kind": "matrix",
+      "dimensions": [3, 4], 
+      "station": "Objectives",
+      "operation_type": "transpose",
+      "description": "Truncated decision matrix (B without Wisdom row)",
+      "row_modalities": ["Data", "Information", "Knowledge"],
+      "col_modalities": ["Necessity", "Sufficiency", "Completeness", "Consistency"]
+    },
+    {
+      "name": "F",
+      "kind": "matrix",
+      "dimensions": [3, 4],
+      "station": "Objectives", 
+      "operation_type": "multiplication",
+      "description": "Objectives matrix (J * C element-wise)",
+      "row_modalities": ["Data", "Information", "Knowledge"],
+      "col_modalities": ["Necessity", "Sufficiency", "Completeness", "Consistency"]
+    },
+    {
+      "name": "D",
+      "kind": "matrix",
+      "dimensions": [3, 4],
+      "station": "Objectives",
+      "operation_type": "addition", 
+      "description": "Solution objectives matrix (A + F)",
+      "row_modalities": ["Normative", "Operative", "Evaluative"],
+      "col_modalities": ["Necessity", "Sufficiency", "Completeness", "Consistency"]
+    }
+  ],
+  
+  "operations": [
+    {
+      "name": "multiplication",
+      "symbol": "*",
+      "input_types": ["Term", "Term"],
+      "output_type": "Term",
+      "description": "Semantic intersection of two terms into coherent unified concept",
+      "examples": [
+        {"inputs": ["sufficient", "reason"], "output": "justification"},
+        {"inputs": ["analysis", "judgment"], "output": "informed decision"}
+      ]
+    },
+    {
+      "name": "addition", 
+      "symbol": "+",
+      "input_types": ["Term[]"],
+      "output_type": "Term",
+      "description": "Semantic concatenation/fusion of multiple terms",
+      "examples": [
+        {"inputs": ["faisal", "has", "seven", "balloons"], "output": "faisal has seven balloons"}
+      ]
+    },
+    {
+      "name": "cross_product",
+      "symbol": "×", 
+      "input_types": ["Array", "Array"],
+      "output_type": "Tensor",
+      "description": "Expansion of semantic framework across dimensions",
+      "examples": []
+    },
+    {
+      "name": "matrix_multiplication",
+      "symbol": "*",
+      "input_types": ["Matrix", "Matrix"],
+      "output_type": "Matrix", 
+      "description": "Semantic matrix multiplication using dot product of semantic operations",
+      "formula": "C[i,j] := +(*(A[i,1], B[1,j]), *(A[i,2], B[2,j]), *(A[i,3], B[3,j]), *(A[i,4], B[4,j]))",
+      "constraints": {
+        "input_dimensions": "A[m,n] * B[n,p] = C[m,p]",
+        "semantic_requirement": "Inner dimension must match for semantic alignment"
+      }
+    }
+  ],
+  
+  "validation_rules": [
+    {
+      "rule": "station_sequence",
+      "description": "Components must be created in station order",
+      "constraint": "component.station.position >= max(input_components.station.position)"
+    },
+    {
+      "rule": "matrix_dimensions",
+      "description": "Matrix operations must respect dimensional constraints", 
+      "constraint": "For A[m,n] * B[n,p] = C[m,p], n dimensions must match"
+    },
+    {
+      "rule": "semantic_provenance",
+      "description": "All derived terms must have complete operation provenance",
+      "constraint": "Every resolved term must link to SemanticOperation with model metadata"
+    },
+    {
+      "rule": "ontology_version",
+      "description": "All components must reference valid ontology version",
+      "constraint": "component.ontology_id must match existing ontology registry"
+    }
+  ],
+  
+  "domain_pack_schema": {
+    "description": "Schema for domain-specific implementations",
+    "structure": {
+      "id": {"type": "string", "pattern": "cf14\\.domain\\.[a-z_]+\\.v\\d+\\.\\d+"},
+      "extends": {"type": "string", "enum": ["cf14.core.v2.0"]},
+      "domain": {"type": "string"},
+      "axiomatic_matrices": {
+        "A": {"type": "object", "properties": {"cells": {"type": "array"}}},
+        "B": {"type": "object", "properties": {"cells": {"type": "array"}}}
+      },
+      "custom_arrays": {"type": "object"},
+      "validation_overrides": {"type": "object"}
+    }
+  }
+}

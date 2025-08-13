@@ -1,0 +1,274 @@
+
+
+Chirality Framework 14 (CF14) — v2 (Structured Draft)
+
+Status: Draft for implementation
+Out of scope (per user): automated validation between stations; error handling.
+
+0) Overview
+
+CF14 is a normative method for constructing and traversing a “semantic valley” from Problem Statement to Resolution. This v2 separates:
+	1.	Ontology definition
+	2.	Semantic operations formalism
+	3.	Graph schema
+	4.	Data flow & pipeline
+	5.	Integration rules
+
+It also (a) corrects matrix-indexing mistakes in A×B→C, (b) removes confidences/alternates, and (c) cleanly separates the normative core from domain-specific implementations.
+
+⸻
+
+1) Ontology Definition (CF14 + UFO)
+
+1.1 Principles
+	•	UFO alignment as metadata only. UFO classes annotate nodes; they do not define identity.
+	•	Central, versioned ontology registry referenced by code and data.
+	•	No confidences / no alternates. Each operation yields a single resolved term.
+
+1.2 Core Entities
+	•	Document — a CF14 run/artifact. UFO: Artifact.
+	•	Station — position in the semantic valley. UFO: Situation.
+	•	name (string), position (1..10; see §3.2)
+	•	Component — persistent construct. UFO: Endurant.
+	•	Subtypes: Matrix, Tensor, Array
+	•	id, name, kind ∈ {matrix,tensor,array}, station (name)
+	•	Cell — element within a component. UFO: Mode.
+	•	row, col, resolved (string), operation (symbol), notes?
+	•	Term — lexicalized expression (input/output). UFO: Mode.
+	•	value (string), role ∈ {raw,resolved}
+	•	SemanticOperation — semantic transformation. UFO: Event | Perdurant.
+	•	type ∈ {multiplication, addition, cross_product}
+	•	timestamp, model_vendor, model_name, model_version (exactly as published)
+	•	KnowledgeField — field of knowledge. UFO: Kind.
+	•	ProblemStatement — the specific problem addressed.
+
+1.3 Stations (canonical ordering)
+	1.	Problem Statement
+	2.	Requirements
+	3.	Objectives
+	4.	Verification
+	5.	Validation
+	6.	Evaluation
+	7.	Assessment
+	8.	Implementation
+	9.	Reflection
+	10.	Resolution
+
+1.4 Canonical CF14 Components for A×B→C
+	•	A (3×4) — Problem Statement decomposition (rows: Normative, Operative, Evaluative).
+	•	B (4×4) — Decision decomposition (rows: Data, Information, Knowledge, Wisdom).
+	•	C (3×4) — Requirements (same row set as A; same column set as B).
+Concrete strings live in domain packs (see §5.3).
+
+1.5 Ontology Registry (versioned JSON)
+
+A single file (e.g., ontology/cf14.core.vMAJOR.MINOR.json) enumerates:
+	•	Entities: labels, description, UFO mapping
+	•	Relations: names, domain, range, description
+	•	Stations: names with numeric positions
+	•	Component templates: e.g., A:3×4; B:4×4; C:3×4
+	•	Operation signatures: inputs, outputs, constraints
+
+Minimal example:
+
+{
+  "id": "cf14.core.v2.0",
+  "stations": [
+    {"name":"Problem Statement","position":1},
+    {"name":"Requirements","position":2},
+    {"name":"Objectives","position":3},
+    {"name":"Verification","position":4},
+    {"name":"Validation","position":5},
+    {"name":"Evaluation","position":6},
+    {"name":"Assessment","position":7},
+    {"name":"Implementation","position":8},
+    {"name":"Reflection","position":9},
+    {"name":"Resolution","position":10}
+  ],
+  "components": [
+    {"name":"A","kind":"matrix","shape":[3,4],"station":"Problem Statement"},
+    {"name":"B","kind":"matrix","shape":[4,4],"station":"Decision"},
+    {"name":"C","kind":"matrix","shape":[3,4],"station":"Requirements"}
+  ],
+  "operations": [
+    {"name":"multiplication","input":["Matrix","Matrix"],"output":"Matrix"},
+    {"name":"addition","input":["Term","Term"],"output":"Term"},
+    {"name":"cross_product","input":["Array","Array"],"output":"Tensor"}
+  ]
+}
+
+
+⸻
+
+2) Semantic Operations Formalism
+
+2.1 Conventions
+	•	A ∈ Terms^{3×4}, B ∈ Terms^{4×4}, C ∈ Terms^{3×4}; Terms are strings.
+	•	* (multiplication): combine two terms → one term.
+	•	+ (addition): fuse a list of terms → one term.
+	•	× (cross product): expand axes to higher rank (for tensors).
+	•	All operations output a single resolved string. No confidences; no alternates.
+
+2.2 Multiplication (A * B = C) — Corrected dot-product
+
+For i ∈ {1..3}, j ∈ {1..4}:
+
+C[i,j] :=  +(  *(A[i,1], B[1,j]),
+               *(A[i,2], B[2,j]),
+               *(A[i,3], B[3,j]),
+               *(A[i,4], B[4,j]) )
+
+Each A[i,k] pairs with B[k,j] exactly once for k=1..4.
+(Previously observed mistakes like reusing A[i,3] twice are fixed here.)
+
+2.3 Addition
+
+Given [t1,…,tn],
++(t1,…,tn) := resolve([t1,…,tn]) → term
+
+2.4 Cross Product (Arrays → Tensor)
+
+For arrays U ∈ Terms^m, V ∈ Terms^n,
+(U × V)[i,j] := *( U[i], V[j] )
+Higher ranks generalize similarly.
+
+2.5 Operation Provenance (Event)
+
+Record per elementary *(x,y) and +(...):
+	•	type, timestamp
+	•	model_vendor, model_name, model_version (exact provider strings)
+	•	Inputs (operands) and the single resolved output
+
+⸻
+
+3) Graph Schema (Neo4j)
+
+3.1 Labels & Properties
+	•	(:Document {id,version,topic,created_at})
+	•	(:Station {name,position})
+	•	(:Component:Matrix|:Tensor|:Array {id,name,kind,station,ufo_type:'Endurant'})
+	•	(:Cell {row:int,col:int,resolved:string,operation:string,notes?:string,ufo_type:'Mode'})
+	•	(:Term {value:string,role:'raw'|'resolved',ufo_type:'Mode'})
+	•	(:SemanticOperation {type,timestamp,model_vendor,model_name,model_version,ufo_type:'Event'})
+	•	(:KnowledgeField {name}), (:ProblemStatement {text})
+
+3.2 Relationships
+	•	Traversal & context:
+	•	(Document)-[:TRAVERSES]->(Station)
+	•	(Station)-[:NEXT]->(Station) (position n→n+1)
+	•	Composition:
+	•	(Document)-[:HAS_COMPONENT]->(Component)
+	•	(Component)-[:AT_STATION]->(Station)
+	•	(Component)-[:HAS_CELL]->(Cell)
+	•	(Cell)-[:CONTAINS_TERM]->(Term {role:'raw'})
+	•	(Cell)-[:RESOLVES_TO]->(Term {role:'resolved'})
+	•	Ontological context:
+	•	(Component)-[:PERTAINS_TO]->(KnowledgeField)
+	•	(Component)-[:ADDRESSES]->(ProblemStatement)
+	•	Provenance (events):
+	•	(SemanticOperation)-[:USED_TERM]->(Term) (all inputs)
+	•	(SemanticOperation)-[:PRODUCED_TERM]->(Term {role:'resolved'})
+	•	(SemanticOperation)-[:DERIVES_CELL]->(Cell)
+
+3.3 Constraints / Indexes (examples)
+
+CREATE CONSTRAINT station_name IF NOT EXISTS FOR (s:Station) REQUIRE s.name IS UNIQUE;
+CREATE CONSTRAINT component_id IF NOT EXISTS FOR (c:Component) REQUIRE c.id IS UNIQUE;
+CREATE INDEX term_value IF NOT EXISTS FOR (t:Term) ON (t.value);
+
+3.4 Snippets
+	•	Stations with NEXT:
+
+UNWIND [
+  {p:1,n:'Problem Statement'},{p:2,n:'Requirements'},{p:3,n:'Objectives'},
+  {p:4,n:'Verification'},{p:5,n:'Validation'},{p:6,n:'Evaluation'},
+  {p:7,n:'Assessment'},{p:8,n:'Implementation'},{p:9,n:'Reflection'},
+  {p:10,n:'Resolution'}
+] AS s
+MERGE (st:Station {name:s.n}) SET st.position=s.p;
+MATCH (a:Station),(b:Station) WHERE b.position = a.position + 1
+MERGE (a)-[:NEXT]->(b);
+
+	•	One multiplication event:
+
+MERGE (t1:Term {value:$a, role:'raw'})
+MERGE (t2:Term {value:$b, role:'raw'})
+MERGE (out:Term {value:$out, role:'resolved'})
+CREATE (e:SemanticOperation {type:'multiplication', timestamp:$ts,
+  model_vendor:$vendor, model_name:$m, model_version:$mv})
+CREATE (e)-[:USED_TERM]->(t1)
+CREATE (e)-[:USED_TERM]->(t2)
+CREATE (e)-[:PRODUCED_TERM]->(out)
+MATCH (cell:Cell {row:$i, col:$j})
+CREATE (e)-[:DERIVES_CELL]->(cell)
+MERGE (cell)-[:RESOLVES_TO]->(out);
+
+
+⸻
+
+4) Data Flow & Pipeline
+
+4.1 Modes
+	•	CSV mode: use precomputed outputs (e.g., from semmul.py), ingest as-is.
+	•	Semantic mode: generate live from rules; persist provenance.
+
+4.2 A×B→C (semantic mode)
+	1.	Materialize A(3×4) and B(4×4) term matrices from registry/domain pack.
+	2.	For each (i,j): compute four products Pk := *(A[i,k], B[k,j]) (k=1..4) (events).
+	3.	Compute C[i,j] := +(P1,P2,P3,P4) (event).
+	4.	Store C as :Matrix at Station Requirements; attach cells/terms.
+	5.	Only final resolved strings in cells (no confidences/alternates).
+
+4.3 Provenance
+
+For every operation, store exact model metadata as published.
+
+⸻
+
+5) Integration Rules & Modularity
+
+5.1 Code↔Ontology
+	•	Ingestion expects an ontology_id (e.g., cf14.core.v2.0) and validates only shape and presence (no automated semantic validation—deferred).
+
+5.2 JSON I/O (excerpt)
+
+{
+  "component": {
+    "id": "matrix_C_semantic",
+    "name": "Matrix C (Requirements)",
+    "kind": "matrix",
+    "station": "Requirements",
+    "row_labels": ["Normative","Operative","Evaluative"],
+    "col_labels": ["Necessity","Sufficiency","Completeness","Consistency"],
+    "cells": [
+      [{ "row":1, "col":1, "resolved":"…", "operation":"*+" }]
+    ],
+    "ontology_id": "cf14.core.v2.0"
+  }
+}
+
+operation:"*+" indicates “four multiplications then one addition”.
+
+5.3 Modularity (Core vs Domain Packs)
+	•	CF14 Core (normative): stations, shapes, operation semantics.
+	•	Domain Packs: concrete term sets for A and B (etc.), optional arrays/tensors.
+	•	Each pack lives as domain/<name>/cf14.domain.vX.Y.json.
+	•	Code merges a selected domain pack with Core at runtime.
+
+5.4 Rules-of-Construction Automation (roadmap)
+	•	Generator: given a domain pack, materialize A and B, compute C via §2.2/§4.2.
+	•	Cross products and higher-rank tensors follow; validation remains manual for now.
+
+⸻
+
+6) Known Issues & Fixes
+	•	Indexing: Prior A×B→C drafts had mistakes; §2.2 is authoritative (pair each A[i,k] with B[k,j] once for k=1..4).
+	•	Separation of Concerns: Keep CF14 Core distinct from domain packs to improve reuse and testing.
+
+⸻
+
+7) Appendix (optional)
+
+Domain examples for A/B live in domain packs (outside this core doc).
+
+⸻

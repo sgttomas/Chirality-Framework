@@ -1,0 +1,420 @@
+# CHIRALITY FRAMEWORK 14 - NORMATIVE SPECIFICATION v2.0
+
+**Status**: Normative Standard  
+**Ontology**: cf14.core.v2.0  
+**Scope**: Technology-neutral semantic operations framework  
+**Out of Scope**: Implementation details, automated validation, error handling
+
+---
+
+## 0. OVERVIEW
+
+CF14 is a normative methodology for constructing and traversing a "semantic valley" from Problem Statement to Resolution. This specification defines:
+
+1. **Ontological Foundations** - Core entities and relationships
+2. **Semantic Operations** - Formal mathematical operations on semantic terms  
+3. **Station Progression** - 10-stage knowledge transformation pipeline
+4. **Data Model** - Abstract schema for semantic components
+5. **Extension Framework** - Domain-specific customization patterns
+
+**Key Principles:**
+- Single resolved term per operation (no confidences/alternates)
+- Versioned ontology registry as single source of truth
+- UFO integration as metadata annotation only
+- Clean separation of normative core from domain implementations
+
+---
+
+## 1. ONTOLOGICAL FOUNDATIONS
+
+### 1.1 Core Entity Types
+
+Refer to `ontology/cf14.core.v2.0.json` for complete specifications.
+
+**Primary Entities:**
+- `Document` - Complete CF14 execution artifact (UFO: Artifact)
+- `Station` - Semantic valley position (UFO: Situation) 
+- `Component` - Semantic construct (Matrix/Tensor/Array) (UFO: Endurant)
+- `Cell` - Component element (UFO: Mode)
+- `Term` - Lexicalized expression (UFO: Mode)
+- `SemanticOperation` - Transformation event (UFO: Event)
+
+**Context Entities:**
+- `KnowledgeField` - Domain of knowledge (UFO: Kind)
+- `ProblemStatement` - Specific problem addressed (UFO: Situation)
+
+### 1.2 Station Sequence (Canonical)
+
+```
+1. Problem Statement  → Axiomatic matrices A, B
+2. Requirements      → C = A * B  
+3. Objectives        → F = J * C, D = A + F
+4. Verification      → X = K * J
+5. Validation        → Z (context transformation from X)
+6. Evaluation        → E = G * T
+7. Assessment        → M = R × E
+8. Implementation    → W = M × X  
+9. Reflection        → U = W × P
+10. Resolution       → N = U × H
+```
+
+### 1.3 Foundational Modalities
+
+**Process Modalities (Rows):**
+- `Normative` - Standards, principles, frameworks
+- `Operative` - Execution, implementation, operations
+- `Evaluative` - Assessment, feedback, quality control
+
+**Decision Modalities (Columns):**
+- `Necessity` - Essential vs contingent requirements
+- `Sufficiency` - Adequacy of resources/capabilities  
+- `Completeness` - Comprehensive coverage
+- `Consistency` - Coherence across components
+
+**Knowledge Hierarchy (Alternative Rows):**
+- `Data` - Raw facts and observations
+- `Information` - Contextualized structured data
+- `Knowledge` - Understanding from processed information
+- `Wisdom` - Judgment and insight applied to knowledge
+
+**Action Modalities (Alternative Columns):**
+- `Guiding` - Direction-setting, strategic orientation
+- `Applying` - Implementation, execution activities
+- `Judging` - Decision-making, evaluation processes  
+- `Reviewing` - Assessment, feedback, refinement
+
+---
+
+## 2. SEMANTIC OPERATIONS FORMALISM
+
+### 2.1 Fundamental Operations
+
+#### 2.1.1 Semantic Multiplication (*)
+
+**Definition**: Combine two terms into semantic intersection representing unified meaning.
+
+**Notation**: `*(term₁, term₂) → term`
+
+**Examples**:
+- `*("sufficient", "reason") = "justification"`
+- `*("analysis", "judgment") = "informed decision"`
+- `*("precision", "durability") = "reliability"`
+
+#### 2.1.2 Semantic Addition (+)  
+
+**Definition**: Fuse multiple terms into concatenated expression.
+
+**Notation**: `+(term₁, term₂, ..., termₙ) → term`
+
+**Examples**:
+- `+("faisal", "has", "seven", "balloons") = "faisal has seven balloons"`
+
+#### 2.1.3 Semantic Cross Product (×)
+
+**Definition**: Expand semantic framework across dimensional axes.
+
+**Notation**: `Array₁ × Array₂ → Tensor`
+
+**Formula**: `(U × V)[i,j] := *(U[i], V[j])`
+
+### 2.2 Matrix Operations
+
+#### 2.2.1 Semantic Matrix Multiplication 
+
+**Corrected Formula** for `A[3×4] * B[4×4] = C[3×4]`:
+
+```
+For i ∈ {1,2,3}, j ∈ {1,2,3,4}:
+
+C[i,j] := +(*(A[i,1], B[1,j]),
+            *(A[i,2], B[2,j]), 
+            *(A[i,3], B[3,j]),
+            *(A[i,4], B[4,j]))
+```
+
+**General Pattern**: Each `A[i,k]` pairs with `B[k,j]` exactly once for `k=1..n`.
+
+#### 2.2.2 Element-wise Multiplication
+
+**Formula** for `J[3×4] ⊙ C[3×4] = F[3×4]`:
+
+```
+F[i,j] := *(J[i,j], C[i,j])
+```
+
+#### 2.2.3 Matrix Addition
+
+**Formula** for `A[3×4] + F[3×4] = D[3×4]`:
+
+```
+D[i,j] := +(A[i,j], F[i,j])
+```
+
+#### 2.2.4 Matrix Transpose
+
+**Formula** for `A^T`:
+
+```
+A^T[j,i] := A[i,j]
+```
+
+### 2.3 Operation Precedence
+
+1. **Semantic Multiplication** (`*`) - highest precedence
+2. **Semantic Addition** (`+`) 
+3. **Semantic Cross Product** (`×`) - lowest precedence
+
+---
+
+## 3. CANONICAL COMPONENT SPECIFICATIONS
+
+### 3.1 Axiomatic Matrices
+
+#### Matrix A (Problem Statement)
+- **Dimensions**: 3×4
+- **Station**: Problem Statement  
+- **Rows**: [Normative, Operative, Evaluative]
+- **Columns**: [Guiding, Applying, Judging, Reviewing]
+- **Type**: Axiomatic (domain-specific content)
+
+#### Matrix B (Decision Framework)  
+- **Dimensions**: 4×4
+- **Station**: Problem Statement
+- **Rows**: [Data, Information, Knowledge, Wisdom]
+- **Columns**: [Necessity, Sufficiency, Completeness, Consistency]
+- **Type**: Axiomatic (domain-specific content)
+
+### 3.2 Derived Matrices
+
+#### Matrix C (Requirements)
+- **Formula**: `C = A * B`
+- **Dimensions**: 3×4
+- **Station**: Requirements
+- **Operation**: Semantic matrix multiplication
+
+#### Matrix J (Truncated Decisions)
+- **Formula**: `J = B[1:3, :]` (first 3 rows of B)
+- **Dimensions**: 3×4  
+- **Station**: Objectives
+- **Operation**: Truncation
+
+#### Matrix F (Objectives)
+- **Formula**: `F = J ⊙ C` (element-wise multiplication)
+- **Dimensions**: 3×4
+- **Station**: Objectives  
+- **Operation**: Element-wise semantic multiplication
+
+#### Matrix D (Solution Objectives)
+- **Formula**: `D = A + F` 
+- **Dimensions**: 3×4
+- **Station**: Objectives
+- **Operation**: Matrix addition
+
+---
+
+## 4. DATA MODEL (ABSTRACT)
+
+### 4.1 Core Schema
+
+```
+Document {
+  id: UUID
+  version: SemVer
+  topic: String
+  ontology_id: String
+  created_at: DateTime
+}
+
+Component {
+  id: UUID  
+  name: String
+  kind: Enum(matrix, tensor, array)
+  station: String
+  dimensions: Integer[]
+  operation_type: Enum(axiomatic, multiplication, addition, cross_product, transpose)
+}
+
+Cell {
+  row: Integer
+  col: Integer  
+  resolved: String
+  operation: String
+}
+
+SemanticOperation {
+  type: Enum(multiplication, addition, cross_product)
+  timestamp: DateTime
+  model_vendor: String
+  model_name: String
+  model_version: String
+}
+```
+
+### 4.2 Relationship Schema
+
+```
+Document --HAS_COMPONENT--> Component
+Component --AT_STATION--> Station  
+Component --HAS_CELL--> Cell
+Cell --RESOLVES_TO--> Term(resolved)
+Cell --CONTAINS_TERM--> Term(raw)
+SemanticOperation --PRODUCES_TERM--> Term(resolved)
+SemanticOperation --DERIVES_CELL--> Cell
+```
+
+### 4.3 Required Provenance
+
+Every `SemanticOperation` must record:
+- **Exact model metadata**: vendor, name, version (as published)
+- **Operation timestamp**: ISO 8601 format
+- **Input terms**: All operands used
+- **Output term**: Single resolved result
+- **Cell derivation**: Target cell(s) affected
+
+---
+
+## 5. EXTENSION FRAMEWORK
+
+### 5.1 Domain Pack Structure
+
+Domain-specific implementations use separate ontology files:
+
+```
+domain/
+├── software_engineering/
+│   └── cf14.domain.software_eng.v1.0.json
+├── business_strategy/ 
+│   └── cf14.domain.business.v1.0.json
+└── research_methods/
+    └── cf14.domain.research.v1.0.json
+```
+
+### 5.2 Domain Pack Schema
+
+```json
+{
+  "id": "cf14.domain.{name}.v{X}.{Y}",
+  "extends": "cf14.core.v2.0",
+  "domain": "domain_name",
+  "axiomatic_matrices": {
+    "A": {"cells": [...]},
+    "B": {"cells": [...]}
+  },
+  "custom_arrays": {...},
+  "validation_overrides": {...}
+}
+```
+
+### 5.3 Runtime Composition
+
+Implementations must:
+1. Load core ontology (`cf14.core.v2.0.json`)
+2. Load domain pack (`cf14.domain.{name}.v{X}.{Y}.json`)  
+3. Validate compatibility (`extends` field)
+4. Merge schemas with domain pack precedence for content
+5. Execute operations using combined ontology
+
+### 5.4 Custom Operation Registration
+
+```
+CustomOperation {
+  name: String
+  signature: (InputType[], OutputType)
+  implementation: Function
+  validation_rules: Rule[]
+}
+```
+
+---
+
+## 6. VALIDATION REQUIREMENTS
+
+### 6.1 Structural Validation
+
+- **Matrix Dimensions**: Operations must respect dimensional constraints
+- **Station Sequence**: Components created in sequential station order
+- **Ontology Compliance**: All entities reference valid ontology version
+
+### 6.2 Semantic Validation  
+
+- **Operation Provenance**: Every derived term links to `SemanticOperation`
+- **Model Metadata**: Complete vendor/name/version for all operations
+- **Single Resolution**: One resolved term per operation (no alternates)
+
+### 6.3 Domain Validation
+
+- **Axiomatic Completeness**: Matrices A and B fully specified
+- **Modality Alignment**: Row/column labels match ontological modalities
+- **Content Consistency**: Terms align with domain context
+
+---
+
+## 7. IMPLEMENTATION REQUIREMENTS
+
+### 7.1 Minimum Implementation
+
+Any CF14 implementation must support:
+- Ontology registry loading and validation
+- Semantic multiplication, addition operations  
+- Matrix operations for A×B→C pipeline
+- Provenance recording with model metadata
+- Domain pack loading and composition
+
+### 7.2 Reference Implementation
+
+See companion document: `CF14_Implementation_Guide_Python_NextJS.txt`
+
+### 7.3 Compliance Testing
+
+Implementations must pass:
+- **Ontology Validation**: Load and validate `cf14.core.v2.0.json`
+- **Operation Tests**: Execute canonical A×B→C with known inputs
+- **Provenance Tests**: Record complete operation metadata
+- **Domain Pack Tests**: Load and merge domain-specific ontologies
+
+---
+
+## 8. VERSION COMPATIBILITY
+
+### 8.1 Semantic Versioning
+
+- **Major**: Core ontological framework changes
+- **Minor**: Semantic operation enhancements  
+- **Patch**: Bug fixes, clarifications
+
+### 8.2 Backward Compatibility
+
+- Core operations maintain interface compatibility within major versions
+- Domain packs specify minimum core version requirements
+- Implementation must validate ontology version compatibility
+
+---
+
+## APPENDIX A: MATHEMATICAL CORRECTIONS
+
+### A.1 Fixed Matrix Multiplication Formula
+
+**Previous Error** (CF14 v1):
+```
+C[1,4] = A[1,1]*B[1,4] + A[1,2]*B[2,4] + A[1,3]*B[3,4] + A[1,3]*B[4,4]
+                                                           ↑ wrong index
+```
+
+**Corrected** (CF14 v2):
+```
+C[1,4] = A[1,1]*B[1,4] + A[1,2]*B[2,4] + A[1,3]*B[3,4] + A[1,4]*B[4,4]
+                                                           ↑ correct index
+```
+
+### A.2 General Formula Verification
+
+For any `A[m×n] * B[n×p] = C[m×p]`:
+```
+C[i,j] = Σ(k=1 to n) *(A[i,k], B[k,j])
+```
+
+Where each `A[i,k]` pairs with exactly one `B[k,j]` for each `k`.
+
+---
+
+**END OF NORMATIVE SPECIFICATION**
