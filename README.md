@@ -58,7 +58,7 @@ A complete, production-ready implementation of the **Chirality Framework 14 (CF1
 1. **Clone the repository:**
    ```bash
    git clone <your-repository-url>
-   cd openai-responses-starter-app
+   cd chirality-semantic-framework
    ```
 
 2. **Install dependencies:**

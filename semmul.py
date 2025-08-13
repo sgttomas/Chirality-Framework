@@ -7,7 +7,7 @@ import time
 from openai import OpenAI
 import csv
 from pathlib import Path
-# filepath: /Users/ryan/Desktop/ai-env/openai-responses-starter-app/semmul.py
+# filepath: /Users/ryan/Desktop/ai-env/chirality-semantic-framework/semmul.py
 import os, sys
 script_name = os.path.basename(sys.argv[0])
 

@@ -50,7 +50,7 @@ This implementation provides a complete semantic reasoning framework that:
 1. **Clone and install dependencies:**
 ```bash
 git clone <repository-url>
-cd openai-responses-starter-app
+cd chirality-semantic-framework
 npm install
 ```
 
@@ -300,7 +300,7 @@ python neo4j_admin.py delete-station --station <name>  # Delete station contents
 
 ### Project Structure
 ```
-openai-responses-starter-app/
+chirality-semantic-framework/
 ├── ontology/
 │   ├── cf14.core.v2.1.1.json                    # Core CF14 ontology
 │   └── domains/

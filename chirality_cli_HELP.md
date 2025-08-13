@@ -28,7 +28,7 @@
 1. **Clone and install**:
    ```bash
    git clone <repository-url>
-   cd openai-responses-starter-app
+   cd chirality-semantic-framework
    npm install
    ```
 
@@ -91,7 +91,7 @@
 ```bash
 # Clone repository
 git clone <repository-url>
-cd openai-responses-starter-app
+cd chirality-semantic-framework
 
 # Install Node.js dependencies
 npm install
