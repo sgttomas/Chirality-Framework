@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import neo4j from 'neo4j-driver';
-
-const driver = neo4j.driver(
-  process.env.NEO4J_URI!,
-  neo4j.auth.basic(
-    process.env.NEO4J_USERNAME!,
-    process.env.NEO4J_PASSWORD!
-  )
-);
+import { neo4jDriver } from '@/lib/neo4j';
 
 export async function GET(request: NextRequest) {
-  const session = driver.session();
+  const session = neo4jDriver.session();
   
   try {
     // Query for all available matrices and their basic info

@@ -1,0 +1,118 @@
+{
+  "id": "cf14.domain.software_eng.v1.0",
+  "extends": "cf14.core.v2.1.1",
+  "domain": "software_engineering",
+  "description": "CF14 domain pack for software engineering problems",
+  "version": "1.0",
+  "created_date": "2025-08-13",
+  "axiomatic_matrices": {
+    "A": {
+      "name": "Software Problem Statement",
+      "dimensions": [3, 4],
+      "description": "Problem statement matrix for software engineering contexts",
+      "row_modality": "process",
+      "col_modality": "action",
+      "cells": [
+        ["Requirements Analysis", "System Design", "Code Review", "Quality Assurance"],
+        ["Development Process", "Implementation", "Testing Strategy", "Performance Monitoring"],
+        ["Architecture Standards", "Best Practices", "Code Quality", "Technical Debt Management"]
+      ]
+    },
+    "B": {
+      "name": "Software Decision Framework",
+      "dimensions": [4, 4],
+      "description": "Decision framework matrix for software engineering",
+      "row_modality": "knowledge_hierarchy",
+      "col_modality": "decision",
+      "cells": [
+        ["Technical Requirements", "Resource Constraints", "Feature Completeness", "System Reliability"],
+        ["Domain Knowledge", "Technical Capability", "Solution Coverage", "Integration Consistency"],
+        ["Architecture Patterns", "Engineering Expertise", "System Understanding", "Design Coherence"],
+        ["Strategic Judgment", "Technical Wisdom", "Long-term Vision", "Sustainable Principles"]
+      ]
+    }
+  },
+  "custom_arrays": {
+    "technical_debt_levels": {
+      "name": "Technical Debt Assessment",
+      "dimensions": [1, 4],
+      "values": ["Low", "Medium", "High", "Critical"]
+    },
+    "complexity_metrics": {
+      "name": "Software Complexity",
+      "dimensions": [1, 4],
+      "values": ["Simple", "Moderate", "Complex", "Architectural"]
+    }
+  },
+  "graph_extensions": {
+    "additional_node_types": [
+      {
+        "name": "CodeComponent",
+        "properties": ["file_path", "language", "complexity_score", "test_coverage"],
+        "ufo_type": "Endurant"
+      },
+      {
+        "name": "TechnicalDebt",
+        "properties": ["debt_type", "severity", "estimated_cost", "priority"],
+        "ufo_type": "Mode"
+      }
+    ],
+    "additional_relationships": [
+      "HAS_TECHNICAL_DEBT",
+      "IMPLEMENTS_PATTERN",
+      "DEPENDS_ON",
+      "REFACTORED_FROM"
+    ],
+    "domain_specific_attributes": {
+      "Component": {
+        "programming_language": "string",
+        "framework": "string",
+        "test_coverage": "float",
+        "complexity_score": "integer"
+      },
+      "SemanticOperation": {
+        "code_context": "string",
+        "repository_url": "string",
+        "commit_hash": "string"
+      }
+    }
+  },
+  "validation_overrides": {
+    "allow_custom_matrices": true,
+    "require_test_coverage": true,
+    "min_documentation_score": 0.7
+  },
+  "semantic_mappings": {
+    "examples": [
+      {
+        "operation": "multiplication",
+        "domain_context": "Requirements Analysis * Technical Requirements = System Specifications",
+        "result": "Detailed technical specifications that bridge user needs with implementation constraints"
+      },
+      {
+        "operation": "addition", 
+        "domain_context": "Architecture Standards + Best Practices = Development Guidelines",
+        "result": "Comprehensive development guidelines that combine structural requirements with proven methodologies"
+      }
+    ]
+  },
+  "modalities": {
+    "process": ["Normative", "Operative", "Evaluative"],
+    "decision": ["Necessity", "Sufficiency", "Completeness", "Consistency"],
+    "knowledge_hierarchy": ["Data", "Information", "Knowledge", "Wisdom"],
+    "action": ["Guiding", "Applying", "Judging", "Reviewing"],
+    "software_lifecycle": ["Planning", "Development", "Testing", "Deployment", "Maintenance"],
+    "quality_attributes": ["Reliability", "Performance", "Security", "Maintainability", "Usability"]
+  },
+  "example_problem_statements": [
+    "How do we ensure reliable knowledge extraction from large language models in production software systems?",
+    "What architectural patterns best support scalable AI/ML model inference while maintaining code quality?",
+    "How can we implement effective code review processes for AI-generated code?"
+  ],
+  "usage_notes": [
+    "This domain pack is optimized for software engineering problems involving AI/ML systems",
+    "The axiomatic matrices focus on technical quality and engineering best practices",
+    "Custom arrays provide software-specific assessment dimensions",
+    "Graph extensions support code-level provenance and technical debt tracking"
+  ]
+}

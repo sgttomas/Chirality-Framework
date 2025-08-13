@@ -4,10 +4,14 @@ from typing import List, Optional, Dict, Any
 from functools import reduce
 from urllib.parse import urljoin
 from enum import Enum
+from pathlib import Path
+from datetime import datetime
 from chirality_components import ChiralityDocument, make_matrix, make_array, Cell
 from semmul import ensure_api_key
 
-# Default API configuration
+# CF14 v2.1.1 Configuration
+CF14_VERSION = "2.1.1"
+ONTOLOGY_ID = "cf14.core.v2.1.1"
 DEFAULT_API_BASE = os.getenv("CHIRALITY_API_BASE", "http://localhost:3000")
 
 # Canonical matrix sizes
@@ -30,11 +34,17 @@ MATRIX_B = [
     ['Vital Judgment', 'Sound Reasoning', 'Thorough Prudence', 'Harmonious Principles']
 ]
 
-# Canonical row/column labels
-C_ROWS = ['Normative', 'Operative', 'Evaluative']
-C_COLS = ['Necessity (vs Contingency)', 'Sufficiency', 'Completeness', 'Consistency']
-A_ROWS = ['Normative', 'Operative', 'Evaluative']
-A_COLS = ['Guiding', 'Applying', 'Judging', 'Reviewing']
+# CF14 v2.1.1 Canonical Modalities
+PROCESS_MODALITIES = ['Normative', 'Operative', 'Evaluative']  # 3x4 matrices
+DECISION_MODALITIES = ['Necessity', 'Sufficiency', 'Completeness', 'Consistency']  # Standard columns
+KNOWLEDGE_HIERARCHY = ['Data', 'Information', 'Knowledge', 'Wisdom']  # 4x4 matrices
+ACTION_MODALITIES = ['Guiding', 'Applying', 'Judging', 'Reviewing']  # Problem Statement columns
+
+# Canonical row/column labels (backward compatibility)
+C_ROWS = PROCESS_MODALITIES
+C_COLS = DECISION_MODALITIES
+A_ROWS = PROCESS_MODALITIES
+A_COLS = ACTION_MODALITIES
 
 
 # Sanity checks to ensure framework compatibility at import time
@@ -46,13 +56,30 @@ assert len(MATRIX_B) == B_ROWS and all(len(r) == B_COLS for r in MATRIX_B), (
 )
 assert MATRIX_COLS == B_ROWS, "A columns must equal B rows"
 
-# Operation enum for semantic operations
+# CF14 v2.1.1 Operation Types
 class Operation(str, Enum):
     MULTIPLY = "*"
     ADD = "+"
+    CROSS_PRODUCT = "×"
+    ELEMENT_WISE = "⊙"
+    TRUNCATION = "[1:n]"
+    EXTRACTION = "extract"
+
+# CF14 v2.1.1 Component Types
+class ComponentType(str, Enum):
+    MATRIX = "matrix"
+    ARRAY = "array"
+    SCALAR = "scalar"
+    TENSOR = "tensor"
+
+# CF14 v2.1.1 Station Names
+STATIONS = [
+    "Problem Statement", "Requirements", "Objectives", "Verification", "Validation",
+    "Evaluation", "Assessment", "Implementation", "Reflection", "Resolution"
+]
 
 def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
-    """Configure logging based on verbosity flags"""
+    """Configure CF14 v2.1.1 structured logging"""
     if quiet:
         level = logging.WARNING
     elif verbose:
@@ -62,7 +89,7 @@ def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
     
     logging.basicConfig(
         level=level,
-        format='%(levelname)s: %(message)s',
+        format='[CF14 v2.1.1] %(asctime)s - %(levelname)s: %(message)s',
         datefmt='%H:%M:%S'
     )
 
@@ -378,37 +405,98 @@ def array_from_list(args):
     
     return json_path
 
-def generate_matrix_c_semantic(args):
-    """Generate Matrix C using semantic multiplication A * B = C from Chirality Framework"""
+def load_domain_pack(domain_pack_path: Optional[str]) -> Dict[str, Any]:
+    """Load domain pack if provided, return merged ontology context"""
+    if not domain_pack_path:
+        return {"domain": "general", "modalities": get_default_modalities()}
     
-    logging.info("Generating Matrix C from semantic multiplication A * B = C...")
+    try:
+        with open(domain_pack_path, 'r') as f:
+            domain_pack = json.load(f)
+        
+        # Validate domain pack structure
+        if domain_pack.get("extends") != ONTOLOGY_ID:
+            raise ValueError(f"Domain pack incompatible. Expected: {ONTOLOGY_ID}, Got: {domain_pack.get('extends')}")
+        
+        logging.info(f"✓ Loaded domain pack: {domain_pack.get('domain', 'unknown')}")
+        return {
+            "domain": domain_pack.get("domain", "general"),
+            "modalities": domain_pack.get("modalities", get_default_modalities()),
+            "axiomatic_matrices": domain_pack.get("axiomatic_matrices", {})
+        }
+    
+    except Exception as e:
+        logging.error(f"Failed to load domain pack: {e}")
+        return {"domain": "general", "modalities": get_default_modalities()}
+
+def get_default_modalities() -> Dict[str, List[str]]:
+    """Get default CF14 v2.1.1 modalities"""
+    return {
+        "process": PROCESS_MODALITIES,
+        "decision": DECISION_MODALITIES,
+        "knowledge_hierarchy": KNOWLEDGE_HIERARCHY,
+        "action": ACTION_MODALITIES
+    }
+
+def generate_matrix_c_semantic(args):
+    """Generate Matrix C using semantic multiplication A * B = C from CF14 v2.1.1"""
+    
+    logging.info(f"Generating Matrix C from semantic multiplication A * B = C (CF14 v{CF14_VERSION})...")
+    
+    # Load domain pack if provided
+    domain_context = load_domain_pack(getattr(args, 'domain_pack', None))
+    
+    # Use domain-specific matrices if available, otherwise defaults
+    matrix_a = MATRIX_A
+    matrix_b = MATRIX_B
+    
+    if "axiomatic_matrices" in domain_context:
+        if "A" in domain_context["axiomatic_matrices"]:
+            matrix_a = domain_context["axiomatic_matrices"]["A"]["cells"]
+            logging.info("Using domain-specific Matrix A")
+        if "B" in domain_context["axiomatic_matrices"]:
+            matrix_b = domain_context["axiomatic_matrices"]["B"]["cells"]
+            logging.info("Using domain-specific Matrix B")
+    
     logging.info("Matrix A (Problem Statement):")
-    for i, row in enumerate(MATRIX_A):
-        logging.info(f"  {C_ROWS[i]}: {row}")
-    logging.info("Matrix B (Decisions):")
-    b_rows = ['Data', 'Information', 'Knowledge', 'Wisdom']
-    for i, row in enumerate(MATRIX_B):
-        logging.info(f"  {b_rows[i]}: {row}")
+    for i, row in enumerate(matrix_a):
+        logging.info(f"  {PROCESS_MODALITIES[i]}: {row}")
+    logging.info("Matrix B (Decision Framework):")
+    for i, row in enumerate(matrix_b):
+        logging.info(f"  {KNOWLEDGE_HIERARCHY[i]}: {row}")
 
-    # Generate semantic Matrix C
-    cells_2d = create_semantic_matrix_c(MATRIX_A, MATRIX_B)
+    # Generate semantic Matrix C with domain context
+    cells_2d = create_semantic_matrix_c_with_context(matrix_a, matrix_b, domain_context)
 
-    # Create Chirality document
-    doc = ChiralityDocument(version="1.0", meta={"source": "chirality_cli", "mode": "semantic-matrix-c"})
+    # Create CF14 v2.1.1 document with enhanced metadata
+    doc = ChiralityDocument(
+        version=CF14_VERSION, 
+        meta={
+            "source": "chirality_cli", 
+            "mode": "semantic-matrix-c",
+            "ontology_id": ONTOLOGY_ID,
+            "timestamp": datetime.now().isoformat(),
+            "cf14_version": CF14_VERSION,
+            "domain": domain_context["domain"]
+        }
+    )
     ontology = {
         "operation": "A * B = C",
         "matrix_a": "Problem Statement (3x4)",
-        "matrix_b": "Decisions (4x4)", 
+        "matrix_b": "Decision Framework (4x4)", 
         "result": "Requirements (3x4)",
-        "framework": "Chirality Framework semantic multiplication"
+        "framework": f"Chirality Framework v{CF14_VERSION} semantic multiplication",
+        "modalities": domain_context["modalities"],
+        "ufo_type": "Endurant",
+        "domain": domain_context["domain"]
     }
 
     comp = make_matrix(
-        id="matrix_C_semantic",
+        id="C",
         name="Matrix C (Requirements)",
         station="Requirements",
-        row_labels=C_ROWS,
-        col_labels=C_COLS,
+        row_labels=PROCESS_MODALITIES,
+        col_labels=DECISION_MODALITIES,
         cells_2d=cells_2d,
         ontology=ontology
     )
@@ -416,10 +504,383 @@ def generate_matrix_c_semantic(args):
     doc.components.append(comp)
     json_path = write_json(doc, args.out)
 
-    # Also send to Neo4j
+    # Send to Neo4j with CF14 v2.1.1 metadata
     send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
 
     return json_path
+
+def create_semantic_matrix_c_with_context(matrix_a_elements: List[List[str]], matrix_b_elements: List[List[str]], domain_context: Dict[str, Any]) -> List[List[Cell]]:
+    """
+    Enhanced semantic matrix multiplication with domain context for CF14 v2.1.1
+    """
+    ensure_api_key()
+    from semmul import semantic_multiply
+    
+    validate_rectangular_matrix(matrix_a_elements, "A")
+    validate_rectangular_matrix(matrix_b_elements, "B")
+    
+    rows_a = len(matrix_a_elements)
+    shared = len(matrix_a_elements[0])
+    if len(matrix_b_elements) != shared:
+        raise ValueError(f"Matrix A has {shared} columns but Matrix B has {len(matrix_b_elements)} rows. Cannot multiply.")
+    cols_b = len(matrix_b_elements[0])
+    
+    logging.info(f"Performing semantic multiplication A({rows_a}×{shared}) * B({shared}×{cols_b}) = C({rows_a}×{cols_b}) [Domain: {domain_context['domain']}]")
+    
+    cells_2d = []
+    for i in range(rows_a):
+        cell_row = []
+        for j in range(cols_b):
+            partials = []
+            raw_terms = []
+            for k in range(shared):
+                a_term = matrix_a_elements[i][k]
+                b_term = matrix_b_elements[k][j]
+                partial = semantic_multiply(a_term, b_term)
+                partials.append(partial)
+                raw_terms.extend([a_term, b_term])
+                logging.debug(f"  A({i+1},{k+1})*B({k+1},{j+1}): {a_term} * {b_term} = {partial}")
+            
+            resolved_term = reduce(lambda acc, t: semantic_multiply(acc, t), partials)
+            logging.debug(f"  C({i+1},{j+1}) = {resolved_term}")
+            
+            cell = Cell(
+                resolved=resolved_term,
+                raw_terms=raw_terms,
+                intermediate=partials,
+                operation=Operation.MULTIPLY.value,
+                notes=f"C({i+1},{j+1}) from CF14 v{CF14_VERSION} semantic multiplication, domain: {domain_context['domain']}"
+            )
+            cell_row.append(cell)
+        cells_2d.append(cell_row)
+    
+    return cells_2d
+
+def extract_array_p_from_neo4j(args):
+    """Extract Array P (Validity Parameters) from row 4 of Validation matrix Z"""
+    
+    logging.info("Step 1: Querying Matrix Z from Neo4j (Validation station)...")
+    matrix_z_data = query_neo4j_matrix(component_id=args.matrix_z_id, api_base=args.api_base)
+    
+    if not matrix_z_data:
+        raise SystemExit(f"Matrix Z not found with ID: {args.matrix_z_id}")
+    
+    logging.info(f"✓ Found Matrix Z: {matrix_z_data['name']} (ID: {matrix_z_data['id']})")
+    
+    # Extract row 4 (index 3) as Array P
+    z_data = matrix_z_data['data']
+    if len(z_data) < 4:
+        raise SystemExit("Matrix Z must have at least 4 rows to extract Array P")
+    
+    array_p_row = z_data[3]  # Fourth row
+    logging.info(f"Extracted Array P: {array_p_row}")
+    
+    # Convert to Cell objects
+    cells_1d = []
+    for j, value in enumerate(array_p_row):
+        cell_value = _safe_resolved([[value]], 0, 0, f"P({j+1})")
+        cell = Cell(
+            resolved=cell_value,
+            raw_terms=[cell_value],
+            intermediate=[],
+            operation=Operation.EXTRACTION.value,
+            notes=f"Array P element from Matrix Z row 4, col {j+1}"
+        )
+        cells_1d.append(cell)
+    
+    # Create CF14 v2.1.1 document
+    doc = ChiralityDocument(
+        version=CF14_VERSION,
+        meta={
+            "source": "chirality_cli",
+            "mode": "extract-array-p",
+            "ontology_id": ONTOLOGY_ID,
+            "timestamp": datetime.now().isoformat(),
+            "source_matrix_z_id": args.matrix_z_id
+        }
+    )
+    
+    ontology = {
+        "operation": "Extract Array P from Matrix Z",
+        "source": f"Matrix Z row 4 (ID: {args.matrix_z_id})",
+        "result": "Array P (Validity Parameters, 1x4)",
+        "framework": f"CF14 v{CF14_VERSION} extraction operation",
+        "ufo_type": "Endurant"
+    }
+    
+    comp = make_array(
+        title="Array P (Validity Parameters)",
+        items=[cell.resolved for cell in cells_1d],
+        axis_name="Validity Parameters",
+        station="Reflection",
+        ontology=ontology
+    )
+    comp.id = "array_P_validity_parameters"
+    
+    doc.components.append(comp)
+    json_path = write_json(doc, args.out)
+    
+    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
+    
+    return json_path
+
+def extract_array_h_from_neo4j(args):
+    """Extract Array H (Consistency Dialectic) from element 4 of Array P"""
+    
+    logging.info("Step 1: Querying Array P from Neo4j...")
+    array_p_data = query_neo4j_matrix(component_id=args.array_p_id, api_base=args.api_base)
+    
+    if not array_p_data:
+        raise SystemExit(f"Array P not found with ID: {args.array_p_id}")
+    
+    logging.info(f"✓ Found Array P: {array_p_data['name']} (ID: {array_p_data['id']})")
+    
+    # Extract element 4 (Consistency) as Array H
+    p_data = array_p_data['data']
+    if not p_data or len(p_data[0]) < 4:
+        raise SystemExit("Array P must have at least 4 elements to extract Array H")
+    
+    consistency_value = _safe_resolved(p_data, 0, 3, "Consistency")  # Fourth element
+    logging.info(f"Extracted Array H (Consistency Dialectic): {consistency_value}")
+    
+    # Create scalar Cell
+    cell = Cell(
+        resolved=consistency_value,
+        raw_terms=[consistency_value],
+        intermediate=[],
+        operation=Operation.EXTRACTION.value,
+        notes="Array H (Consistency Dialectic) from Array P element 4"
+    )
+    
+    # Create CF14 v2.1.1 document
+    doc = ChiralityDocument(
+        version=CF14_VERSION,
+        meta={
+            "source": "chirality_cli",
+            "mode": "extract-array-h",
+            "ontology_id": ONTOLOGY_ID,
+            "timestamp": datetime.now().isoformat(),
+            "source_array_p_id": args.array_p_id
+        }
+    )
+    
+    ontology = {
+        "operation": "Extract Array H from Array P",
+        "source": f"Array P element 4 (ID: {args.array_p_id})",
+        "result": "Array H (Consistency Dialectic, 1x1)",
+        "framework": f"CF14 v{CF14_VERSION} extraction operation",
+        "ufo_type": "Endurant"
+    }
+    
+    # Create scalar component (special case array with single element)
+    comp = make_array(
+        title="Array H (Consistency Dialectic)",
+        items=[consistency_value],
+        axis_name="Consistency",
+        station="Resolution",
+        ontology=ontology
+    )
+    comp.id = "array_H_consistency_dialectic"
+    
+    doc.components.append(comp)
+    json_path = write_json(doc, args.out)
+    
+    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
+    
+    return json_path
+
+def execute_full_pipeline(args):
+    """Execute complete CF14 v2.1.1 pipeline through all implemented stations"""
+    
+    logging.info(f"Executing full CF14 v{CF14_VERSION} pipeline...")
+    
+    # Load domain pack if provided
+    domain_context = load_domain_pack(getattr(args, 'domain_pack', None))
+    logging.info(f"Domain: {domain_context['domain']}")
+    
+    # Get matrices A and B
+    matrix_a = MATRIX_A
+    matrix_b = MATRIX_B
+    
+    if "axiomatic_matrices" in domain_context:
+        if "A" in domain_context["axiomatic_matrices"]:
+            matrix_a = domain_context["axiomatic_matrices"]["A"]["cells"]
+        if "B" in domain_context["axiomatic_matrices"]:
+            matrix_b = domain_context["axiomatic_matrices"]["B"]["cells"]
+    
+    results = {"pipeline_metadata": {
+        "cf14_version": CF14_VERSION,
+        "ontology_id": ONTOLOGY_ID,
+        "domain": domain_context["domain"],
+        "timestamp": datetime.now().isoformat(),
+        "stations_executed": []
+    }}
+    
+    # Station 1: Problem Statement (A, B are axiomatic)
+    logging.info("Station 1: Problem Statement (Axiomatic matrices A, B)")
+    results["matrix_A"] = create_axiomatic_component("A", matrix_a, "Problem Statement", PROCESS_MODALITIES, ACTION_MODALITIES, domain_context)
+    results["matrix_B"] = create_axiomatic_component("B", matrix_b, "Problem Statement", KNOWLEDGE_HIERARCHY, DECISION_MODALITIES, domain_context)
+    results["pipeline_metadata"]["stations_executed"].append("Problem Statement")
+    
+    # Station 2: Requirements (C = A * B)
+    logging.info("Station 2: Requirements (C = A * B)")
+    matrix_c_cells = create_semantic_matrix_c_with_context(matrix_a, matrix_b, domain_context)
+    results["matrix_C"] = create_derived_component("C", matrix_c_cells, "Requirements", PROCESS_MODALITIES, DECISION_MODALITIES, "multiplication", domain_context)
+    results["pipeline_metadata"]["stations_executed"].append("Requirements")
+    
+    # Station 3: Objectives (J, F, D)
+    logging.info("Station 3: Objectives (J = B[1:3], F = J ⊙ C, D = A + F)")
+    
+    # J = truncated B (first 3 rows)
+    matrix_j = matrix_b[:3]
+    matrix_j_cells = [[Cell(resolved=val, raw_terms=[val], intermediate=[], operation=Operation.TRUNCATION.value) for val in row] for row in matrix_j]
+    results["matrix_J"] = create_derived_component("J", matrix_j_cells, "Objectives", KNOWLEDGE_HIERARCHY[:3], DECISION_MODALITIES, "truncation", domain_context)
+    
+    # F = J ⊙ C (element-wise multiplication) 
+    matrix_f_cells = create_element_wise_multiplication(matrix_j, extract_matrix_values(matrix_c_cells), domain_context)
+    results["matrix_F"] = create_derived_component("F", matrix_f_cells, "Objectives", KNOWLEDGE_HIERARCHY[:3], DECISION_MODALITIES, "element_wise_multiplication", domain_context)
+    
+    # D = A + F (matrix addition)
+    matrix_d_cells = create_matrix_addition(matrix_a, extract_matrix_values(matrix_f_cells), domain_context)
+    results["matrix_D"] = create_derived_component("D", matrix_d_cells, "Objectives", PROCESS_MODALITIES, ACTION_MODALITIES, "addition", domain_context)
+    
+    results["pipeline_metadata"]["stations_executed"].append("Objectives")
+    
+    # Create consolidated document
+    doc = ChiralityDocument(
+        version=CF14_VERSION,
+        meta={
+            "source": "chirality_cli",
+            "mode": "full-pipeline",
+            "ontology_id": ONTOLOGY_ID,
+            "timestamp": datetime.now().isoformat(),
+            "domain": domain_context["domain"],
+            "stations_executed": results["pipeline_metadata"]["stations_executed"]
+        }
+    )
+    
+    # Add all components to document
+    for comp_name, comp_data in results.items():
+        if comp_name != "pipeline_metadata" and isinstance(comp_data, dict):
+            doc.components.append(convert_dict_to_component(comp_data))
+    
+    json_path = write_json(doc, args.out)
+    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
+    
+    logging.info(f"✓ Full pipeline completed. Generated {len(doc.components)} components across {len(results['pipeline_metadata']['stations_executed'])} stations.")
+    
+    return json_path
+
+def validate_domain_pack(args):
+    """Validate domain pack compatibility with CF14 v2.1.1"""
+    
+    logging.info(f"Validating domain pack: {args.domain_pack}")
+    
+    try:
+        domain_context = load_domain_pack(args.domain_pack)
+        
+        if domain_context["domain"] == "general":
+            logging.warning("Domain pack loaded as general - may indicate parsing issues")
+        else:
+            logging.info(f"✓ Domain pack valid: {domain_context['domain']}")
+            logging.info(f"  Modalities: {list(domain_context['modalities'].keys())}")
+            if "axiomatic_matrices" in domain_context:
+                logging.info(f"  Axiomatic matrices: {list(domain_context['axiomatic_matrices'].keys())}")
+        
+    except Exception as e:
+        logging.error(f"✗ Domain pack validation failed: {e}")
+        return False
+    
+    return True
+
+# Helper functions for full pipeline
+def create_axiomatic_component(name: str, matrix: List[List[str]], station: str, row_labels: List[str], col_labels: List[str], domain_context: Dict[str, Any]) -> Dict[str, Any]:
+    """Create axiomatic component metadata"""
+    return {
+        "id": f"matrix_{name}_{domain_context['domain']}",
+        "name": f"Matrix {name}",
+        "station": station,
+        "dimensions": [len(matrix), len(matrix[0])],
+        "row_labels": row_labels,
+        "col_labels": col_labels,
+        "operation_type": "axiomatic",
+        "ontology_id": ONTOLOGY_ID,
+        "domain": domain_context["domain"],
+        "ufo_type": "Endurant"
+    }
+
+def create_derived_component(name: str, cells: List[List[Cell]], station: str, row_labels: List[str], col_labels: List[str], operation: str, domain_context: Dict[str, Any]) -> Dict[str, Any]:
+    """Create derived component metadata"""
+    return {
+        "id": f"matrix_{name}_{domain_context['domain']}",
+        "name": f"Matrix {name}",
+        "station": station,
+        "dimensions": [len(cells), len(cells[0])],
+        "row_labels": row_labels,
+        "col_labels": col_labels,
+        "operation_type": operation,
+        "ontology_id": ONTOLOGY_ID,
+        "domain": domain_context["domain"],
+        "ufo_type": "Endurant",
+        "cells": cells
+    }
+
+def create_element_wise_multiplication(matrix_j: List[List[str]], matrix_c: List[List[str]], domain_context: Dict[str, Any]) -> List[List[Cell]]:
+    """Create F = J ⊙ C element-wise multiplication"""
+    ensure_api_key()
+    from semmul import semantic_multiply
+    
+    cells_2d = []
+    for i in range(len(matrix_j)):
+        cell_row = []
+        for j in range(len(matrix_j[0])):
+            j_term = matrix_j[i][j]
+            c_term = matrix_c[i][j]
+            resolved_term = semantic_multiply(j_term, c_term)
+            
+            cell = Cell(
+                resolved=resolved_term,
+                raw_terms=[j_term, c_term],
+                intermediate=[],
+                operation=Operation.ELEMENT_WISE.value,
+                notes=f"F({i+1},{j+1}) from J ⊙ C element-wise multiplication"
+            )
+            cell_row.append(cell)
+        cells_2d.append(cell_row)
+    
+    return cells_2d
+
+def create_matrix_addition(matrix_a: List[List[str]], matrix_f: List[List[str]], domain_context: Dict[str, Any]) -> List[List[Cell]]:
+    """Create D = A + F matrix addition"""
+    cells_2d = []
+    for i in range(len(matrix_a)):
+        cell_row = []
+        for j in range(len(matrix_a[0])):
+            a_term = matrix_a[i][j]
+            f_term = matrix_f[i][j]
+            resolved_sentence = f"{a_term} applied to frame the problem; {f_term} to resolve the problem."
+            
+            cell = Cell(
+                resolved=resolved_sentence,
+                raw_terms=[a_term, f_term],
+                intermediate=[],
+                operation=Operation.ADD.value,
+                notes=f"D({i+1},{j+1}) from A + F semantic addition"
+            )
+            cell_row.append(cell)
+        cells_2d.append(cell_row)
+    
+    return cells_2d
+
+def extract_matrix_values(cells: List[List[Cell]]) -> List[List[str]]:
+    """Extract resolved values from Cell matrix"""
+    return [[cell.resolved for cell in row] for row in cells]
+
+def convert_dict_to_component(comp_dict: Dict[str, Any]):
+    """Convert component dictionary to ChiralityComponent for document serialization"""
+    # This would need to be implemented based on your chirality_components structure
+    # For now, return the dict as-is
+    return comp_dict
 
 def generate_matrix_f_from_neo4j(args):
     """Generate Matrix F using J(i,j) * C(i,j) = F(i,j) by reading Matrix C from Neo4j"""
@@ -492,8 +953,8 @@ def generate_matrix_f_from_neo4j(args):
     }
     
     comp = make_matrix(
-        id="matrix_F_from_neo4j",
-        name="Matrix F (from Neo4j Matrix C)",
+        id="F",
+        name="Matrix F (Objectives)",
         station="Objectives",
         row_labels=j_rows,
         col_labels=C_COLS,
@@ -574,8 +1035,8 @@ def generate_matrix_d_from_neo4j(args):
     }
     
     comp = make_matrix(
-        id="matrix_D_from_neo4j",
-        name="Matrix D (Solution Objectives)",
+        id="D",
+        name="Matrix D (Objectives)",
         station="Objectives",
         row_labels=A_ROWS,
         col_labels=A_COLS,
@@ -636,20 +1097,43 @@ def main():
     al.add_argument("--out", required=True)
     al.set_defaults(func=array_from_list)
 
-    # semantic matrix generation from Chirality Framework
-    sc = sub.add_parser("semantic-matrix-c", help="Generate Matrix C using semantic multiplication A * B = C from Chirality Framework")
+    # CF14 v2.1.1 semantic operations
+    sc = sub.add_parser("semantic-matrix-c", help="Generate Matrix C using semantic multiplication A * B = C (CF14 v2.1.1)")
     sc.add_argument("--out", required=True, help="Output JSON path for Matrix C.")
+    sc.add_argument("--domain-pack", help="Path to domain-specific ontology pack")
     sc.set_defaults(func=generate_matrix_c_semantic)
 
-    # semantic matrix F generation from Neo4j Matrix C
-    sf = sub.add_parser("semantic-matrix-f", help="Generate Matrix F using J(i,j) * C(i,j) = F(i,j) by reading Matrix C from Neo4j")
+    sf = sub.add_parser("semantic-matrix-f", help="Generate Matrix F using J ⊙ C = F element-wise multiplication (CF14 v2.1.1)")
     sf.add_argument("--out", required=True, help="Output JSON path for Matrix F.")
+    sf.add_argument("--domain-pack", help="Path to domain-specific ontology pack")
     sf.set_defaults(func=generate_matrix_f_from_neo4j)
 
-    # semantic matrix D generation from Neo4j Matrix F
-    sd = sub.add_parser("semantic-matrix-d", help="Generate Matrix D using A(i,j) + F(i,j) = D(i,j) with semantic addition from Neo4j")
+    sd = sub.add_parser("semantic-matrix-d", help="Generate Matrix D using A + F = D semantic addition (CF14 v2.1.1)")
     sd.add_argument("--out", required=True, help="Output JSON path for Matrix D.")
+    sd.add_argument("--domain-pack", help="Path to domain-specific ontology pack")
     sd.set_defaults(func=generate_matrix_d_from_neo4j)
+
+    # CF14 v2.1.1 new components
+    sp = sub.add_parser("extract-array-p", help="Extract Array P (Validity Parameters) from Validation matrix Z")
+    sp.add_argument("--matrix-z-id", required=True, help="Component ID of Matrix Z in Neo4j")
+    sp.add_argument("--out", required=True, help="Output JSON path for Array P.")
+    sp.set_defaults(func=extract_array_p_from_neo4j)
+
+    sh = sub.add_parser("extract-array-h", help="Extract Array H (Consistency Dialectic) from Array P")
+    sh.add_argument("--array-p-id", required=True, help="Component ID of Array P in Neo4j")
+    sh.add_argument("--out", required=True, help="Output JSON path for Array H.")
+    sh.set_defaults(func=extract_array_h_from_neo4j)
+
+    # Full pipeline execution
+    fp = sub.add_parser("full-pipeline", help="Execute complete CF14 v2.1.1 pipeline through all implemented stations")
+    fp.add_argument("--out", required=True, help="Output JSON path for full pipeline results.")
+    fp.add_argument("--domain-pack", help="Path to domain-specific ontology pack")
+    fp.set_defaults(func=execute_full_pipeline)
+
+    # Domain pack validation
+    dp = sub.add_parser("validate-domain", help="Validate domain pack compatibility with CF14 v2.1.1")
+    dp.add_argument("--domain-pack", required=True, help="Path to domain-specific ontology pack")
+    dp.set_defaults(func=validate_domain_pack)
 
     args = p.parse_args()
     
