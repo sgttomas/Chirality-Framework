@@ -1,0 +1,96 @@
+{
+  "pack_id": "cf14.core",
+  "version": "2.1.1",
+  "updated_at": "2025-08-13T00:00:00Z",
+  "source_refs": [
+    "NORMATIVE_Chriality_Framework_14.2.1.1.txt"
+  ],
+  "gloss_version": "0.1 (placeholders)",
+  "gloss_policy": "Do not fabricate meanings. Populate from NORMATIVE text or approved domain packs only.",
+
+  "stations": [
+    {"id": "problem_statement", "label": "Problem Statement", "meaning": "A precise articulation of the issue or challenge to be addressed, serving as the foundation for generating reliable knowledge.", "meaning_status": "normative", "aliases": [], "notes": "Station introducing the problem domain and initial axioms."},
+    {"id": "requirements", "label": "Requirements", "meaning": "The essential criteria and constraints that a solution must satisfy to ensure knowledge outcomes are valid and relevant.", "meaning_status": "normative", "aliases": [], "notes": "Outputs derived from A * B (Matrix C)."},
+    {"id": "objectives", "label": "Objectives", "meaning": "The specific goals that guide knowledge generation toward addressing the problem effectively.", "meaning_status": "normative", "aliases": [], "notes": "Constructed from A + F (Matrix D); joins and interpretations of J and C."},
+    {"id": "verification", "label": "Verification", "meaning": "The process of confirming that knowledge outputs are internally consistent and meet defined requirements.", "meaning_status": "normative", "aliases": [], "notes": "K * J (per spec)."},
+    {"id": "validation", "label": "Validation", "meaning": "The process of confirming that knowledge outputs are fit for real‑world application and address the original problem.", "meaning_status": "normative", "aliases": [], "notes": "Derived from verification context transformation (X → Z)."},
+    {"id": "evaluation", "label": "Evaluation", "meaning": "A systematic review of knowledge products to measure their adequacy, completeness, and relevance.", "meaning_status": "normative", "aliases": [], "notes": "G * T → E."},
+    {"id": "assessment", "label": "Assessment", "meaning": "A judgment of the quality and reliability of knowledge based on evaluation results.", "meaning_status": "normative", "aliases": [], "notes": "R × E → M (semantic cross product)."},
+    {"id": "implementation", "label": "Implementation", "meaning": "The practical application of knowledge in processes, systems, or decisions.", "meaning_status": "normative", "aliases": [], "notes": "M × X → W."},
+    {"id": "reflection", "label": "Reflection", "meaning": "The deliberate review of applied knowledge to extract insights and improve future efforts.", "meaning_status": "normative", "aliases": [], "notes": "W × P → U."},
+    {"id": "resolution", "label": "Resolution", "meaning": "The final synthesis of verified and validated knowledge into a coherent, actionable outcome.", "meaning_status": "normative", "aliases": [], "notes": "U × H → N (final station)."}
+  ],
+
+  "matrices": [
+    {"id": "A", "label": "Problem Statement (A)", "shape": [3, 4], "rows_ref": "process_modalities", "cols_ref": "action_modalities", "notes": "Axiomatic meta-ontology for station Problem Statement."},
+    {"id": "B", "label": "Decision Framework (B)", "shape": [4, 4], "rows_ref": "knowledge_hierarchy", "cols_ref": "decision_modalities", "notes": "Axiomatic decision/knowledge grid."},
+    {"id": "C", "label": "Requirements (C)", "shape": [3, 4], "rows_ref": "process_modalities", "cols_ref": "decision_modalities", "notes": "C = A * B (multiply per-k, then add via concatenation)."},
+    {"id": "D", "label": "Solution Objectives (D)", "shape": [3, 4], "rows_ref": "process_modalities", "cols_ref": "action_modalities", "notes": "D = A + F (constructive sentence; then row/col interpretation)."},
+    {"id": "J", "label": "Truncated Decisions (J)", "shape": [3, 4], "rows_ref": "knowledge_hierarchy[:3]", "cols_ref": "decision_modalities", "notes": "First 3 rows of B (drop Wisdom)."},
+    {"id": "F", "label": "Objectives (F)", "shape": [3, 4], "rows_ref": "knowledge_hierarchy[:3]", "cols_ref": "decision_modalities", "notes": "F = join(J,C) (constructive), then interpret."},
+    {"id": "P", "label": "Validity Parameters (P)", "shape": [1, 4], "rows_ref": null, "cols_ref": "decision_modalities", "notes": "Fourth row of Z."},
+    {"id": "H", "label": "Consistency Dialectic (H)", "shape": [1, 1], "rows_ref": null, "cols_ref": null, "notes": "Fourth element of P."}
+  ],
+
+  "row_ontologies": {
+    "process_modalities": [
+      {"id": "normative", "label": "Normative", "meaning": "Establishing standards, principles, or rules that guide the creation of reliable knowledge.", "meaning_status": "normative", "aliases": []},
+      {"id": "operative", "label": "Operative", "meaning": "The active execution of processes to generate and apply knowledge.", "meaning_status": "normative", "aliases": []},
+      {"id": "evaluative", "label": "Evaluative", "meaning": "The critical appraisal of knowledge to determine its reliability and value.", "meaning_status": "normative", "aliases": []}
+    ]
+  },
+
+  "col_ontologies": {
+    "decision_modalities": [
+      {"id": "necessity", "label": "Necessity (vs Contingency)", "meaning": "Determining what is essential for knowledge to be valid, versus what is optional or dependent on circumstance.", "meaning_status": "normative", "aliases": ["necessity"]},
+      {"id": "sufficiency", "label": "Sufficiency", "meaning": "Ensuring that the available knowledge is adequate to support the intended conclusions or actions.", "meaning_status": "normative", "aliases": []},
+      {"id": "completeness", "label": "Completeness", "meaning": "Confirming that all relevant aspects of the knowledge domain are covered without gaps.", "meaning_status": "normative", "aliases": []},
+      {"id": "consistency", "label": "Consistency", "meaning": "Ensuring that knowledge elements do not contradict each other and align with established truths.", "meaning_status": "normative", "aliases": []}
+    ],
+    "action_modalities": [
+      {"id": "guiding", "label": "Guiding", "meaning": "Directing knowledge processes according to established principles and objectives.", "meaning_status": "normative", "aliases": []},
+      {"id": "applying", "label": "Applying", "meaning": "Using knowledge to address specific problems or achieve desired results.", "meaning_status": "normative", "aliases": []},
+      {"id": "judging", "label": "Judging", "meaning": "Forming reasoned conclusions about the validity and applicability of knowledge.", "meaning_status": "normative", "aliases": []},
+      {"id": "reviewing", "label": "Reviewing", "meaning": "Re‑examining knowledge and its generation process to ensure quality and reliability.", "meaning_status": "normative", "aliases": []}
+    ],
+    "knowledge_hierarchy": [
+      {"id": "data", "label": "Data", "meaning": "Raw facts and observations from which reliable knowledge can be built.", "meaning_status": "normative", "aliases": []},
+      {"id": "information", "label": "Information", "meaning": "Organized data that provides context and meaning for knowledge creation.", "meaning_status": "normative", "aliases": []},
+      {"id": "knowledge", "label": "Knowledge", "meaning": "Validated understanding derived from synthesizing information.", "meaning_status": "normative", "aliases": []},
+      {"id": "wisdom", "label": "Wisdom", "meaning": "The judicious application of knowledge to achieve beneficial and reliable outcomes.", "meaning_status": "normative", "aliases": []}
+    ]
+  },
+
+  "ontology_registry": {
+    "row_sets": {
+      "process_modalities": ["Normative", "Operative", "Evaluative"]
+    },
+    "col_sets": {
+      "decision_modalities": ["Necessity (vs Contingency)", "Sufficiency", "Completeness", "Consistency"],
+      "action_modalities": ["Guiding", "Applying", "Judging", "Reviewing"],
+      "knowledge_hierarchy": ["Data", "Information", "Knowledge", "Wisdom"]
+    }
+  },
+
+  "constraints": {
+    "PROCESS_MODALITIES_COUNT": 3,
+    "DECISION_MODALITIES_COUNT": 4
+  },
+
+  "prompt_seeds": [
+    {
+      "id": "interpretation.cell.row_col_v1",
+      "role": "system",
+      "content": "You are a semantic analyst following the Chirality Framework (CF14). Interpret a constructive cell statement through the lenses of its column and row ontologies, then synthesize both perspectives. Return structured JSON with column_interpretation, row_interpretation, synthesis.",
+      "notes": "To be used by downstream interpreter; not executed in CLI."
+    },
+    {
+      "id": "constructive.d.sentence_v1",
+      "role": "template",
+      "content": "{A_term} applied to frame the problem; {F_term} to resolve the problem.",
+      "notes": "Deterministic template for D cells."
+    }
+  ],
+
+  "localization": {}
+}

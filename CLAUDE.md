@@ -46,6 +46,11 @@ python chirality_cli.py semantic-matrix-c --out matrix_c.json
 python chirality_cli.py semantic-matrix-f --out matrix_f.json
 python chirality_cli.py semantic-matrix-d --out matrix_d.json
 
+# Enhanced operations with ontology packs and interpretation flags
+python chirality_cli.py semantic-matrix-c --ontology-pack ./ontology/cf14.core.v2.1.1.json --run-interpretations --out matrix_c.json
+python chirality_cli.py semantic-matrix-f --ontology-pack ./ontology/cf14.core.v2.1.1.json --run-interpretations --out matrix_f.json
+python chirality_cli.py semantic-matrix-d --ontology-pack ./ontology/cf14.core.v2.1.1.json --include-station-context --out matrix_d.json
+
 # Database management
 python neo4j_admin.py list                    # List all components
 python neo4j_admin.py delete --id <comp_id>   # Delete specific component
@@ -73,6 +78,25 @@ python neo4j_admin.py delete-station --station <name>  # Delete all at station
 - Python semantic operations use standard chat completions
 - Requires OPENAI_API_KEY environment variable
 - Model configured as gpt-4.1-nano in constants
+
+## Chirality Boundary Implementation
+
+**IMPORTANT**: The codebase maintains strict separation between constructive (deterministic) and generative (LLM-based) operations to preserve "chirality of knowledge":
+
+**Constructive Operations (No LLM)**:
+- Matrix mechanics (multiplication, addition, truncation)
+- Data extraction from Neo4j
+- String concatenation for semantic addition
+- Label propagation and ontology management
+
+**Generative Operations (LLM via semmul.py)**:
+- Semantic multiplication only (`semantic_multiply()` function)
+- All interpretation is prepared as `interpretation_inputs` in `Cell.intermediate` for future processing
+
+**New CLI Flags**:
+- `--ontology-pack PATH`: Load ontology meanings from JSON pack
+- `--run-interpretations`: Mark intent for downstream interpretation (no LLM execution)
+- `--include-station-context`: Include station names in interpretation inputs
 
 ## Essential Environment Setup
 

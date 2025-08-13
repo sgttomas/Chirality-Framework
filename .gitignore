@@ -50,3 +50,7 @@ Second implementation of CF14 in Neo4j.txt
 
 # Temporary files
 temp_semantic-matrix-*.json
+
+# python
+__pycache__/
+*.pyc

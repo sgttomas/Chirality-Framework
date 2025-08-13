@@ -1,7 +1,7 @@
 # semmul.py — semantic multiplication utilities (CSV + CLI + REPL)
 from __future__ import annotations
 from collections import OrderedDict
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 import json
 import time
 from openai import OpenAI
@@ -58,7 +58,7 @@ class SemanticCombiner:
     def __init__(self, api_key: str, model: Optional[str] = None, cache_capacity: int = 512):
         self.client = OpenAI(api_key=api_key)
         # Centralized default model selection (env-driven with fallback)
-        self.model = model or os.getenv("OPENAI_TEXT_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4.1-nano"
+        self.model = model or DEFAULT_TEXT_MODEL
         self.cache = LRU(cache_capacity)
 
     @staticmethod
@@ -301,9 +301,6 @@ def get_openai_client() -> OpenAI:
         _client = OpenAI()  # uses OPENAI_API_KEY from environment
     return _client
 
-import os
-import sys
-
 def ensure_api_key():
     if not os.getenv("OPENAI_API_KEY"):
         print("ERROR: OPENAI_API_KEY not set. Create a .env with OPENAI_API_KEY=...", file=sys.stderr)
@@ -343,6 +340,136 @@ def semantic_multiply(a: str, b: str) -> str:
             last_err = e
             time.sleep(0.8 * (attempt + 1))
     raise RuntimeError(f"semantic_multiply failed: {last_err}")
+
+def semantic_interpret(*, cell: str,
+                       col_label: str, col_meaning: str,
+                       row_label: str, row_meaning: str,
+                       station: Optional[str] = None) -> Dict[str, str]:
+    """
+    Interpret a semantic cell through column and row ontology perspectives.
+    
+    Contract per NORMATIVE CF14 v2.1.1:
+    1. First interpret through column ontology lens
+    2. Then interpret through row ontology lens  
+    3. Synthesize into final narrative integrating both perspectives
+    
+    Args:
+        cell: The semantic result to interpret
+        col_label: Column ontology label
+        col_meaning: Column ontology meaning/definition
+        row_label: Row ontology label  
+        row_meaning: Row ontology meaning/definition
+        station: Optional station context for interpretation
+        
+    Returns:
+        Dict with keys: "column_view", "row_view", "synthesis"
+    """
+    return _call_llm_for_interpretation(
+        cell=cell,
+        col_label=col_label, col_meaning=col_meaning,
+        row_label=row_label, row_meaning=row_meaning,
+        station=station
+    )
+
+# CF14 v2.1.1 Interpretation System
+SYSTEM_PROMPT_INTERPRET = (
+    "You are an interpretation kernel inside the CF14 Chirality Framework. "
+    "You must generate reliable knowledge. Follow the order of operations: "
+    "1) semantic multiplication, 2) semantic addition, then produce interpretations. "
+    "Return concise, plain-language outputs. Avoid fabricating facts."
+)
+
+USER_PROMPT_TEMPLATE = """\
+You are resolving meaning for a single matrix cell in CF14.
+
+Cell (post Step-1): {cell}
+
+Column lens:
+  - label: {col_label}
+  - meaning: {col_meaning}
+
+Row lens:
+  - label: {row_label}
+  - meaning: {row_meaning}
+
+Task:
+1) Column view: Interpret the cell through the column ontology lens (one concise paragraph).
+2) Row view: Interpret the cell through the row ontology lens (one concise paragraph).
+3) Synthesis: Integrate both perspectives into a single concise narrative that preserves both constraints.
+
+Constraints:
+- Be specific but concise (2–4 sentences per view, 3–6 sentences for synthesis).
+- Use only provided content; do not invent external facts.
+- The objective is generating reliable knowledge.
+
+{station_hint}
+
+Output a single JSON object with keys: "column_view", "row_view", "synthesis".
+"""
+
+def _station_hint(station: Optional[str]) -> str:
+    if not station:
+        return ""
+    return f"In this context, the current station is '{station}'. Adjust tone/aim accordingly."
+
+def _call_llm_for_interpretation(cell: str,
+                                 col_label: str, col_meaning: str,
+                                 row_label: str, row_meaning: str,
+                                 station: Optional[str]) -> Dict[str, str]:
+    """
+    Call LLM for semantic interpretation using structured output.
+    Returns a dict with keys: column_view, row_view, synthesis.
+    """
+    # Non-exiting check: Step-2 is optional; if no key, return empty sections
+    if not os.getenv("OPENAI_API_KEY"):
+        return {"column_view": "", "row_view": "", "synthesis": ""}
+
+    client = get_openai_client()
+    model = DEFAULT_TEXT_MODEL
+    
+    messages: Any = [
+        {"role": "system", "content": SYSTEM_PROMPT_INTERPRET},
+        {"role": "user", "content": USER_PROMPT_TEMPLATE.format(
+            cell=cell,
+            col_label=col_label, col_meaning=col_meaning or "(none provided)",
+            row_label=row_label, row_meaning=row_meaning or "(none provided)",
+            station_hint=_station_hint(station),
+        )}
+    ]
+
+    last_err = None
+    for attempt in range(2):
+        try:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.0,
+                response_format={"type": "json_object"},
+                max_tokens=512
+            )
+            content = resp.choices[0].message.content or ""
+            
+            # Parse JSON response
+            try:
+                obj = json.loads(content)
+                return {
+                    "column_view": obj.get("column_view", "").strip(),
+                    "row_view": obj.get("row_view", "").strip(),
+                    "synthesis": obj.get("synthesis", "").strip(),
+                }
+            except json.JSONDecodeError:
+                # Fallback: non-JSON model output; place full text in synthesis
+                return {
+                    "column_view": "",
+                    "row_view": "",
+                    "synthesis": content.strip(),
+                }
+        except Exception as e:
+            last_err = e
+            time.sleep(0.8 * (attempt + 1))
+    
+    # Final fallback on failure
+    return {"column_view": "", "row_view": "", "synthesis": ""}
 
     # --- Option B: Responses API (if you prefer) ---
     # resp = client.responses.create(
@@ -422,11 +549,11 @@ def main():
         return
 
     # Fallback: show a brief help
-    print("""\
+        print(f"""\
 Usage:
-  python {script_name} termA termB
-  python {script_name} --csv input.csv [--out output.csv] [--model gpt-4.1-nano] [--batch 64]
-  python {script_name}
+    python {script_name} termA termB
+    python {script_name} --csv input.csv [--out output.csv] [--model gpt-4.1-nano] [--batch 64]
+    python {script_name}
 CSV input must include columns: t1,t2,[context]
 Results CSV will include: t1,t2,context,term,alternates,confidence
 """)
