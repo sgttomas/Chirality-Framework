@@ -38,6 +38,8 @@ export default function InstantiatePage() {
   ])
   const [currentResult, setCurrentResult] = useState<InstantiationResult | null>(null)
   const [completedMatrices, setCompletedMatrices] = useState<string[]>([])
+  const [cleaning, setCleaning] = useState(false)
+  const [cleanMsg, setCleanMsg] = useState<string | null>(null)
 
   const domains = [
     'software_engineering',
@@ -73,6 +75,29 @@ export default function InstantiatePage() {
     })
   }
 
+  const handleCleanSetup = async () => {
+    try {
+      setCleaning(true)
+      setCleanMsg(null)
+      const res = await fetch('/api/neo4j/clean-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'cf14', recreateStations: true })
+      })
+      const text = await res.text()
+      if (!res.ok) throw new Error(text || `HTTP ${res.status}`)
+      const data = JSON.parse(text)
+      setCleanMsg(`Cleaned CF14 graph: deleted ${data.deletedCount} nodes`)
+      console.log('[Clean Setup] success:', data)
+    } catch (e: any) {
+      const msg = e?.message || String(e)
+      setCleanMsg(`Clean failed: ${msg}`)
+      console.error('[Clean Setup] error:', msg)
+    } finally {
+      setCleaning(false)
+    }
+  }
+
   const startInstantiation = async () => {
     if (!problemStatement.trim()) return
 
@@ -83,6 +108,124 @@ export default function InstantiatePage() {
     try {
       // Reset matrix status
       setMatrices(prev => prev.map(m => ({ ...m, status: 'pending' })))
+
+      // Step 0: Clean database (ensures clean slate - no duplicate matrices)
+      try {
+        const res = await fetch('/api/neo4j/clean-setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scope: 'cf14', recreateStations: true })
+        })
+        if (!res.ok) {
+          const t = await res.text().catch(() => '')
+          console.warn('[Clean Setup] non-OK:', res.status, t)
+        } else {
+          console.log('[Clean Setup] success')
+        }
+      } catch (e) {
+        console.warn('[Clean Setup] failed but continuing:', e)
+      }
+
+      // Step 0.5: Ensure axiom matrices A and B exist
+      try {
+        const aResponse = await fetch('/api/neo4j/ingest-ufo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            version: "2.1.1",
+            topic: "generating reliable knowledge",
+            created_at: new Date().toISOString(),
+            components: [{
+              id: "A",
+              kind: "matrix",
+              station: "Problem Statement",
+              name: "Matrix A (Problem Statement)",
+              axes: [
+                { name: "rows", labels: ["Normative", "Operative", "Evaluative"] },
+                { name: "cols", labels: ["Necessity", "Sufficiency", "Completeness", "Consistency"] }
+              ],
+              shape: [3, 4],
+              ontology: { operation: "axiom", ufo_type: "Endurant", domain: "general" },
+              data: [
+                [
+                  { resolved: "Direction", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Implementation", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Evaluation", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Assessment", raw_terms: [], intermediate: [], operation: "axiom" }
+                ],
+                [
+                  { resolved: "Leadership", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Execution", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Decision-making", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Quality Control", raw_terms: [], intermediate: [], operation: "axiom" }
+                ],
+                [
+                  { resolved: "Standards", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Performance", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Feedback", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Refinement", raw_terms: [], intermediate: [], operation: "axiom" }
+                ]
+              ]
+            }],
+            meta: { source: "instantiate_setup", cf14_version: "2.1.1" }
+          })
+        })
+        
+        const bResponse = await fetch('/api/neo4j/ingest-ufo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            version: "2.1.1",
+            topic: "generating reliable knowledge",
+            created_at: new Date().toISOString(),
+            components: [{
+              id: "B",
+              kind: "matrix",
+              station: "Problem Statement",
+              name: "Matrix B (Decision Framework)",
+              axes: [
+                { name: "rows", labels: ["Necessity", "Sufficiency", "Completeness", "Consistency"] },
+                { name: "cols", labels: ["Necessity", "Sufficiency", "Completeness", "Consistency"] }
+              ],
+              shape: [4, 4],
+              ontology: { operation: "axiom", ufo_type: "Endurant", domain: "general" },
+              data: [
+                [
+                  { resolved: "Essential Facts", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Adequate Inputs", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Comprehensive Records", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Reliable Records", raw_terms: [], intermediate: [], operation: "axiom" }
+                ],
+                [
+                  { resolved: "Critical Context", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Sufficient Detail", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Holistic View", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Congruent Patterns", raw_terms: [], intermediate: [], operation: "axiom" }
+                ],
+                [
+                  { resolved: "Fundamental Understanding", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Adequate Insight", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Full Comprehension", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Coherent Framework", raw_terms: [], intermediate: [], operation: "axiom" }
+                ],
+                [
+                  { resolved: "Vital Judgment", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Sound Reasoning", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Thorough Prudence", raw_terms: [], intermediate: [], operation: "axiom" },
+                  { resolved: "Harmonious Principles", raw_terms: [], intermediate: [], operation: "axiom" }
+                ]
+              ]
+            }],
+            meta: { source: "instantiate_setup", cf14_version: "2.1.1" }
+          })
+        })
+        
+        if (aResponse.ok && bResponse.ok) {
+          console.log('[Axiom Setup] A and B matrices established')
+        }
+      } catch (e) {
+        console.warn('[Axiom Setup] failed:', e)
+      }
 
       // Step 1: Generate Matrix C (A * B = C) using CF14 v2.1.1
       setMatrices(prev => prev.map(m => 
@@ -109,7 +252,8 @@ export default function InstantiatePage() {
       }
 
       const matrixCResult = await matrixCResponse.json()
-      setCompletedMatrices(prev => [...prev, matrixCResult.component_id || 'matrix_C_semantic'])
+      console.log('[Matrix C] Generated with automatic canonical ID enforcement')
+      setCompletedMatrices(prev => [...prev, 'C'])
       setMatrices(prev => prev.map(m => 
         m.name.includes('Matrix C') ? { ...m, status: 'completed' } : m
       ))
@@ -130,24 +274,26 @@ export default function InstantiatePage() {
         m.name.includes('Matrix F') ? { ...m, status: 'processing' } : m
       ))
 
-      const matrixFResponse = await fetch('/api/neo4j/instantiate-v2', {
+      const fUrl = '/api/neo4j/compute/f'
+      const fInit = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          operation: 'semantic-matrix-f',
-          problem_statement: problemStatement,
-          domain_context: domainContext,
-          domain_pack_path: domainPackPath,
-          cf14_version: '2.1.1'
-        })
-      })
+        body: JSON.stringify({ idC: 'C', idB: 'B' })
+      }
+      const matrixFResponse = await fetch(fUrl, fInit)
 
       if (!matrixFResponse.ok) {
-        throw new Error('Failed to generate Matrix F')
+        const status = matrixFResponse.status
+        let bodyText = ''
+        try { bodyText = await matrixFResponse.text() } catch {}
+        const msg = `Failed to generate Matrix F (HTTP ${status})` + (bodyText ? ` — ${bodyText}` : '')
+        console.error('[Matrix F] request failed:', { url: fUrl, status, bodyText })
+        throw new Error(msg)
       }
 
       const matrixFResult = await matrixFResponse.json()
-      setCompletedMatrices(prev => [...prev, matrixFResult.component_id || 'matrix_F_from_neo4j'])
+      console.log('[Matrix F] success:', matrixFResult)
+      setCompletedMatrices(prev => [...prev, matrixFResult.component_id || 'F'])
       setMatrices(prev => prev.map(m => 
         m.name.includes('Matrix F') ? { ...m, status: 'completed' } : m
       ))
@@ -174,7 +320,7 @@ export default function InstantiatePage() {
       }
 
       const matrixDResult = await matrixDResponse.json()
-      setCompletedMatrices(prev => [...prev, matrixDResult.component_id || 'matrix_D_from_neo4j'])
+      setCompletedMatrices(prev => [...prev, matrixDResult.component_id || 'D'])
       setMatrices(prev => prev.map(m => 
         m.name.includes('Matrix D') ? { ...m, status: 'completed' } : m
       ))
@@ -227,6 +373,22 @@ export default function InstantiatePage() {
         <div className="text-sm text-blue-600 bg-blue-50 rounded-lg px-3 py-1 inline-block">
           Enhanced with Array P/H support, domain packs, and UFO annotations
         </div>
+      </div>
+
+      {/* Clean CF Graph Button */}
+      <div className="flex items-center justify-center gap-4">
+        <Button
+          onClick={handleCleanSetup}
+          disabled={cleaning || isProcessing}
+          variant="outline"
+          size="sm"
+          className="bg-amber-50 border-amber-200 hover:bg-amber-100 text-amber-700"
+        >
+          {cleaning ? 'Cleaning...' : 'Clean CF Graph'}
+        </Button>
+        {cleanMsg && (
+          <span className="text-sm text-gray-600">{cleanMsg}</span>
+        )}
       </div>
 
       <Card>

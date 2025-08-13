@@ -26,36 +26,37 @@ async function executeChiralityCLI(operation: string, domainPackPath?: string): 
     const cliPath = join(process.cwd(), 'chirality_cli.py')
     const outputPath = join(process.cwd(), `temp_${operation}_${Date.now()}.json`)
     
-    const args = [cliPath, operation, '--out', outputPath]
+    const args = [cliPath, '--api-base', process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000', operation, '--out', outputPath]
     
     if (domainPackPath) {
       args.push('--domain-pack', domainPackPath)
     }
-    
-    // Add API base to connect back to this server
-    args.push('--api-base', process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000')
 
-    const process = spawn('python3', args, {
+    const childProcess = spawn('python3', args, {
       cwd: process.cwd(),
       env: {
         ...process.env,
         OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-        CHIRALITY_API_BASE: process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000'
-      }
+        CHIRALITY_API_BASE: process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000',
+        NEO4J_URI: process.env.NEO4J_URI,
+        NEO4J_USER: process.env.NEO4J_USER,
+        NEO4J_PASSWORD: process.env.NEO4J_PASSWORD
+      },
+      stdio: ['pipe', 'pipe', 'pipe']
     })
 
     let stdout = ''
     let stderr = ''
 
-    process.stdout.on('data', (data) => {
+    childProcess.stdout.on('data', (data) => {
       stdout += data.toString()
     })
 
-    process.stderr.on('data', (data) => {
+    childProcess.stderr.on('data', (data) => {
       stderr += data.toString()
     })
 
-    process.on('close', (code) => {
+    childProcess.on('close', (code) => {
       if (code === 0) {
         resolve({ success: true, output: stdout.trim() })
       } else {
@@ -67,7 +68,7 @@ async function executeChiralityCLI(operation: string, domainPackPath?: string): 
       }
     })
 
-    process.on('error', (error) => {
+    childProcess.on('error', (error) => {
       resolve({
         success: false,
         output: '',

@@ -46,3 +46,7 @@ manual_cleanup.py
 debug_cells.py
 Initial implementation of CF14 in Neo4j copy.txt
 Initial implementation of CF14 in Neo4j.txt
+Second implementation of CF14 in Neo4j.txt
+
+# Temporary files
+temp_semantic-matrix-*.json

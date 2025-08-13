@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import neo4j from 'neo4j-driver';
-
-const driver = neo4j.driver(
-  process.env.NEO4J_URI!,
-  neo4j.auth.basic(
-    process.env.NEO4J_USERNAME!,
-    process.env.NEO4J_PASSWORD!
-  )
-);
+import { neo4jDriver } from '@/lib/neo4j';
 
 // Station definitions from Chirality Framework
 const SEMANTIC_VALLEY_STATIONS = [
@@ -56,7 +48,7 @@ interface Cell {
 }
 
 export async function POST(request: NextRequest) {
-  const session = driver.session();
+  const session = neo4jDriver.session();
   
   try {
     const body: ChiralityDocument = await request.json();
@@ -90,13 +82,12 @@ export async function POST(request: NextRequest) {
     
     // 3. Create the Document node (UFO: Artifact)
     const docResult = await session.run(`
-      CREATE (d:Document {
+      MERGE (d:Document {
         version: $version,
         topic: $topic,
-        created_at: $created_at,
-        meta: $meta,
-        ufo_type: "Artifact"
+        created_at: $created_at
       })
+      SET d.meta = $meta, d.ufo_type = "Artifact"
       RETURN d
     `, {
       version: body.version,
@@ -116,42 +107,59 @@ export async function POST(request: NextRequest) {
 
     // 5. Process each component
     for (const component of body.components) {
+      // Canonicalize matrix IDs and names for consistency
+      let canonicalId = component.id;
+      let canonicalName = component.name;
+      
+      if (component.kind === 'matrix') {
+        // Force canonical IDs for known semantic matrices
+        if (component.id.includes('matrix_C_semantic') || (component.name && component.name.includes('Matrix C'))) {
+          canonicalId = 'C';
+          canonicalName = 'Matrix C (Requirements)';
+        } else if (component.id.includes('matrix_F_semantic') || (component.name && component.name.includes('Matrix F'))) {
+          canonicalId = 'F';
+          canonicalName = 'Matrix F (Objectives)';
+        } else if (component.id.includes('matrix_D_semantic') || (component.name && component.name.includes('Matrix D'))) {
+          canonicalId = 'D';
+          canonicalName = 'Matrix D (Objectives)';
+        }
+      }
+
       // Create Component node (UFO: Endurant)
       const componentLabel = component.kind === 'matrix' ? 'Matrix' :
                             component.kind === 'tensor' ? 'Tensor' : 'Array';
       
       const compResult = await session.run(`
         MATCH (d:Document) WHERE id(d) = $docId
-        CREATE (c:Component:${componentLabel} {
-          id: $id,
-          kind: $kind,
-          station: $station,
-          name: $name,
-          shape: $shape,
-          ontology: $ontology,
-          ufo_type: "Endurant"
-        })
-        CREATE (d)-[:HAS_COMPONENT]->(c)
+        MERGE (c:Component {id: $id})
+        SET c.kind = $kind, c.station = $station, c.name = $name, 
+            c.shape = $shape, c.dimensions = $shape, c.ontology = $ontology,
+            c.ufo_type = "Endurant"
+        MERGE (d)-[:HAS_COMPONENT]->(c)
         RETURN c
       `, {
         docId: docNodeId,
-        id: component.id,
+        id: canonicalId,
         kind: component.kind,
         station: component.station,
-        name: component.name,
+        name: canonicalName,
         shape: component.shape,
         ontology: JSON.stringify(component.ontology)
       });
 
       const compNodeId = compResult.records[0].get('c').identity.low;
 
-      // Link Component to Station if specified
+      // Link Component to Station if specified (robust station lookup)
       if (component.station) {
         await session.run(`
           MATCH (c:Component) WHERE id(c) = $compId
-          MATCH (s:Station {name: $stationName})
-          MERGE (c)-[:AT_STATION]->(s)
-        `, { compId: compNodeId, stationName: component.station });
+          OPTIONAL MATCH (sByNum:Station {id: toInteger($station)})
+          OPTIONAL MATCH (sByName:Station {name: toString($station)})
+          WITH c, coalesce(sByNum, sByName) AS s
+          FOREACH (_ IN CASE WHEN s IS NULL THEN [] ELSE [1] END |
+            MERGE (c)-[:AT_STATION]->(s)
+          )
+        `, { compId: compNodeId, station: component.station });
       }
 
       // Create KnowledgeField and ProblemStatement nodes
@@ -168,16 +176,12 @@ export async function POST(request: NextRequest) {
       for (let axisIdx = 0; axisIdx < component.axes.length; axisIdx++) {
         const axis = component.axes[axisIdx];
         await session.run(`
-          MATCH (c:Component) WHERE id(c) = $compId
-          CREATE (a:Axis {
-            name: $name,
-            position: $position,
-            labels: $labels,
-            ufo_type: "Quality"
-          })
-          CREATE (c)-[:HAS_AXIS]->(a)
+          MATCH (c:Component {id: $componentId})
+          MERGE (a:Axis {component_id: $componentId, position: $position})
+          SET a.name = $name, a.labels = $labels, a.ufo_type = "Quality"
+          MERGE (c)-[:HAS_AXIS]->(a)
         `, {
-          compId: compNodeId,
+          componentId: component.id,
           name: axis.name,
           position: axisIdx,
           labels: axis.labels
@@ -191,18 +195,14 @@ export async function POST(request: NextRequest) {
           
           const cellResult = await session.run(`
             MATCH (c:Component) WHERE id(c) = $compId
-            CREATE (cell:Cell {
-              row: $row,
-              col: $col,
-              resolved: $resolved,
-              operation: $operation,
-              notes: $notes,
-              ufo_type: "Mode"
-            })
-            CREATE (c)-[:HAS_CELL]->(cell)
+            MERGE (cell:Cell {component_id: $componentId, row: $row, col: $col})
+            SET cell.resolved = $resolved, cell.operation = $operation, 
+                cell.notes = $notes, cell.ufo_type = "Mode"
+            MERGE (c)-[:HAS_CELL]->(cell)
             RETURN cell
           `, {
             compId: compNodeId,
+            componentId: component.id,
             row: row,
             col: col,
             resolved: cell.resolved,
@@ -216,12 +216,9 @@ export async function POST(request: NextRequest) {
           for (const term of cell.raw_terms) {
             await session.run(`
               MATCH (cell:Cell) WHERE id(cell) = $cellId
-              CREATE (t:Term {
-                value: $value,
-                type: 'raw',
-                ufo_type: "Mode"
-              })
-              CREATE (cell)-[:CONTAINS_TERM]->(t)
+              MERGE (t:Term {value: $value})
+              SET t.type = 'raw', t.ufo_type = "Mode"
+              MERGE (cell)-[:CONTAINS_TERM]->(t)
             `, {
               cellId: cellNodeId,
               value: term
@@ -232,31 +229,27 @@ export async function POST(request: NextRequest) {
           for (const term of cell.intermediate) {
             await session.run(`
               MATCH (cell:Cell) WHERE id(cell) = $cellId
-              CREATE (t:Term {
-                value: $value,
-                type: 'intermediate',
-                ufo_type: "Mode"
-              })
-              CREATE (cell)-[:CONTAINS_TERM]->(t)
+              MERGE (t:Term {value: $value})
+              SET t.type = 'intermediate', t.ufo_type = "Mode"
+              MERGE (cell)-[:CONTAINS_TERM]->(t)
             `, {
               cellId: cellNodeId,
               value: term
             });
           }
 
-          // Create resolved term (UFO: Mode)
-          await session.run(`
-            MATCH (cell:Cell) WHERE id(cell) = $cellId
-            CREATE (t:Term {
-              value: $value,
-              type: 'resolved',
-              ufo_type: "Mode"
-            })
-            CREATE (cell)-[:RESOLVES_TO]->(t)
-          `, {
-            cellId: cellNodeId,
-            value: cell.resolved
-          });
+          // Create resolved term link
+          if (cell.resolved) {
+            await session.run(`
+              MATCH (cell:Cell) WHERE id(cell) = $cellId
+              MERGE (t:Term {value: $value})
+              SET t.type = 'resolved', t.ufo_type = "Mode"
+              MERGE (cell)-[:RESOLVES_TO]->(t)
+            `, {
+              cellId: cellNodeId,
+              value: cell.resolved
+            });
+          }
         }
       }
     }

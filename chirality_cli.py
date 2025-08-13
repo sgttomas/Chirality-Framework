@@ -492,7 +492,7 @@ def generate_matrix_c_semantic(args):
     }
 
     comp = make_matrix(
-        id=f"matrix_C_semantic_{domain_context['domain']}",
+        id="C",
         name="Matrix C (Requirements)",
         station="Requirements",
         row_labels=PROCESS_MODALITIES,
@@ -953,8 +953,8 @@ def generate_matrix_f_from_neo4j(args):
     }
     
     comp = make_matrix(
-        id="matrix_F_from_neo4j",
-        name="Matrix F (from Neo4j Matrix C)",
+        id="F",
+        name="Matrix F (Objectives)",
         station="Objectives",
         row_labels=j_rows,
         col_labels=C_COLS,
@@ -1035,8 +1035,8 @@ def generate_matrix_d_from_neo4j(args):
     }
     
     comp = make_matrix(
-        id="matrix_D_from_neo4j",
-        name="Matrix D (Solution Objectives)",
+        id="D",
+        name="Matrix D (Objectives)",
         station="Objectives",
         row_labels=A_ROWS,
         col_labels=A_COLS,
