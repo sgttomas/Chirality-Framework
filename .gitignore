@@ -1,3 +1,8 @@
+# Exclude all development history files and subfolders
+development-history/
+
+# Exclude all archive files and subfolders
+archive/
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -47,6 +52,9 @@ debug_cells.py
 Initial implementation of CF14 in Neo4j copy.txt
 Initial implementation of CF14 in Neo4j.txt
 Second implementation of CF14 in Neo4j.txt
+
+# Exclude all development history files and subfolders
+development-history/
 
 # Temporary files
 temp_semantic-matrix-*.json
