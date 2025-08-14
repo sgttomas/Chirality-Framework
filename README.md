@@ -30,7 +30,7 @@ This separation enables:
 - **🧠 Semantic Reasoning**: Transforms problem statements into structured CF14 semantic matrices (A, B, C, F, D)
 - **🏗️ Knowledge Architecture**: Creates persistent semantic representations in Neo4j with UFO ontology annotations
 - **💬 Conversational AI**: Natural language interface to query instantiated knowledge with context-aware responses
-- **📊 Visual Matrix Operations**: Interactive matrix visualization with semantic operation traceability
+- **📊 Visual "Semanti Matrix Operations"**: Interactive matrix visualization with computational semantic operation traceability
 - **🛠️ Domain Customization**: Extensible domain pack system for specialized knowledge domains
 - **⚡ CLI Automation**: Enhanced Python CLI with v2.1.1 features for batch operations and pipeline automation
 - **🔍 Array P/H Analysis**: Advanced validity parameters and consistency dialectic extraction
@@ -181,13 +181,10 @@ python neo4j_admin.py delete-station --station Requirements
 ## 📚 Documentation
 
 ### Core Documentation
-- **[📖 Chirality CLI README](Chirality_cli_README.md)** - Complete architectural overview and implementation guide
 - **[🔧 Operational Help Guide](chirality_cli_HELP.md)** - Comprehensive usage instructions, troubleshooting, and best practices
-- **[📋 CF14 v2.1.1 Implementation](README_CF14_v2.1.1.md)** - CF14 v2.1.1 specific features and migration guide
+- **[📋 CF14 v2.1.1 Implementation](README.md)** - The meaning and significance of the Chirality Framework in human-ai knowledge generation
 
 ### Technical Specifications
-- **[📜 CF14 Normative Specification](CF14_Normative_Spec_Reconciled_v2.1.1.txt)** - Complete framework specification
-- **[🏗️ Implementation Guide](CF14_Implementation_Guide_Reconciled_v2.1.1.txt)** - Technical implementation details
 - **[📊 Version Tracking](VERSION.md)** - Release history and version information
 
 ### Quick References
@@ -214,16 +211,17 @@ python neo4j_admin.py delete-station --station Requirements
 ┌─────────────────┐                                     └─────────┘
 │Enhanced Python │                                           │
 │   CLI v2.1.1   │───────────────────────────────────────────┘
-│  Matrix Ops    │
+│  "Semmul"  Ops │
 └─────────────────┘
 ```
 
 ### Key Architectural Patterns
-- **🧠 Semantic Memory**: Neo4j stores instantiated knowledge with full provenance
+- **📁 Semantic Memory**: Neo4j stores instantiated knowledge with full provenance
 - **🔄 Hybrid Processing**: UI triggers Python CLI operations via API routes
 - **📊 Real-time Updates**: WebSocket-like progress tracking during matrix generation
-- **🎯 Domain Extensibility**: Pluggable domain packs for specialized reasoning
-- **✅ Canonical IDs**: Consistent matrix identification (A, B, C, F, D) throughout system
+- **🎯 Domain Extensibility**: Procedural generation of problem-specific semantics for specialized reasoning
+- **✅ Canonical IDs**: Consistent semantic framework components (cells, arrays, matrices, tensors) used as an ontology for constraining thoughts
+- **🧠 and easy identification of discrete strings in a specified semantic context for reasoning traces used in reinforcement learning
 
 ## 🔧 Technology Stack
 
@@ -252,7 +250,7 @@ python neo4j_admin.py delete-station --station Requirements
 - **Environment**: Docker-ready, supports local and cloud deployment
 - **Testing**: Built-in validation, health checks, API testing suite
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ├── graphql-service/                       # GraphQL Service (New)
