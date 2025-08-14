@@ -123,21 +123,31 @@ This separation enables:
 
 ### Basic Usage
 
-#### Using the GraphQL Service (http://localhost:8080/graphql)
-- Query semantic matrices and components
-- Execute CF14 operations
-- Access Neo4j knowledge graph directly
-
 #### Using the Chat Interface (via Chirality-chat repo)
 1. **🎯 Instantiate Knowledge**: Visit `http://localhost:3000` 
    - Enter your problem statement
+   - Provide a knowledge domain or additionl context
+   - The python prompt-based semantic kernel will generate a constrained set of categories related to the problem
+   - This is sent to Neo4j database in real time.
+
+#### Using the GraphQL Service (http://localhost:8080/graphql)
+- Query the chat interface about your problem
+- semantic matrices and components are the seeds from which the topic and problem statement will sprout information within the context of that unique cell
+- Execute CF14 operations all still in the Python CLI
+- Access Neo4j knowledge graph directly for working memory of the semantic operations
+- Output the contextual information in JSON format (contract in the code will be developed but functions)
+
+#### Using the Chat Interface (via Chirality-chat repo)
+1. **🎯 Receive solution statement: Visit `http://localhost:3000` 
+   - Python backend receives the JSON output from the working memory and this is used as an addition to a system prompt to the LLM Chat bot
+   - If part of structured workflows the set of answers will be constrained further (maybe in a good way as each instance becomes more accurate but narrow minded)
    - Chat with the AI about Chirality Framework concepts
-   - Visualize semantic matrices
+   - Latency will be noticeable, but this is more of an agentic framework than a basic chat experience
 
 2. **📊 Matrix Operations**: Visit `http://localhost:3000/matrix`
    - View stored matrices from Neo4j
    - Explore semantic relationships
-   - Navigate the knowledge graph
+   - Navigate the knowledge graph 
 
 ### CLI Operations
 
