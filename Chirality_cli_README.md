@@ -414,6 +414,10 @@ python chirality_cli.py full-pipeline \
 3. Integrate into instantiate pipeline
 4. Update chat system to recognize new knowledge
 
+### UFO Ontology Alignment
+
+**UFO alignment note**: In this project, "modality" means analysis lens (Systematic, Process, Epistemic, Alethic). This is not UFO's "Mode." We align as follows: Systematic ↔ UFO-C Normative Descriptions; Process ↔ UFO-B Perdurants; Epistemic ↔ UFO-C Information Objects & UFO-A Modes (beliefs/skills); Alethic ↔ logical constraints on Descriptions/Processes. We do not introduce new UFO categories; we annotate UFO-typed elements with modal constraints when needed.
+
 ### Custom UFO Ontology Extensions
 
 The system supports custom ontological classifications:
