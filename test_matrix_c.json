@@ -1,0 +1,671 @@
+{
+  "version": "2.1.1",
+  "topic": "generating reliable knowledge",
+  "created_at": "2025-08-14T18:28:00.474743Z",
+  "components": [
+    {
+      "id": "A",
+      "kind": "matrix",
+      "station": "Problem Statement",
+      "name": "Matrix A (Problem Statement)",
+      "axes": [
+        {
+          "name": "rows",
+          "labels": [
+            "Normative",
+            "Operative",
+            "Evaluative"
+          ]
+        },
+        {
+          "name": "cols",
+          "labels": [
+            "Guiding",
+            "Applying",
+            "Judging",
+            "Reviewing"
+          ]
+        }
+      ],
+      "shape": [
+        3,
+        4
+      ],
+      "ontology": {
+        "operation": "axiomatic",
+        "framework": "Chirality Framework v2.1.1",
+        "ufo_type": "Endurant",
+        "ontology_id": "cf14.core.v2.1.1",
+        "domain": "general"
+      },
+      "data": [
+        [
+          {
+            "resolved": "Direction",
+            "raw_terms": [
+              "Direction"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Implementation",
+            "raw_terms": [
+              "Implementation"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Evaluation",
+            "raw_terms": [
+              "Evaluation"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Assessment",
+            "raw_terms": [
+              "Assessment"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          }
+        ],
+        [
+          {
+            "resolved": "Leadership",
+            "raw_terms": [
+              "Leadership"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Execution",
+            "raw_terms": [
+              "Execution"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Decision-making",
+            "raw_terms": [
+              "Decision-making"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Quality Control",
+            "raw_terms": [
+              "Quality Control"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          }
+        ],
+        [
+          {
+            "resolved": "Standards",
+            "raw_terms": [
+              "Standards"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Performance",
+            "raw_terms": [
+              "Performance"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Feedback",
+            "raw_terms": [
+              "Feedback"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Refinement",
+            "raw_terms": [
+              "Refinement"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          }
+        ]
+      ]
+    },
+    {
+      "id": "B",
+      "kind": "matrix",
+      "station": "Problem Statement",
+      "name": "Matrix B (Decision Framework)",
+      "axes": [
+        {
+          "name": "rows",
+          "labels": [
+            "Data",
+            "Information",
+            "Knowledge",
+            "Wisdom"
+          ]
+        },
+        {
+          "name": "cols",
+          "labels": [
+            "Necessity (vs Contingency)",
+            "Sufficiency",
+            "Completeness",
+            "Consistency"
+          ]
+        }
+      ],
+      "shape": [
+        4,
+        4
+      ],
+      "ontology": {
+        "operation": "axiomatic",
+        "framework": "Chirality Framework v2.1.1",
+        "ufo_type": "Endurant",
+        "ontology_id": "cf14.core.v2.1.1",
+        "domain": "general"
+      },
+      "data": [
+        [
+          {
+            "resolved": "Essential Facts",
+            "raw_terms": [
+              "Essential Facts"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Adequate Inputs",
+            "raw_terms": [
+              "Adequate Inputs"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Comprehensive Records",
+            "raw_terms": [
+              "Comprehensive Records"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Reliable Records",
+            "raw_terms": [
+              "Reliable Records"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          }
+        ],
+        [
+          {
+            "resolved": "Critical Context",
+            "raw_terms": [
+              "Critical Context"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Sufficient Detail",
+            "raw_terms": [
+              "Sufficient Detail"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Holistic View",
+            "raw_terms": [
+              "Holistic View"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Congruent Patterns",
+            "raw_terms": [
+              "Congruent Patterns"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          }
+        ],
+        [
+          {
+            "resolved": "Fundamental Understanding",
+            "raw_terms": [
+              "Fundamental Understanding"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Adequate Insight",
+            "raw_terms": [
+              "Adequate Insight"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Full Comprehension",
+            "raw_terms": [
+              "Full Comprehension"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Coherent Framework",
+            "raw_terms": [
+              "Coherent Framework"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          }
+        ],
+        [
+          {
+            "resolved": "Vital Judgment",
+            "raw_terms": [
+              "Vital Judgment"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Sound Reasoning",
+            "raw_terms": [
+              "Sound Reasoning"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Thorough Prudence",
+            "raw_terms": [
+              "Thorough Prudence"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          },
+          {
+            "resolved": "Harmonious Principles",
+            "raw_terms": [
+              "Harmonious Principles"
+            ],
+            "intermediate": [],
+            "operation": "*",
+            "notes": null
+          }
+        ]
+      ]
+    },
+    {
+      "id": "C",
+      "kind": "matrix",
+      "station": "Requirements",
+      "name": "Matrix C (Requirements)",
+      "axes": [
+        {
+          "name": "rows",
+          "labels": [
+            "Normative",
+            "Operative",
+            "Evaluative"
+          ]
+        },
+        {
+          "name": "cols",
+          "labels": [
+            "Necessity (vs Contingency)",
+            "Sufficiency",
+            "Completeness",
+            "Consistency"
+          ]
+        }
+      ],
+      "shape": [
+        3,
+        4
+      ],
+      "ontology": {
+        "operation": "A * B = C",
+        "matrix_a": "Problem Statement (3x4)",
+        "matrix_b": "Decision Framework (4x4)",
+        "result": "Requirements (3x4)",
+        "framework": "Chirality Framework v2.1.1 multiply then concatenate",
+        "modalities": {
+          "process": [
+            "Normative",
+            "Operative",
+            "Evaluative"
+          ],
+          "decision": [
+            "Necessity (vs Contingency)",
+            "Sufficiency",
+            "Completeness",
+            "Consistency"
+          ],
+          "knowledge_hierarchy": [
+            "Data",
+            "Information",
+            "Knowledge",
+            "Wisdom"
+          ],
+          "action": [
+            "Guiding",
+            "Applying",
+            "Judging",
+            "Reviewing"
+          ]
+        },
+        "ufo_type": "Endurant",
+        "domain": "general"
+      },
+      "data": [
+        [
+          {
+            "resolved": "Strategic Guidance; Contextual Deployment; Critical Insight; Critical Evaluation",
+            "raw_terms": [
+              "Direction",
+              "Essential Facts",
+              "Implementation",
+              "Critical Context",
+              "Evaluation",
+              "Fundamental Understanding",
+              "Assessment",
+              "Vital Judgment"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Direction\", \"b\": \"Essential Facts\", \"product\": \"Strategic Guidance\"}, {\"a\": \"Implementation\", \"b\": \"Critical Context\", \"product\": \"Contextual Deployment\"}, {\"a\": \"Evaluation\", \"b\": \"Fundamental Understanding\", \"product\": \"Critical Insight\"}, {\"a\": \"Assessment\", \"b\": \"Vital Judgment\", \"product\": \"Critical Evaluation\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Strategic Guidance; Contextual Deployment; Critical Insight; Critical Evaluation\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Strategic Guidance; Contextual Deployment; Critical Insight; Critical Evaluation\", \"col_label\": \"Necessity (vs Contingency)\", \"col_meaning\": \"\", \"row_label\": \"Normative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(1,1) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Guidance; Executable Plan; Informed Judgment; Well-Founded Evaluation",
+            "raw_terms": [
+              "Direction",
+              "Adequate Inputs",
+              "Implementation",
+              "Sufficient Detail",
+              "Evaluation",
+              "Adequate Insight",
+              "Assessment",
+              "Sound Reasoning"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Direction\", \"b\": \"Adequate Inputs\", \"product\": \"Guidance\"}, {\"a\": \"Implementation\", \"b\": \"Sufficient Detail\", \"product\": \"Executable Plan\"}, {\"a\": \"Evaluation\", \"b\": \"Adequate Insight\", \"product\": \"Informed Judgment\"}, {\"a\": \"Assessment\", \"b\": \"Sound Reasoning\", \"product\": \"Well-Founded Evaluation\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Guidance; Executable Plan; Informed Judgment; Well-Founded Evaluation\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Guidance; Executable Plan; Informed Judgment; Well-Founded Evaluation\", \"col_label\": \"Sufficiency\", \"col_meaning\": \"\", \"row_label\": \"Normative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(1,2) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Strategic Guidance; Integrated Deployment; Informed Appraisal; Careful Evaluation",
+            "raw_terms": [
+              "Direction",
+              "Comprehensive Records",
+              "Implementation",
+              "Holistic View",
+              "Evaluation",
+              "Full Comprehension",
+              "Assessment",
+              "Thorough Prudence"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Direction\", \"b\": \"Comprehensive Records\", \"product\": \"Strategic Guidance\"}, {\"a\": \"Implementation\", \"b\": \"Holistic View\", \"product\": \"Integrated Deployment\"}, {\"a\": \"Evaluation\", \"b\": \"Full Comprehension\", \"product\": \"Informed Appraisal\"}, {\"a\": \"Assessment\", \"b\": \"Thorough Prudence\", \"product\": \"Careful Evaluation\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Strategic Guidance; Integrated Deployment; Informed Appraisal; Careful Evaluation\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Strategic Guidance; Integrated Deployment; Informed Appraisal; Careful Evaluation\", \"col_label\": \"Completeness\", \"col_meaning\": \"\", \"row_label\": \"Normative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(1,3) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Navigational Data; Practical Consistency; comprehensive assessment; Ethical Evaluation",
+            "raw_terms": [
+              "Direction",
+              "Reliable Records",
+              "Implementation",
+              "Congruent Patterns",
+              "Evaluation",
+              "Coherent Framework",
+              "Assessment",
+              "Harmonious Principles"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Direction\", \"b\": \"Reliable Records\", \"product\": \"Navigational Data\"}, {\"a\": \"Implementation\", \"b\": \"Congruent Patterns\", \"product\": \"Practical Consistency\"}, {\"a\": \"Evaluation\", \"b\": \"Coherent Framework\", \"product\": \"comprehensive assessment\"}, {\"a\": \"Assessment\", \"b\": \"Harmonious Principles\", \"product\": \"Ethical Evaluation\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Navigational Data; Practical Consistency; comprehensive assessment; Ethical Evaluation\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Navigational Data; Practical Consistency; comprehensive assessment; Ethical Evaluation\", \"col_label\": \"Consistency\", \"col_meaning\": \"\", \"row_label\": \"Normative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(1,4) multiply per-k then concatenate; interpretation inputs prepared"
+          }
+        ],
+        [
+          {
+            "resolved": "Informed Guidance; Strategic Implementation; Informed Strategy; Critical Assurance",
+            "raw_terms": [
+              "Leadership",
+              "Essential Facts",
+              "Execution",
+              "Critical Context",
+              "Decision-making",
+              "Fundamental Understanding",
+              "Quality Control",
+              "Vital Judgment"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Leadership\", \"b\": \"Essential Facts\", \"product\": \"Informed Guidance\"}, {\"a\": \"Execution\", \"b\": \"Critical Context\", \"product\": \"Strategic Implementation\"}, {\"a\": \"Decision-making\", \"b\": \"Fundamental Understanding\", \"product\": \"Informed Strategy\"}, {\"a\": \"Quality Control\", \"b\": \"Vital Judgment\", \"product\": \"Critical Assurance\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Informed Guidance; Strategic Implementation; Informed Strategy; Critical Assurance\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Informed Guidance; Strategic Implementation; Informed Strategy; Critical Assurance\", \"col_label\": \"Necessity (vs Contingency)\", \"col_meaning\": \"\", \"row_label\": \"Operative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(2,1) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Effective Governance; Implementation; Informed Strategy; Rigorous Evaluation",
+            "raw_terms": [
+              "Leadership",
+              "Adequate Inputs",
+              "Execution",
+              "Sufficient Detail",
+              "Decision-making",
+              "Adequate Insight",
+              "Quality Control",
+              "Sound Reasoning"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Leadership\", \"b\": \"Adequate Inputs\", \"product\": \"Effective Governance\"}, {\"a\": \"Execution\", \"b\": \"Sufficient Detail\", \"product\": \"Implementation\"}, {\"a\": \"Decision-making\", \"b\": \"Adequate Insight\", \"product\": \"Informed Strategy\"}, {\"a\": \"Quality Control\", \"b\": \"Sound Reasoning\", \"product\": \"Rigorous Evaluation\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Effective Governance; Implementation; Informed Strategy; Rigorous Evaluation\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Effective Governance; Implementation; Informed Strategy; Rigorous Evaluation\", \"col_label\": \"Sufficiency\", \"col_meaning\": \"\", \"row_label\": \"Operative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(2,2) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Informed Governance; Strategic Implementation; Informed Judgment; Diligent Oversight",
+            "raw_terms": [
+              "Leadership",
+              "Comprehensive Records",
+              "Execution",
+              "Holistic View",
+              "Decision-making",
+              "Full Comprehension",
+              "Quality Control",
+              "Thorough Prudence"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Leadership\", \"b\": \"Comprehensive Records\", \"product\": \"Informed Governance\"}, {\"a\": \"Execution\", \"b\": \"Holistic View\", \"product\": \"Strategic Implementation\"}, {\"a\": \"Decision-making\", \"b\": \"Full Comprehension\", \"product\": \"Informed Judgment\"}, {\"a\": \"Quality Control\", \"b\": \"Thorough Prudence\", \"product\": \"Diligent Oversight\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Informed Governance; Strategic Implementation; Informed Judgment; Diligent Oversight\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Informed Governance; Strategic Implementation; Informed Judgment; Diligent Oversight\", \"col_label\": \"Completeness\", \"col_meaning\": \"\", \"row_label\": \"Operative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(2,3) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Trustworthy Governance; Consistent Implementation; Structured Strategy; Ethical Standards",
+            "raw_terms": [
+              "Leadership",
+              "Reliable Records",
+              "Execution",
+              "Congruent Patterns",
+              "Decision-making",
+              "Coherent Framework",
+              "Quality Control",
+              "Harmonious Principles"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Leadership\", \"b\": \"Reliable Records\", \"product\": \"Trustworthy Governance\"}, {\"a\": \"Execution\", \"b\": \"Congruent Patterns\", \"product\": \"Consistent Implementation\"}, {\"a\": \"Decision-making\", \"b\": \"Coherent Framework\", \"product\": \"Structured Strategy\"}, {\"a\": \"Quality Control\", \"b\": \"Harmonious Principles\", \"product\": \"Ethical Standards\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Trustworthy Governance; Consistent Implementation; Structured Strategy; Ethical Standards\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Trustworthy Governance; Consistent Implementation; Structured Strategy; Ethical Standards\", \"col_label\": \"Consistency\", \"col_meaning\": \"\", \"row_label\": \"Operative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(2,4) multiply per-k then concatenate; interpretation inputs prepared"
+          }
+        ],
+        [
+          {
+            "resolved": "foundational criteria; Contextual Performance; Insight; Discerning Wisdom",
+            "raw_terms": [
+              "Standards",
+              "Essential Facts",
+              "Performance",
+              "Critical Context",
+              "Feedback",
+              "Fundamental Understanding",
+              "Refinement",
+              "Vital Judgment"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Standards\", \"b\": \"Essential Facts\", \"product\": \"foundational criteria\"}, {\"a\": \"Performance\", \"b\": \"Critical Context\", \"product\": \"Contextual Performance\"}, {\"a\": \"Feedback\", \"b\": \"Fundamental Understanding\", \"product\": \"Insight\"}, {\"a\": \"Refinement\", \"b\": \"Vital Judgment\", \"product\": \"Discerning Wisdom\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"foundational criteria; Contextual Performance; Insight; Discerning Wisdom\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"foundational criteria; Contextual Performance; Insight; Discerning Wisdom\", \"col_label\": \"Necessity (vs Contingency)\", \"col_meaning\": \"\", \"row_label\": \"Evaluative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(3,1) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Quality Assurance; Comprehensive Evaluation; Constructive Understanding; Rigorous Justification",
+            "raw_terms": [
+              "Standards",
+              "Adequate Inputs",
+              "Performance",
+              "Sufficient Detail",
+              "Feedback",
+              "Adequate Insight",
+              "Refinement",
+              "Sound Reasoning"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Standards\", \"b\": \"Adequate Inputs\", \"product\": \"Quality Assurance\"}, {\"a\": \"Performance\", \"b\": \"Sufficient Detail\", \"product\": \"Comprehensive Evaluation\"}, {\"a\": \"Feedback\", \"b\": \"Adequate Insight\", \"product\": \"Constructive Understanding\"}, {\"a\": \"Refinement\", \"b\": \"Sound Reasoning\", \"product\": \"Rigorous Justification\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Quality Assurance; Comprehensive Evaluation; Constructive Understanding; Rigorous Justification\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Quality Assurance; Comprehensive Evaluation; Constructive Understanding; Rigorous Justification\", \"col_label\": \"Sufficiency\", \"col_meaning\": \"\", \"row_label\": \"Evaluative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(3,2) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Quality Documentation; Overall Effectiveness; Reflective Understanding; meticulous discernment",
+            "raw_terms": [
+              "Standards",
+              "Comprehensive Records",
+              "Performance",
+              "Holistic View",
+              "Feedback",
+              "Full Comprehension",
+              "Refinement",
+              "Thorough Prudence"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Standards\", \"b\": \"Comprehensive Records\", \"product\": \"Quality Documentation\"}, {\"a\": \"Performance\", \"b\": \"Holistic View\", \"product\": \"Overall Effectiveness\"}, {\"a\": \"Feedback\", \"b\": \"Full Comprehension\", \"product\": \"Reflective Understanding\"}, {\"a\": \"Refinement\", \"b\": \"Thorough Prudence\", \"product\": \"meticulous discernment\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Quality Documentation; Overall Effectiveness; Reflective Understanding; meticulous discernment\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Quality Documentation; Overall Effectiveness; Reflective Understanding; meticulous discernment\", \"col_label\": \"Completeness\", \"col_meaning\": \"\", \"row_label\": \"Evaluative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(3,3) multiply per-k then concatenate; interpretation inputs prepared"
+          },
+          {
+            "resolved": "Quality Assurance; Consistent Execution; Adaptive System; Elegant Integrity",
+            "raw_terms": [
+              "Standards",
+              "Reliable Records",
+              "Performance",
+              "Congruent Patterns",
+              "Feedback",
+              "Coherent Framework",
+              "Refinement",
+              "Harmonious Principles"
+            ],
+            "intermediate": [
+              "{\"phase\": \"partials\", \"items\": [{\"a\": \"Standards\", \"b\": \"Reliable Records\", \"product\": \"Quality Assurance\"}, {\"a\": \"Performance\", \"b\": \"Congruent Patterns\", \"product\": \"Consistent Execution\"}, {\"a\": \"Feedback\", \"b\": \"Coherent Framework\", \"product\": \"Adaptive System\"}, {\"a\": \"Refinement\", \"b\": \"Harmonious Principles\", \"product\": \"Elegant Integrity\"}]}",
+              "{\"phase\": \"sum_concat\", \"value\": \"Quality Assurance; Consistent Execution; Adaptive System; Elegant Integrity\"}",
+              "{\"phase\": \"interpretation_inputs\", \"value\": {\"cell\": \"Quality Assurance; Consistent Execution; Adaptive System; Elegant Integrity\", \"col_label\": \"Consistency\", \"col_meaning\": \"\", \"row_label\": \"Evaluative\", \"row_meaning\": \"\"}}"
+            ],
+            "operation": "*",
+            "notes": "C(3,4) multiply per-k then concatenate; interpretation inputs prepared"
+          }
+        ]
+      ]
+    }
+  ],
+  "meta": {
+    "source": "chirality_cli",
+    "mode": "semantic-matrix-c",
+    "ontology_id": "cf14.core.v2.1.1",
+    "timestamp": "2025-08-14T12:28:32.766618",
+    "cf14_version": "2.1.1",
+    "domain": "general",
+    "run_interpretations": false,
+    "ontology_pack": null
+  }
+}

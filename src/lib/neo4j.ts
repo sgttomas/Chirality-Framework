@@ -17,3 +17,20 @@ export function getNeo4jDriver(): Driver {
   globalThis.__neo4jDriver = driver;
   return driver;
 }
+
+// Lazy-loaded driver instance for backward compatibility
+let _driverInstance: Driver | null = null;
+export const neo4jDriver = {
+  session: () => {
+    if (!_driverInstance) {
+      _driverInstance = getNeo4jDriver();
+    }
+    return _driverInstance.session();
+  },
+  close: () => {
+    if (_driverInstance) {
+      return _driverInstance.close();
+    }
+    return Promise.resolve();
+  }
+};

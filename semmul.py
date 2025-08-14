@@ -302,6 +302,7 @@ except ImportError:
     def load_dotenv(*args, **kwargs):
         return False
 load_dotenv()  # loads OPENAI_API_KEY from .env if available
+load_dotenv('.env.local')  # also load from .env.local if available
 
 # Centralized default text model and shared OpenAI client
 DEFAULT_TEXT_MODEL = os.getenv("OPENAI_TEXT_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4.1-nano"
