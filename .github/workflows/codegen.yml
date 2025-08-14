@@ -1,0 +1,22 @@
+name: GraphQL Codegen
+
+on:
+  pull_request:
+    paths:
+      - 'schema.graphql'
+      - 'codegen.ts'
+      - 'src/**/*.graphql'
+      - 'src/**/*.gql'
+      - 'src/**/*.ts'
+      - 'src/**/*.tsx'
+
+jobs:
+  codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run codegen

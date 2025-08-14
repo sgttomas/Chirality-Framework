@@ -235,7 +235,14 @@ def _extract_string_value(value: Any, fallback_label: str) -> str:
                         if isinstance(parsed, dict):
                             # Only extract from semantic phases, not raw construction
                             if parsed.get('phase') in ['interpretation_result', 'semantic_multiply', 'sum_concat', 'f1_sum_concat']:
-                                result = str(parsed.get('value', '')).strip()
+                                val = parsed.get('value', '')
+                                # NEW: prefer synthesis for interpretation results
+                                if parsed.get('phase') == 'interpretation_result' and isinstance(val, dict):
+                                    syn = val.get('synthesis')
+                                    if isinstance(syn, str) and syn.strip():
+                                        return syn.strip()
+                                # existing behavior for string values
+                                result = str(val).strip()
                                 if result:
                                     return result
                     except (json.JSONDecodeError, KeyError):
@@ -636,6 +643,10 @@ def generate_matrix_c_semantic(args):
             matrix_b = domain_context["axiomatic_matrices"]["B"]["cells"]
             logging.info("Using domain-specific Matrix B")
     
+    # Validate rectangularity for domain-overridden A/B
+    validate_rectangular_matrix(matrix_a, "A")
+    validate_rectangular_matrix(matrix_b, "B")
+    
     logging.info("Matrix A (Problem Statement):")
     for i, row in enumerate(matrix_a):
         logging.info(f"  {PROCESS_MODALITIES[i]}: {row}")
@@ -674,6 +685,38 @@ def generate_matrix_c_semantic(args):
         "domain": domain_context["domain"]
     }
 
+    # Optionally attach A and B so consumers always have canonical axioms with C
+    compA = make_matrix(
+        id="A",
+        name="Matrix A (Problem Statement)",
+        station="Problem Statement",
+        row_labels=PROCESS_MODALITIES,
+        col_labels=ACTION_MODALITIES,
+        cells_2d=[[Cell(resolved=str(v), raw_terms=[str(v)], intermediate=[]) for v in row] for row in matrix_a],
+        ontology={
+            "operation": "axiomatic",
+            "framework": f"Chirality Framework v{CF14_VERSION}",
+            "ufo_type": "Endurant",
+            "ontology_id": ONTOLOGY_ID,
+            "domain": domain_context["domain"],
+        },
+    )
+    compB = make_matrix(
+        id="B",
+        name="Matrix B (Decision Framework)",
+        station="Problem Statement",
+        row_labels=KNOWLEDGE_HIERARCHY,
+        col_labels=DECISION_MODALITIES,
+        cells_2d=[[Cell(resolved=str(v), raw_terms=[str(v)], intermediate=[]) for v in row] for row in matrix_b],
+        ontology={
+            "operation": "axiomatic",
+            "framework": f"Chirality Framework v{CF14_VERSION}",
+            "ufo_type": "Endurant",
+            "ontology_id": ONTOLOGY_ID,
+            "domain": domain_context["domain"],
+        },
+    )
+    
     comp = make_matrix(
         id="C",
         name="Matrix C (Requirements)",
@@ -684,6 +727,8 @@ def generate_matrix_c_semantic(args):
         ontology=ontology
     )
 
+    doc.components.append(compA)
+    doc.components.append(compB)
     doc.components.append(comp)
     json_path = write_json(doc, args.out)
 
@@ -952,6 +997,10 @@ def execute_full_pipeline(args):
         if "B" in domain_context["axiomatic_matrices"]:
             matrix_b = domain_context["axiomatic_matrices"]["B"]["cells"]
     
+    # Validate rectangularity for domain-overridden A/B
+    validate_rectangular_matrix(matrix_a, "A")
+    validate_rectangular_matrix(matrix_b, "B")
+    
     results = {"pipeline_metadata": {
         "cf14_version": CF14_VERSION,
         "ontology_id": ONTOLOGY_ID,
@@ -1039,18 +1088,23 @@ def validate_domain_pack(args):
 
 # Helper functions for full pipeline
 def create_axiomatic_component(name: str, matrix: List[List[str]], station: str, row_labels: List[str], col_labels: List[str], domain_context: Dict[str, Any]) -> Dict[str, Any]:
-    """Create axiomatic component metadata"""
+    """Create axiomatic component metadata **with cells** so A & B serialize canonically."""
+    cells = [
+        [Cell(resolved=str(val).strip(), raw_terms=[str(val).strip()], intermediate=[]) for val in row]
+        for row in matrix
+    ]
     return {
         "id": f"matrix_{name}_{domain_context['domain']}",
         "name": f"Matrix {name}",
         "station": station,
-        "dimensions": [len(matrix), len(matrix[0])],
+        "dimensions": [len(matrix), len(matrix[0]) if matrix else 0],
         "row_labels": row_labels,
         "col_labels": col_labels,
         "operation_type": "axiomatic",
         "ontology_id": ONTOLOGY_ID,
         "domain": domain_context["domain"],
-        "ufo_type": "Endurant"
+        "ufo_type": "Endurant",
+        "cells": cells  # <-- critical
     }
 
 def create_derived_component(name: str, cells: List[List[Cell]], station: str, row_labels: List[str], col_labels: List[str], operation: str, domain_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -1174,6 +1228,9 @@ def convert_dict_to_component(comp_dict: Dict[str, Any]):
     else:
         # CF14 semantic integrity: legacy matrix format should not be converted with raw_terms
         matrix_vals = comp_dict.get("matrix") or []
+        if not matrix_vals and not cells_payload:
+            # Prevent silently generating empty components
+            raise ValueError(f"Component {rid} has no cells or matrix data - cannot create empty semantic component")
         cells_2d = [[Cell(resolved=str(v), raw_terms=[], intermediate=[]) for v in row] for row in matrix_vals]
 
     ontology = {
