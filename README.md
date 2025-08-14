@@ -8,9 +8,22 @@
 ![OpenAI API](https://img.shields.io/badge/Powered_by-OpenAI_API-orange)
 ![Production Ready](https://img.shields.io/badge/Status-Production_Ready-success)
 
-A complete, production-ready implementation of the **Chirality Framework 14 (CF14) v2.1.1** normative specification. This hybrid Next.js/Python system transforms problem statements into structured semantic knowledge using Neo4j as "DB-as-working-memory" architecture, enabling conversational AI access to instantiated reasoning frameworks.
+A complete, production-ready implementation of the **Chirality Framework 14 (CF14) v2.1.1** normative specification. This repository contains the core semantic engine, GraphQL service, and framework APIs. The chat interface is now available as a separate application at [Chirality-chat](https://github.com/sgttomas/Chirality-chat).
 
 > **New in v2.1.1**: Domain pack system, Array P/H operations, enhanced UFO ontology integration, and complete backward compatibility with v1.x implementations.
+
+## 📦 Repository Organization
+
+This project is now organized as a **polyrepo architecture**:
+
+- **[Chirality-Framework](https://github.com/sgttomas/Chirality-Framework)** (this repo): Core semantic engine, GraphQL service, Python CLI tools
+- **[Chirality-chat](https://github.com/sgttomas/Chirality-chat)**: Modern chat interface with streaming AI responses, matrix visualization, and MCP integration
+
+This separation enables:
+- Independent deployment and scaling of frontend and backend
+- Cleaner separation of concerns
+- Easier contribution and maintenance
+- Multiple frontend implementations using the same core framework
 
 ## 🎯 What This System Does
 
@@ -44,9 +57,11 @@ A complete, production-ready implementation of the **Chirality Framework 14 (CF1
 
 ## 🚀 Quick Start
 
+> **Note**: This repository now focuses on the core framework and GraphQL service. For the chat interface, please visit [Chirality-chat](https://github.com/sgttomas/Chirality-chat).
+
 ### Prerequisites
 
-- **Node.js** 18+ and npm (for Next.js frontend)
+- **Node.js** 18+ and npm (for GraphQL service and API)
 - **Python** 3.8+ with pip (for CF14 semantic engine)
 - **Neo4j Aura** account or local Neo4j 5.x instance
 - **OpenAI API** key with sufficient credits
@@ -89,28 +104,40 @@ A complete, production-ready implementation of the **Chirality Framework 14 (CF1
    CF14_LEGACY_API_SUPPORT=true
    ```
 
-4. **Start the system:**
+4. **Start the GraphQL service:**
    ```bash
-   npm run dev
+   # Start GraphQL service
+   cd graphql-service
+   npm install
+   npm run dev  # Runs on http://localhost:8080/graphql
+   ```
+
+5. **For the chat interface:**
+   ```bash
+   # Clone and run the Chirality-chat application
+   git clone https://github.com/sgttomas/Chirality-chat.git
+   cd Chirality-chat
+   npm install
+   npm run dev  # Runs on http://localhost:3000
    ```
 
 ### Basic Usage
 
-1. **🎯 Instantiate Knowledge**: Visit `http://localhost:3000/instantiate`
-   - Enter your problem statement (e.g., "How do we ensure AI system reliability?")
-   - Select optional domain context (Software Engineering, Business Strategy, etc.)
-   - Click "Start Instantiation" to trigger automated CF14 pipeline
-   - Watch real-time progress: Clean → Setup A&B → Generate C → Compute F → Generate D
+#### Using the GraphQL Service (http://localhost:8080/graphql)
+- Query semantic matrices and components
+- Execute CF14 operations
+- Access Neo4j knowledge graph directly
 
-2. **💬 Chat with Knowledge**: Visit `http://localhost:3000/chat`
-   - Ask natural language questions about your instantiated framework
-   - Examples: "What requirements do we have?", "Show me objectives for data quality"
-   - Get context-aware responses with specific matrix cell references
+#### Using the Chat Interface (via Chirality-chat repo)
+1. **🎯 Instantiate Knowledge**: Visit `http://localhost:3000` 
+   - Enter your problem statement
+   - Chat with the AI about Chirality Framework concepts
+   - Visualize semantic matrices
 
-3. **📊 Explore Matrices**: Visit `http://localhost:3000/matrices`
-   - Visual matrix representations with semantic operation trails
-   - Cell-level detail with resolved content and raw terms
-   - Station-based organization following semantic valley progression
+2. **📊 Matrix Operations**: Visit `http://localhost:3000/matrix`
+   - View stored matrices from Neo4j
+   - Explore semantic relationships
+   - Navigate the knowledge graph
 
 ### CLI Operations
 
@@ -170,21 +197,25 @@ python neo4j_admin.py delete-station --station Requirements
 
 ## 🏛️ System Architecture
 
-### CF14 v2.1.1 "DB-as-Working-Memory" Architecture
+### CF14 v2.1.1 Polyrepo Architecture
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Next.js UI   │────│  Neo4j Graph   │────│Enhanced Python │
-│  (localhost:3000)│    │   Database     │    │   CLI v2.1.1   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-    ┌────┴────┐              ┌────┴────┐              ┌────┴────┐
-    │/instantiate│          │Components│              │Matrix A │
-    │/chat     │            │Cells+UFO │              │Matrix B │
-    │/matrices │            │Terms     │              │A*B = C  │
-    │/api/neo4j│            │Stations  │              │J⊙C = F  │
-    └─────────┘              │Provenance│              │A+F = D  │
-                             │DomainPacks│             │Array P/H│
-                             └─────────┘              └─────────┘
+┌──────────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Chirality-chat     │────│  GraphQL Service│────│  Neo4j Graph   │
+│  (separate repo)    │    │  (localhost:8080)│    │   Database     │
+│  localhost:3000     │    └─────────────────┘    └─────────────────┘
+└──────────────────────┘             │                       │
+         │                      ┌────┴────┐              ┌────┴────┐
+    ┌────┴────┐                │@neo4j/   │              │Components│
+    │Chat UI  │                │graphql   │              │Cells+UFO │
+    │Matrix Viz│               │Apollo    │              │Terms     │
+    │MCP Tools│                │Yoga      │              │Stations  │
+    └─────────┘                └──────────┘              │Provenance│
+                                                         │DomainPacks│
+┌─────────────────┐                                     └─────────┘
+│Enhanced Python │                                           │
+│   CLI v2.1.1   │───────────────────────────────────────────┘
+│  Matrix Ops    │
+└─────────────────┘
 ```
 
 ### Key Architectural Patterns
@@ -224,29 +255,35 @@ python neo4j_admin.py delete-station --station Requirements
 ## 📁 Project Structure
 
 ```
-├── ontology/                               # CF14 v2.1.1 Domain System
-│   ├── cf14.core.v2.1.1.json             # Core framework ontology
-│   └── domains/                           # Domain-specific customizations
-│       ├── software_engineering/          # Software domain pack
-│       ├── business_strategy/             # Business domain pack
-│       └── research_methods/              # Research domain pack
-├── app/                                   # Next.js Application
-│   ├── instantiate/                       # Knowledge instantiation UI
-│   ├── chat/                             # Conversational AI interface
-│   ├── matrices/                         # Matrix visualization
-│   └── api/neo4j/                        # Enhanced API routes
-│       ├── clean-setup/route.ts          # Database management
-│       ├── ingest-v2/route.ts           # Enhanced component ingestion
-│       ├── compute/f/route.ts           # Matrix F computation
-│       ├── instantiate-v2/route.ts      # CF14 pipeline integration
-│       └── domain/route.ts              # Domain pack management
-├── lib/                                  # Shared Libraries
-│   └── neo4j.ts                         # Database connection management
-├── components/ui/                        # Reusable UI Components
-├── chirality_cli.py                     # Enhanced CF14 v2.1.1 CLI
-├── neo4j_admin.py                       # Database administration
-├── CF14_Normative_Spec_Reconciled_v2.1.1.txt  # Complete specification
-├── CF14_Implementation_Guide_Reconciled_v2.1.1.txt # Technical guide
+├── graphql-service/                       # GraphQL Service (New)
+│   ├── src/index.ts                      # GraphQL server with Neo4j integration
+│   ├── neo4j/schema.cql                  # Neo4j schema definitions
+│   └── dist/                             # Compiled GraphQL service
+├── src/                                   # Core Application (Refactored)
+│   ├── app/                              # Next.js App Router
+│   │   ├── api/neo4j/                   # REST API routes
+│   │   │   ├── clean-setup/route.ts     # Database management
+│   │   │   ├── ingest-v2/route.ts      # Enhanced component ingestion
+│   │   │   ├── compute/f/route.ts      # Matrix F computation
+│   │   │   └── domain/route.ts         # Domain pack management
+│   │   └── test-integrity/              # Testing pages
+│   ├── lib/                             # Shared Libraries
+│   │   ├── neo4j.ts                    # Database connection
+│   │   └── apollo.ts                   # GraphQL client
+│   └── graphql/queries/                 # GraphQL query definitions
+├── scripts/                              # Testing & Benchmarking (New)
+│   ├── smoke-rest.mjs                   # REST API smoke tests
+│   ├── smoke-gql.mjs                    # GraphQL smoke tests
+│   └── test-matrix.mjs                  # Matrix operation tests
+├── bench/                                # Performance Benchmarking (New)
+│   └── bench.ts                         # Benchmark suite
+├── ontology/                            # CF14 v2.1.1 Domain System
+│   ├── cf14.core.v2.1.1.json          # Core framework ontology
+│   └── domains/                        # Domain-specific customizations
+├── chirality_cli.py                    # Enhanced CF14 v2.1.1 CLI
+├── neo4j_admin.py                      # Database administration
+├── schema.graphql                      # GraphQL schema definition
+└── codegen.ts                          # GraphQL code generation config
 ├── VERSION.md                           # Version tracking
 ├── Chirality_cli_README.md             # Architectural documentation
 ├── chirality_cli_HELP.md               # Operational guide

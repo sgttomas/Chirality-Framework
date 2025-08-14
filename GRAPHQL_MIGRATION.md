@@ -1,8 +1,15 @@
 # GraphQL Migration Guide
 
+> **Note**: The chat interface now lives in a separate repository. This guide covers the GraphQL service setup and integration between the two repositories.
+
+## Polyrepo Architecture
+
+- **Chirality-Framework** (this repo): Core semantic engine, GraphQL service, Python CLI
+- **[Chirality-chat](https://github.com/sgttomas/Chirality-chat)**: Modern chat interface with streaming AI
+
 ## Phase 1: Setup & Deployment
 
-### 1. GraphQL Service Setup
+### 1. GraphQL Service Setup (Chirality-Framework)
 
 ```bash
 cd graphql-service
@@ -13,15 +20,22 @@ npm run db:apply  # Apply Neo4j constraints & indexes
 npm run dev      # Start GraphQL service at http://localhost:8080/graphql
 ```
 
-### 2. Next.js Chat UI Setup
+### 2. Chat UI Setup (Chirality-chat Repository)
 
 ```bash
-# In the main project root
+# Clone the chat interface
+git clone https://github.com/sgttomas/Chirality-chat.git
+cd Chirality-chat
+
+# Configure environment
 cp .env.local.example .env.local
-# Edit .env.local with your GraphQL service URL
+# Edit .env.local with:
+# - OPENAI_API_KEY
+# - NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
+# - GraphQL service URL (http://localhost:8080/graphql)
+
 npm install
-npm run codegen  # Generate TypeScript types from schema
-npm run dev      # Start Next.js at http://localhost:3000
+npm run dev      # Start chat interface at http://localhost:3000
 ```
 
 ### 3. Verify Setup
