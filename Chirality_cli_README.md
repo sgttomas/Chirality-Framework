@@ -496,3 +496,25 @@ The system supports:
 - ✅ **Station Progression** through semantic valley
 
 **Built with semantic reasoning in mind. Ready for production knowledge management and complex problem solving!** 🚀
+
+## CLI: Semantic Integrity & Pipeline Guarantees
+
+### What the CLI guarantees now
+- **A/B are canonical**: emitted with `cells` and labels in every C-generation flow.
+- **Construct → Interpret**: for C, F, and D the CLI performs construction (× then +), then column-lens, then row-lens, then synthesis into `resolved`.
+- **Fail-fast**: `_extract_string_value` and `_safe_resolved` do not coerce arbitrary objects to strings.
+
+### Recommended invocation
+Generate and ingest C with A/B attached:
+```bash
+python3 chirality_cli.py semantic-matrix-c --out /tmp/c.json --verbose
+```
+
+### Troubleshooting
+- Matrix D shows IDs like F(1,4) → D must read the in-memory F cells produced in the same run; if pulling from the DB, ensure the component has cells (not only cells_2d) and that _safe_resolved probes resolved → intermediate → raw_terms.
+- Wrong row/col labels → Flush stale components; verify each component contains row_labels/col_labels and the UI prefers them.
+
+### Data model invariants
+- resolved: final narrative
+- intermediate: step trace
+- raw_terms: only the original inputs to the semantic operation (empty for plain data grids)

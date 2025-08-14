@@ -58,3 +58,9 @@ To upgrade from v1.x to v2.1.1:
 5. **Neo4j Schema**: Apply v2.1.1 graph schema updates
 
 See `CF14_Implementation_Guide_Reconciled_v2.1.1.txt` for detailed migration instructions.
+
+### CF14-Integrity-1
+- Enforced fail-fast extraction and removed arbitrary string conversion fallbacks.
+- Canonicalized A/B emission with full `cells` + labels.
+- Clarified D's dependence on in-memory F cells.
+- Documented invariants and a clean-regenerate playbook.

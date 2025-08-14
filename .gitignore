@@ -54,3 +54,60 @@ temp_semantic-matrix-*.json
 # python
 __pycache__/
 *.pyc
+
+# -----------------------------
+# Python (extended)
+# -----------------------------
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pylint.d/
+.coverage
+coverage.xml
+htmlcov/
+.ipynb_checkpoints/
+
+# -----------------------------
+# Editors / IDEs / Workspace files
+# -----------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.code-workspace
+
+# -----------------------------
+# Generic logs & caches
+# -----------------------------
+logs/
+*.log
+.cache/
+.eslintcache
+.turbo/
+
+# -----------------------------
+# Next.js caches (extra)
+# -----------------------------
+/next/cache/
+
+# -----------------------------
+# Package managers (extra caches)
+# -----------------------------
+.npm/
+.pnpm-store/
+
+# -----------------------------
+# OS junk
+# -----------------------------
+Thumbs.db
+Icon\r\n
+
+# -----------------------------
+# Neo4j (local data & dumps) — keep DB artifacts out of git
+# -----------------------------
+neo4j/data/
+neo4j/logs/
+*.neo4j.dump
+*.graphdb

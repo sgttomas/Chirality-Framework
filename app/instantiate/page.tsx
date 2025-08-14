@@ -142,7 +142,7 @@ export default function InstantiatePage() {
               name: "Matrix A (Problem Statement)",
               axes: [
                 { name: "rows", labels: ["Normative", "Operative", "Evaluative"] },
-                { name: "cols", labels: ["Necessity", "Sufficiency", "Completeness", "Consistency"] }
+                { name: "cols", labels: ["Guiding", "Applying", "Judging", "Reviewing"] }
               ],
               shape: [3, 4],
               ontology: { operation: "axiom", ufo_type: "Endurant", domain: "general" },
@@ -184,8 +184,8 @@ export default function InstantiatePage() {
               station: "Problem Statement",
               name: "Matrix B (Decision Framework)",
               axes: [
-                { name: "rows", labels: ["Necessity", "Sufficiency", "Completeness", "Consistency"] },
-                { name: "cols", labels: ["Necessity", "Sufficiency", "Completeness", "Consistency"] }
+                { name: "rows", labels: ["Data", "Information", "Knowledge", "Wisdom"] },
+                { name: "cols", labels: ["Necessity (vs Contingency)", "Sufficiency", "Completeness", "Consistency"] }
               ],
               shape: [4, 4],
               ontology: { operation: "axiom", ufo_type: "Endurant", domain: "general" },

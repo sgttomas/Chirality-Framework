@@ -1,3 +1,16 @@
+"""
+CF14 Semantic Integrity (module policy)
+
+This module enforces the Chirality Framework's normative rules:
+- Order of operations: semantic multiplication first, then addition.
+- Interpretation: column-lens → row-lens → synthesis.
+- Fail-fast: reject empty terms; do not coerce arbitrary values to strings; no non-JSON fallbacks.
+- Traceability: populate `intermediate` with ordered steps; keep `raw_terms` for true input terms only.
+- Axioms: A and B must be consumed as canonical matrices, not recomputed.
+
+Rationale: These constraints ensure every cell is a reliable "semantic anchor," consistent with CF14.
+"""
+
 # semmul.py — semantic multiplication utilities (CSV + CLI + REPL)
 from __future__ import annotations
 from collections import OrderedDict
@@ -176,19 +189,18 @@ class SemanticCombiner:
             raise ValueError("Invalid JSON: missing 'results' array.")
         results = obj["results"]
         if len(results) != expected:
-            # If model returned extra/fewer, truncate/pad with fallbacks
-            if len(results) > expected:
-                results = results[:expected]
-            else:
-                while len(results) < expected:
-                    results.append({"term": "", "alternates": [], "confidence": 0.5})
+            # CF14 semantic integrity: fail on wrong count rather than pad with empty terms
+            raise ValueError(f"LLM returned {len(results)} results, expected {expected}. Cannot maintain semantic integrity with empty terms.")
         cleaned = []
-        for item in results:
+        for i, item in enumerate(results):
             term = (item.get("term") or "").strip()
             alts = item.get("alternates") or []
             conf = item.get("confidence", 0.5)
+            
+            # CF14 semantic integrity: reject empty terms
             if not term:
-                term = ""
+                raise ValueError(f"LLM returned empty term at index {i}. CF14 requires semantically meaningful content.")
+            
             if not isinstance(alts, list):
                 alts = []
             cleaned.append({"term": term, "alternates": alts, "confidence": conf})
@@ -420,9 +432,9 @@ def _call_llm_for_interpretation(cell: str,
     Call LLM for semantic interpretation using structured output.
     Returns a dict with keys: column_view, row_view, synthesis.
     """
-    # Non-exiting check: Step-2 is optional; if no key, return empty sections
+    # CF14 semantic integrity: API key required for semantic interpretation
     if not os.getenv("OPENAI_API_KEY"):
-        return {"column_view": "", "row_view": "", "synthesis": ""}
+        raise RuntimeError("OPENAI_API_KEY required for CF14 semantic interpretation. Cannot proceed without LLM access.")
 
     client = get_openai_client()
     model = DEFAULT_TEXT_MODEL
@@ -449,27 +461,31 @@ def _call_llm_for_interpretation(cell: str,
             )
             content = resp.choices[0].message.content or ""
             
-            # Parse JSON response
+            # Parse JSON response - CF14 requires structured interpretation
             try:
                 obj = json.loads(content)
+                column_view = obj.get("column_view", "").strip()
+                row_view = obj.get("row_view", "").strip()
+                synthesis = obj.get("synthesis", "").strip()
+                
+                # CF14 semantic integrity: all three interpretations must be present
+                if not column_view or not row_view or not synthesis:
+                    raise ValueError("CF14 requires complete interpretation: column_view, row_view, and synthesis must all be non-empty.")
+                
                 return {
-                    "column_view": obj.get("column_view", "").strip(),
-                    "row_view": obj.get("row_view", "").strip(),
-                    "synthesis": obj.get("synthesis", "").strip(),
+                    "column_view": column_view,
+                    "row_view": row_view,
+                    "synthesis": synthesis,
                 }
-            except json.JSONDecodeError:
-                # Fallback: non-JSON model output; place full text in synthesis
-                return {
-                    "column_view": "",
-                    "row_view": "",
-                    "synthesis": content.strip(),
-                }
+            except json.JSONDecodeError as e:
+                # CF14 semantic integrity: no fallback to raw content
+                raise ValueError(f"LLM failed to return structured JSON interpretation required by CF14: {e}")
         except Exception as e:
             last_err = e
             time.sleep(0.8 * (attempt + 1))
     
-    # Final fallback on failure
-    return {"column_view": "", "row_view": "", "synthesis": ""}
+    # CF14 semantic integrity: fail rather than return empty interpretations
+    raise RuntimeError(f"Failed to generate CF14-compliant semantic interpretation after retries: {last_err}")
 
     # --- Option B: Responses API (if you prefer) ---
     # resp = client.responses.create(

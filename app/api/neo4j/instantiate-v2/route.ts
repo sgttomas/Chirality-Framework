@@ -31,6 +31,13 @@ async function executeChiralityCLI(operation: string, domainPackPath?: string): 
     if (domainPackPath) {
       args.push('--domain-pack', domainPackPath)
     }
+    
+    // Enable semantic interpretations for all operations
+    args.push('--run-interpretations')
+    
+    // Add ontology pack for enhanced interpretation
+    const ontologyPackPath = join(process.cwd(), 'ontology/cf14.core.v2.1.1.json')
+    args.push('--ontology-pack', ontologyPackPath)
 
     const childProcess = spawn('python3', args, {
       cwd: process.cwd(),

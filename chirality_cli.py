@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+"""
+Chirality CLI — Semantic Integrity Contract (CF14)
+
+This CLI now:
+1) Emits canonical A/B with full cells and labels on any C generation path.
+2) Performs construction (× then +) followed by column-lens and row-lens interpretation; writes narratives to `resolved`.
+3) Enforces fail-fast extraction: `_extract_string_value`/`_safe_resolved` never stringify arbitrary objects.
+4) Keeps data-vs-semantic separation: manual grids have empty `raw_terms`/`intermediate`.
+5) Prefers in-memory products for dependent matrices (e.g., D uses freshly built F) before persisting.
+
+See README for operational playbook and troubleshooting.
+"""
 import argparse, csv, json, requests, logging, os, re, sys
 from typing import List, Optional, Dict, Any
 from urllib.parse import urljoin
@@ -210,15 +222,35 @@ def _extract_string_value(value: Any, fallback_label: str) -> str:
         # Try resolved first, then other text fields, avoid IDs
         for field in ['resolved', 'content', 'value', 'text', 'name']:
             if field in value and isinstance(value[field], str):
-                return value[field].strip()
+                result = value[field].strip()
+                if result:  # Don't return empty strings
+                    return result
+        
+        # Try intermediate array - look for semantically meaningful content only
+        if 'intermediate' in value and isinstance(value['intermediate'], list):
+            for item in reversed(value['intermediate']):  # Check latest first
+                if isinstance(item, str):
+                    try:
+                        parsed = json.loads(item)
+                        if isinstance(parsed, dict):
+                            # Only extract from semantic phases, not raw construction
+                            if parsed.get('phase') in ['interpretation_result', 'semantic_multiply', 'sum_concat', 'f1_sum_concat']:
+                                result = str(parsed.get('value', '')).strip()
+                                if result:
+                                    return result
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+        
+        # If no semantic content found, fail with fallback rather than return gibberish
         return fallback_label
     elif hasattr(value, 'resolved'):
         resolved = getattr(value, 'resolved', None)
-        if isinstance(resolved, str):
+        if isinstance(resolved, str) and resolved.strip():
             return resolved.strip()
         return fallback_label
     else:
-        return str(value).strip() if value is not None else fallback_label
+        # CF14 semantic integrity: only extract from semantic structures, not arbitrary objects
+        return fallback_label
 
 def _safe_resolved(cell_rows: List[List[Any]], i: int, j: int, fallback_label: str) -> str:
     """Safely extract resolved value from matrix cell with fallback"""
@@ -450,8 +482,8 @@ def matrix_from_grid(args):
         rows.append(r[0])
         # pad/truncate to match cols
         row_vals = (r[1:] + [""] * len(cols))[:len(cols)]
-        # Convert string values to Cell objects
-        cell_row = [Cell(resolved=val, raw_terms=[val], intermediate=[val]) for val in row_vals]
+        # Convert string values to Cell objects - CF14: these are direct data, not semantic results
+        cell_row = [Cell(resolved=val, raw_terms=[], intermediate=[]) for val in row_vals]
         cells_2d.append(cell_row)
     
     doc = ChiralityDocument(version=CF14_VERSION, meta={"source": "chirality_cli", "mode": "matrix-grid"})
@@ -497,9 +529,9 @@ def matrix_from_lists(args) -> str:
         if len(row) != len(cols):
             raise SystemExit(f"Row {i} length ({len(row)}) != number of cols ({len(cols)}).")
 
-    # Convert data (2D list of strings) to Cell objects
+    # Convert data (2D list of strings) to Cell objects - CF14: these are direct data, not semantic results
     cells_2d = [
-        [Cell(resolved=(val or "").strip(), raw_terms=[(val or "").strip()], intermediate=[(val or "").strip()]) for val in row]
+        [Cell(resolved=(val or "").strip(), raw_terms=[], intermediate=[]) for val in row]
         for row in data
     ]
 
@@ -530,7 +562,7 @@ def array_from_list(args):
     doc = ChiralityDocument(version=CF14_VERSION, meta={"source": "chirality_cli", "mode": "array-list"})
     ontology = {"axis0_name": args.axis_name, "notes": args.notes}
     labels = [str(x).strip() for x in items]
-    cells = [Cell(resolved=lbl, raw_terms=[lbl], intermediate=[lbl]) for lbl in labels]
+    cells = [Cell(resolved=lbl, raw_terms=[], intermediate=[]) for lbl in labels]
     comp = make_array(
         id=f"array_{args.title}",
         name=args.title,
@@ -611,8 +643,11 @@ def generate_matrix_c_semantic(args):
     for i, row in enumerate(matrix_b):
         logging.info(f"  {KNOWLEDGE_HIERARCHY[i]}: {row}")
 
+    # Check if interpretations should be run
+    run_interpret = bool(getattr(args, "run_interpretations", False))
+    
     # Generate semantic Matrix C with domain context
-    cells_2d = create_semantic_matrix_c_with_context(matrix_a, matrix_b, domain_context, pack, include_station)
+    cells_2d = create_semantic_matrix_c_with_context(matrix_a, matrix_b, domain_context, pack, include_station, run_interpret)
 
     # Create CF14 v2.1.1 document with enhanced metadata
     doc = ChiralityDocument(
@@ -657,12 +692,22 @@ def generate_matrix_c_semantic(args):
 
     return json_path
 
-def create_semantic_matrix_c_with_context(matrix_a_elements: List[List[str]], matrix_b_elements: List[List[str]], domain_context: Dict[str, Any], pack: Optional[Dict[str, Any]] = None, include_station: bool = False) -> List[List[Cell]]:
+def create_semantic_matrix_c_with_context(matrix_a_elements: List[List[str]], matrix_b_elements: List[List[str]], domain_context: Dict[str, Any], pack: Optional[Dict[str, Any]] = None, include_station: bool = False, run_interpretations: bool = False) -> List[List[Cell]]:
     """
     Enhanced semantic matrix multiplication with domain context for CF14 v2.1.1
     """
     ensure_api_key()
     from semmul import semantic_multiply
+    
+    # Import semantic_interpret if interpretations are enabled
+    semantic_interpret = None
+    if run_interpretations:
+        try:
+            from semmul import semantic_interpret
+            logging.info("✓ semantic_interpret loaded for Matrix C Step-2 interpretations")
+        except ImportError as e:
+            logging.warning(f"semantic_interpret unavailable; proceeding without Step-2 interpretations: {e}")
+            run_interpretations = False
     
     validate_rectangular_matrix(matrix_a_elements, "A")
     validate_rectangular_matrix(matrix_b_elements, "B")
@@ -707,19 +752,44 @@ def create_semantic_matrix_c_with_context(matrix_a_elements: List[List[str]], ma
                 **({"station": "Requirements"} if include_station else {})
             }
             
+            # Execute Step-2 interpretation if enabled
+            interpretation_result = None
+            final_resolved = sum_concat  # Default to constructive result
+            if run_interpretations and semantic_interpret:
+                try:
+                    interpretation_result = semantic_interpret(
+                        cell=sum_concat,
+                        col_label=col_label,
+                        col_meaning=meanings["col_meaning"],
+                        row_label=row_label,
+                        row_meaning=meanings["row_meaning"],
+                        station="Requirements" if include_station else None
+                    )
+                    # Use synthesis as the final resolved value
+                    final_resolved = interpretation_result.get("synthesis", sum_concat)
+                    logging.debug(f"  C({i+1},{j+1}) interpretation: {interpretation_result.get('synthesis', 'N/A')}")
+                except Exception as e:
+                    logging.warning(f"Interpretation failed for C({i+1},{j+1}): {e}")
+                    interpretation_result = None
+            
             # Build partial records for audit trail
             partial_records = [{"a": matrix_a_elements[i][k], "b": matrix_b_elements[k][j], "product": partials[k]} for k in range(shared)]
             
+            # Build intermediate data with interpretation results if available
+            intermediate_data = [
+                {"phase": "partials", "items": partial_records},
+                {"phase": "sum_concat", "value": sum_concat},
+                {"phase": "interpretation_inputs", "value": interpretation_inputs},
+            ]
+            if interpretation_result:
+                intermediate_data.append({"phase": "interpretation_result", "value": interpretation_result})
+            
             cell = Cell(
-                resolved=sum_concat,
+                resolved=final_resolved,
                 raw_terms=raw_terms,
-                intermediate=_pack_intermediates([
-                    {"phase": "partials", "items": partial_records},
-                    {"phase": "sum_concat", "value": sum_concat},
-                    {"phase": "interpretation_inputs", "value": interpretation_inputs},
-                ]),
+                intermediate=_pack_intermediates(intermediate_data),
                 operation=Operation.MULTIPLY.value,
-                notes=f"C({i+1},{j+1}) multiply per-k then concatenate; interpretation inputs prepared"
+                notes=f"C({i+1},{j+1}) multiply per-k then concatenate" + ("; interpreted through row/col ontologies" if interpretation_result else "; interpretation inputs prepared")
             )
             cell_row.append(cell)
         cells_2d.append(cell_row)
@@ -1098,12 +1168,13 @@ def convert_dict_to_component(comp_dict: Dict[str, Any]):
                         )
                     )
                 else:
-                    s = str(c)
-                    new_row.append(Cell(resolved=s, raw_terms=[s], intermediate=[s]))
+                    # CF14 semantic integrity: don't convert arbitrary objects to semantic cells
+                    raise ValueError(f"Cannot convert non-semantic object to Cell: {type(c)}")
             cells_2d.append(new_row)
     else:
+        # CF14 semantic integrity: legacy matrix format should not be converted with raw_terms
         matrix_vals = comp_dict.get("matrix") or []
-        cells_2d = [[Cell(resolved=str(v), raw_terms=[str(v)], intermediate=[str(v)]) for v in row] for row in matrix_vals]
+        cells_2d = [[Cell(resolved=str(v), raw_terms=[], intermediate=[]) for v in row] for row in matrix_vals]
 
     ontology = {
         "operation_type": comp_dict.get("operation_type"),
@@ -1207,26 +1278,18 @@ def generate_matrix_f_from_neo4j(args):
                 {"phase": "join_concat", "value": join_concat},
             ]
             
-            # Phase 1: Semantic operations (ALWAYS attempt multiply → add)
-            f1_product = None
-            f1_sum_concat = None
+            # Phase 1: Semantic multiplication J(i,j) * C(i,j) = F(i,j)
+            f1_semantic_result = None
             if semantic_multiply:
                 try:
-                    # Step-1: Semantic multiply
-                    f1_product = semantic_multiply(j_term, c_term)
-                    logging.debug(f"    Step-1 sem_multiply: {j_term} * {c_term} = {f1_product}")
-                    intermediate.append({"phase": "f1_product", "value": f1_product})
-                    
-                    # Step-1: Semantic add (concatenate product; include inputs for lineage)
-                    addition_terms = [f1_product, j_term, c_term]
-                    f1_sum_concat = "; ".join(str(t).strip() for t in addition_terms if t is not None and str(t).strip())
-                    logging.debug(f"    Step-1 sem_add: {f1_sum_concat}")
-                    intermediate.append({"phase": "f1_sum_concat", "value": f1_sum_concat})
+                    # Direct semantic multiplication: J(i,j) * C(i,j)
+                    f1_semantic_result = semantic_multiply(j_term, c_term)
+                    logging.debug(f"    Semantic multiply: {j_term} * {c_term} = {f1_semantic_result}")
+                    intermediate.append({"phase": "semantic_multiply", "value": f1_semantic_result})
                     
                 except Exception as e:
-                    logging.warning(f"  F({i+1},{j+1}) semantic operations failed: {e}")
-                    f1_product = None
-                    f1_sum_concat = None
+                    logging.warning(f"  F({i+1},{j+1}) semantic multiplication failed: {e}")
+                    f1_semantic_result = None
             
             # Build interpretation inputs (always present)
             col_label = C_COLS[j] if j < len(C_COLS) else f"col{j+1}"
@@ -1234,7 +1297,7 @@ def generate_matrix_f_from_neo4j(args):
             meanings = _resolve_ontology_meanings(col_label, row_label, pack)
 
             interpretation_inputs = {
-                "cell": f1_sum_concat or join_concat,
+                "cell": f1_semantic_result or join_concat,
                 "col_label": col_label,
                 "col_meaning": meanings["col_meaning"],
                 "row_label": row_label,
@@ -1245,10 +1308,10 @@ def generate_matrix_f_from_neo4j(args):
             
             # Phase 2: Interpretation (if enabled and inputs available)
             interpretation_result = None
-            if run_interpret and f1_sum_concat and semantic_interpret:
+            if run_interpret and f1_semantic_result and semantic_interpret:
                 try:
                     interpretation_result = semantic_interpret(
-                        cell=f1_sum_concat,
+                        cell=f1_semantic_result,
                         col_label=col_label,
                         col_meaning=meanings["col_meaning"], 
                         row_label=row_label,
@@ -1261,13 +1324,13 @@ def generate_matrix_f_from_neo4j(args):
                     logging.warning(f"  F({i+1},{j+1}) interpretation failed: {e}")
                     interpretation_result = None
             
-            # Final resolution: prefer interpretation → f1_sum_concat → join_concat
+            # Final resolution: prefer interpretation → f1_semantic_result → join_concat
             if interpretation_result and interpretation_result.get("synthesis"):
                 resolved_value = interpretation_result["synthesis"]
                 resolution_source = "interpretation.synthesis"
-            elif f1_sum_concat:
-                resolved_value = f1_sum_concat
-                resolution_source = "f1_sum_concat"
+            elif f1_semantic_result:
+                resolved_value = f1_semantic_result
+                resolution_source = "semantic_multiply"
             else:
                 resolved_value = join_concat
                 resolution_source = "join_concat"
@@ -1328,6 +1391,17 @@ def generate_matrix_d_from_neo4j(args):
     # Load ontology pack and flags
     pack = _load_ontology_pack(getattr(args, "ontology_pack", None))
     include_station = bool(getattr(args, "include_station_context", False))
+    run_interpret = bool(getattr(args, "run_interpretations", False))
+    
+    # Import semantic_interpret if interpretations are enabled
+    semantic_interpret = None
+    if run_interpret:
+        try:
+            from semmul import semantic_interpret
+            logging.info("✓ semantic_interpret loaded for Matrix D Step-2 interpretations")
+        except ImportError as e:
+            logging.warning(f"semantic_interpret unavailable; proceeding without Step-2 interpretations: {e}")
+            run_interpret = False
     
     # Step 1: Query Matrix F from Neo4j (Objectives station)
     logging.info("Step 1: Querying Matrix F from Neo4j (Objectives station)...")
@@ -1378,15 +1452,38 @@ def generate_matrix_d_from_neo4j(args):
                 **({"station": "Objectives"} if include_station else {})
             }
 
+            # Execute Step-2 interpretation if enabled
+            interpretation_result = None
+            final_resolved = resolved_sentence  # Default to constructive result
+            intermediate_data = [
+                {"phase": "constructive_sentence", "value": resolved_sentence},
+                {"phase": "interpretation_inputs", "value": interpretation_inputs},
+            ]
+            
+            if run_interpret and semantic_interpret:
+                try:
+                    interpretation_result = semantic_interpret(
+                        cell=resolved_sentence,
+                        col_label=col_label,
+                        col_meaning=meanings["col_meaning"],
+                        row_label=row_label,
+                        row_meaning=meanings["row_meaning"],
+                        station="Objectives" if include_station else None
+                    )
+                    # Use synthesis as the final resolved value
+                    final_resolved = interpretation_result.get("synthesis", resolved_sentence)
+                    intermediate_data.append({"phase": "interpretation_result", "value": interpretation_result})
+                    logging.debug(f"  D({i+1},{j+1}) interpretation: {interpretation_result.get('synthesis', 'N/A')}")
+                except Exception as e:
+                    logging.warning(f"Interpretation failed for D({i+1},{j+1}): {e}")
+                    interpretation_result = None
+
             cell = Cell(
-                resolved=resolved_sentence,  # you can overwrite with synthesis later if desired
+                resolved=final_resolved,
                 raw_terms=[a_term, f_term],
-                intermediate=_pack_intermediates([
-                    {"phase": "constructive_sentence", "value": resolved_sentence},
-                    {"phase": "interpretation_inputs", "value": interpretation_inputs},
-                ]),
+                intermediate=_pack_intermediates(intermediate_data),
                 operation=Operation.ADD.value,
-                notes=f"D({i+1},{j+1}) = A+F constructive; interpretation inputs prepared - ({row_label}, {col_label})",
+                notes=f"D({i+1},{j+1}) = A+F constructive" + ("; interpreted through row/col ontologies" if interpretation_result else "; interpretation inputs prepared") + f" - ({row_label}, {col_label})",
             )
             cell_row.append(cell)
         cells_2d.append(cell_row)

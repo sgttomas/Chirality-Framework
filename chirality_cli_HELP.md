@@ -1383,3 +1383,16 @@ tar -czf cf14_backup_$(date +%Y%m%d).tar.gz \
 
 *For architectural details and development patterns, see `Chirality_cli_README.md`*
 *For additional support, consult the project repository issues or documentation*
+
+## Semantic Integrity: Quick Rules
+- Multiply first, then add (normative).
+- After construction: interpret by column ontology, then row ontology, then synthesize.
+- Never auto-transpose; always use the component's labels.
+- Fail-fast: no arbitrary string conversions.
+
+## Common Issues
+- **D displays `F(i,j)`**: Ensure D consumes in-memory F cells; `_safe_resolved` checks `resolved → intermediate → raw_terms`.
+- **Labels look wrong in /matrices**: Clear old graph data; confirm `row_labels`/`col_labels` are present and used by the UI.
+
+## Neo4j Hygiene
+- Before large refactors, clear prior components to avoid mixing pre- and post-integrity data. Then regenerate A/B/C/F/D.

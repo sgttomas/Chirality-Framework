@@ -303,3 +303,32 @@ This implementation is **complete and production-ready** with:
 - **💡 Discussions**: Share ideas and use cases
 
 **Built with semantic reasoning in mind. Transforming problem statements into structured knowledge since 2024.**
+
+## Semantic Integrity Contract (CF14)
+
+**Why this matters** — The Chirality Framework requires a strict, auditable flow from construction to interpretation so each cell is a true "semantic anchor," not a guess or a fallback. We enforce fail-fast semantics rather than silently accepting gibberish or arbitrary string conversions.
+
+### Core Principles
+1. **Order of operations is normative**: always do semantic **multiplication** first, then **addition**. Applies to C (A×B), F (J×C), and all later matrices. (CF14: Order of Operations.)  
+2. **Two-lens interpretation**: after construction, interpret each element through the **column ontology** then the **row ontology**, and synthesize a final narrative. (CF14: C/F/D interpretation steps.)
+3. **Axioms are canonical**: Matrices **A** and **B** are serialized with full `cells`, row/col labels, and ontology metadata; downstream steps must not recompute or transpose them.
+4. **Fail-fast semantics**: if a value isn't a semantic structure, we don't coerce it to a string. We return an explicit fallback label (e.g., `F(1,4)`) or raise, rather than pass meaningless content.
+5. **Cell model invariants**:
+   - `resolved`: the final narrative (post-interpretation when applicable).
+   - `intermediate`: ordered trace of transformation (e.g., `["A(1,1) * B(1,1)", "… + …"]`).
+   - `raw_terms`: only the original terms supplied to the semantic operation. For non-semantic data matrices (manual grids), leave `raw_terms` empty.
+6. **Label & orientation invariants**: render `cells[i][j]` against the component's own `row_labels`/`col_labels`. Never auto-transpose.
+7. **Determinism & auditability**: prefer in-memory products for immediate follow-ups (e.g., D consumes the in-memory **F**), then persist. Include a version tag and operation metadata.
+
+### Operational Playbook
+- **Regenerate from clean state**: clear old components in Neo4j, then run A/B/C/F/D generation to avoid stale labels.
+- **Troubleshooting**
+  - Wrong labels in UI: ensure the component JSON includes `row_labels`/`col_labels` and the UI prefers those over any ontology refs.
+  - D shows `F(i,j)` instead of content: confirm D consumes the **in-memory** F cells and `_safe_resolved` checks `resolved → intermediate → raw_terms` (no arbitrary string conversion).
+
+### References
+- CF14: *Semantic Dot Product* and **A×B=C** definition.
+- CF14: *Order of Operations* (multiply then add).
+- CF14: *C, F, D interpretation steps* and D construction formula.
+
+(This section summarizes: A×B=C, the order-of-ops, and the interpretation steps. See CF14: A×B=C; order of ops; and the C/F/D interpretation passages.)
