@@ -34,3 +34,45 @@ export async function cliSemanticInit({
     });
   });
 }
+
+export async function cliFullPipeline({
+  packPath,
+  output
+}: { packPath?: string; output?: string }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const args = [CLI!, "full-pipeline"];
+    if (packPath) args.push("--pack", packPath);
+    if (output) args.push("--out", output);
+
+    const proc = spawn(PY, args, { env: process.env });
+
+    let out = "", err = "";
+    proc.stdout.on("data", (d) => (out += d.toString()));
+    proc.stderr.on("data", (d) => (err += d.toString()));
+    proc.on("close", (code) => {
+      if (code === 0) return resolve(out.trim());
+      reject(new Error(`full-pipeline failed (code ${code})\n${err || out}`));
+    });
+  });
+}
+
+export async function cliSemanticMatrixC({
+  packPath,
+  output
+}: { packPath?: string; output?: string }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const args = [CLI!, "semantic-matrix-c"];
+    if (packPath) args.push("--pack", packPath);
+    if (output) args.push("--out", output);
+
+    const proc = spawn(PY, args, { env: process.env });
+
+    let out = "", err = "";
+    proc.stdout.on("data", (d) => (out += d.toString()));
+    proc.stderr.on("data", (d) => (err += d.toString()));
+    proc.on("close", (code) => {
+      if (code === 0) return resolve(out.trim());
+      reject(new Error(`semantic-matrix-c failed (code ${code})\n${err || out}`));
+    });
+  });
+}
