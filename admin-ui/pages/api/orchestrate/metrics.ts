@@ -1,7 +1,21 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jobs from '../../../lib/jobsStore';
 
-export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+// CORS helper
+function setCorsHeaders(res: NextApiResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Set CORS headers for all requests
+  setCorsHeaders(res);
+  
+  // Handle preflight OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
   let running = 0;
   let failed = 0; 
   let completed = 0;

@@ -214,6 +214,13 @@ input ChatMessageInput {
 # ---------- Queries ----------
 
 type Query {
+  # V1 Compatibility - simplified top-level queries
+  valley: JSON
+  station(id: String!): JSON
+  matrix(id: String!, station: String!): JSON
+  ontologies: JSON
+  pullCell(station: String!, matrix: String!, row: Int!, col: Int!, includeOntologies: Boolean): PullCellResult!
+  
   components(
     filter: ComponentFilter
     sort: ComponentSort
@@ -257,9 +264,46 @@ type Query {
   chatMessages(sessionId: ID!, pagination: Pagination): [ChatMessage!]!
 }
 
+# ---------- V1 Compatibility Layer ----------
+input CellStageInput {
+  station: String!
+  matrix: String!
+  row: Int!
+  col: Int!
+  stage: String!
+  value: String!         # JSON as string
+  model_id: String
+  prompt_hash: String
+  labels: JSON
+  meta: JSON
+}
+
+type UpsertResult { 
+  ok: Boolean!
+  id: ID!
+  version: Int!
+  contentHash: String!
+  deduped: Boolean!
+}
+
+input PullCellContext {
+  matrix: JSON
+  ontologies: [JSON!]
+}
+
+type PullCellResult {
+  valley: JSON!
+  station: JSON!
+  matrix: JSON!
+  cell: JSON
+  ontologies: JSON
+}
+
 # ---------- Mutations (read-first friendly) ----------
 
 type Mutation {
+  # V1 Compatibility
+  upsertCellStage(input: CellStageInput!): UpsertResult!
   # Upsert a component and (optionally) its cells in one call
   createComponent(input: ComponentInput!): Component!
   updateComponent(id: ID!, input: ComponentInput!): Component!

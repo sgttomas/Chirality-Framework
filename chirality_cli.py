@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # chirality_cli.py — Phase-1 canonical (compact)
 from __future__ import annotations
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import os, sys, json, argparse, logging, traceback
 from typing import List, Tuple, Iterable, Dict, Any
 

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createYoga, maskError } from 'graphql-yoga';
 import { Neo4jGraphQL } from '@neo4j/graphql';
 import neo4j, { Driver } from 'neo4j-driver';
@@ -78,8 +79,172 @@ const typeDefs = readFileSync(new URL('../../schema.graphql', import.meta.url), 
 
 const resolvers = {
   Query: {
-    // Custom resolvers can be added here if needed
+    // V1 Compatibility - top-level queries for the complex CLI schema
+    valley: () => ({ 
+      id: "cf14", 
+      name: "Chirality Framework", 
+      version: "14.2.1", 
+      stations: [], 
+      ontology: [] 
+    }),
+    station: (_: any, { id }: any) => ({ 
+      id, 
+      name: id, 
+      index: 1, 
+      ontology: [], 
+      axes: { 
+        row: { name: "rows", labels: [], ontology: [] }, 
+        col: { name: "cols", labels: [], ontology: [] } 
+      } 
+    }),
+    matrix: (_: any, { id, station }: any) => ({
+      id,
+      name: id,
+      stationId: station,
+      rowLabels: [],
+      colLabels: [],
+      ontology: [],
+      cell: null
+    }),
+    ontologies: () => ({
+      jsonldContext: {},
+      entities: []
+    }),
+    
+    // V1 Compatibility resolver
+    pullCell: async (_: any, { station, matrix, row, col, includeOntologies = false }, context: any) => {
+      const session = driver.session();
+      try {
+        // Fetch component + optional cell
+        const result = await session.run(`
+          MATCH (c:Component {station: $station, name: $matrix})
+          OPTIONAL MATCH (c)-[:HAS_CELL]->(cell:Cell {row: $row, col: $col})
+          RETURN c, cell
+        `, { station, matrix, row, col });
+
+        if (result.records.length === 0) {
+          return {
+            valley: { name: 'Chirality Framework', version: '14.2.1' },
+            station: { name: station, index: 1 },
+            matrix: { name: matrix, rowLabels: [], colLabels: [] },
+            cell: null,
+            ontologies: includeOntologies ? { jsonldContext: {}, entities: [] } : null
+          };
+        }
+
+        const rec = result.records[0];
+        const c = rec.get('c')?.properties;
+        const cellNode = rec.get('cell');
+
+        // Use the rowLabels and colLabels from component
+        const rowLabels = c?.rowLabels || [];
+        const colLabels = c?.colLabels || [];
+
+        const cell = cellNode ? {
+          row: cellNode.properties.row.toNumber?.() ?? cellNode.properties.row,
+          col: cellNode.properties.col.toNumber?.() ?? cellNode.properties.col,
+          stage: cellNode.properties.stage || null,
+          value: cellNode.properties.resolved || null,
+          labels: {
+            rowLabel: rowLabels[cellNode.properties.row.toNumber?.() ?? cellNode.properties.row] ?? null,
+            colLabel: colLabels[cellNode.properties.col.toNumber?.() ?? cellNode.properties.col] ?? null
+          },
+          traces: []
+        } : null;
+
+        return {
+          valley: { name: 'Chirality Framework', version: '14.2.1' },
+          station: { name: station, index: 1 },
+          matrix: { 
+            name: matrix, 
+            rowLabels: rowLabels, 
+            colLabels: colLabels,
+            cell: cell
+          },
+          cell,
+          ontologies: includeOntologies ? {
+            jsonldContext: {},
+            entities: c?.ontology ? [{ curie: 'UFO:Component', label: c.name }] : []
+          } : null
+        };
+      } finally {
+        await session.close();
+      }
+    }
   },
+  
+  Mutation: {
+    // V1 Compatibility resolver  
+    upsertCellStage: async (_: any, { input }, context: any) => {
+      const session = driver.session();
+      try {
+        const { station, matrix, row, col, stage, value, model_id, prompt_hash, labels, meta } = input;
+        
+        // Create a content hash for deduplication (include location for identity)
+        const contentHash = createHash('sha256')
+          .update(JSON.stringify({ station, matrix, row, col, value, stage, labels, meta }))
+          .digest('hex');
+
+        // Find or create component
+        const componentResult = await session.run(`
+          MERGE (c:Component {station: $station, name: $matrix})
+          ON CREATE SET 
+            c.id = randomUUID(),
+            c.kind = 'MATRIX',
+            c.shape = [3, 4],
+            c.rowLabels = ['Normative', 'Operative', 'Evaluative'],
+            c.colLabels = ['Necessity', 'Sufficiency', 'Completeness', 'Consistency'],
+            c.ontology = '{}',
+            c.createdAt = datetime(),
+            c.updatedAt = datetime()
+          ON MATCH SET c.updatedAt = datetime()
+          RETURN c
+        `, { station, matrix });
+
+        const component = componentResult.records[0].get('c');
+
+        // Create or update cell
+        const cellResult = await session.run(`
+          MATCH (c:Component {id: $componentId})
+          MERGE (c)-[:HAS_CELL]->(cell:Cell {row: $row, col: $col})
+          ON CREATE SET 
+            cell.id = randomUUID(),
+            cell.resolved = $value,
+            cell.rawTerms = [],
+            cell.intermediate = [$stage],
+            cell.operation = 'MULTIPLY',
+            cell.createdAt = datetime(),
+            cell.updatedAt = datetime()
+          ON MATCH SET 
+            cell.resolved = $value,
+            cell.intermediate = cell.intermediate + [$stage],
+            cell.updatedAt = datetime()
+          RETURN cell, 
+                 CASE WHEN cell.createdAt = cell.updatedAt THEN false ELSE true END as deduped
+        `, { 
+          componentId: component.properties.id, 
+          row, 
+          col, 
+          value, 
+          stage 
+        });
+
+        const cellRecord = cellResult.records[0];
+        const cell = cellRecord.get('cell');
+        const deduped = cellRecord.get('deduped');
+
+        return {
+          ok: true,
+          id: cell.properties.id,
+          version: 1,
+          contentHash,
+          deduped
+        };
+      } finally {
+        await session.close();
+      }
+    }
+  }
 };
 
 const neoSchema = new Neo4jGraphQL({

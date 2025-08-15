@@ -1,7 +1,33 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { listCanons, writeCanon } from "@/lib/neo4j";
-import { cliSemanticInit } from "@/lib/runCli";
+import { spawn } from "child_process";
 import fs from "node:fs";
+import path from "node:path";
+
+const PYTHON_BIN = process.env.PYTHON_BIN || "python3";
+const CLI_PATH = process.env.CHIRALITY_CLI_PY || path.join(process.cwd(), "..", "chirality_cli.py");
+const GRAPHQL_API = process.env.GRAPHQL_ENDPOINT || "http://localhost:8080/graphql";
+
+async function runCliCommand(args: string[]): Promise<{ stdout: string; stderr: string; success: boolean }> {
+  return new Promise((resolve) => {
+    const proc = spawn(PYTHON_BIN, [CLI_PATH, ...args], { 
+      env: { 
+        ...process.env,
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+        NEO4J_URI: process.env.NEO4J_URI,
+        NEO4J_USER: process.env.NEO4J_USER,
+        NEO4J_PASSWORD: process.env.NEO4J_PASSWORD
+      } 
+    });
+
+    let stdout = "", stderr = "";
+    proc.stdout.on("data", (data) => stdout += data.toString());
+    proc.stderr.on("data", (data) => stderr += data.toString());
+    proc.on("close", (code) => {
+      resolve({ stdout: stdout.trim(), stderr: stderr.trim(), success: code === 0 });
+    });
+  });
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
@@ -38,18 +64,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
       case 'setup-axioms':
-        // Generate Matrix A and B structural templates
-        const axiomResult = await cliSemanticInit({ 
-          packPath: packPath!, 
-          matrix: "A", 
-          dryRun: true 
-        });
+        // Use the push-axioms command to load the canonical framework matrices
+        if (!packPath) return res.status(400).json({ error: "Pack path required" });
+        
+        const specFile = "/Users/ryan/Desktop/ai-env/chirality-semantic-framework/NORMATIVE_Chriality_Framework_14.2.1.1.txt";
+        const axiomResult = await runCliCommand([
+          "push-axioms", 
+          "--spec", specFile, 
+          "--api-base", GRAPHQL_API,
+          "--dry-run"
+        ]);
+        
+        if (!axiomResult.success) {
+          return res.status(500).json({ error: `Failed to setup axioms: ${axiomResult.stderr}` });
+        }
+        
         return res.status(200).json({
           step: 'setup-axioms',
           data: {
             matrix_a_template: "Generated",
-            matrix_b_template: "Generated",
-            canonical_structure: JSON.parse(axiomResult)
+            matrix_b_template: "Generated", 
+            matrix_j_template: "Generated",
+            cli_output: axiomResult.stdout,
+            ready_for_generation: true
           }
         });
 

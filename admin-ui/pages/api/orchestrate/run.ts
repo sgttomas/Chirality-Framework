@@ -5,6 +5,13 @@ import path from 'path';
 import jobs, { putJob, pushLog, Job } from '../../../lib/jobsStore';
 import { rateLimit } from '../_lib/rateLimit';
 
+// CORS helper
+function setCorsHeaders(res: NextApiResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
 // --- helpers -----------------------------------------------------------------
 
 function requireAuth(req: NextApiRequest, res: NextApiResponse): boolean {
@@ -18,7 +25,14 @@ function requireAuth(req: NextApiRequest, res: NextApiResponse): boolean {
   return true;
 }
 
-const ALLOWED_CMDS = new Set(['push-axioms', 'generate-c', 'generate-f', 'generate-d', 'verify-stages']);
+const ALLOWED_CMDS = new Set([
+  'push-axioms', 
+  'generate-c', 'generate-f', 'generate-d', 
+  'verify-stages',
+  // Phase-2 Document Synthesis commands
+  'generate-ds', 'generate-sp', 'generate-x', 'generate-z', 'generate-m',
+  'iterate-w', 'cycle-u'
+]);
 const STATIONS = new Set(['Problem Statement', 'Decisions', 'Truncated Decisions', 'Requirements', 'Objectives', 'Solution Objectives']);
 const MATRICES = new Set(['A','B','J','C','F','D']);
 
@@ -68,6 +82,14 @@ function buildArgv(cmd: string, args: any): string[] {
 // --- handler -----------------------------------------------------------------
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Set CORS headers for all requests
+  setCorsHeaders(res);
+  
+  // Handle preflight OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!requireAuth(req, res)) return;
 
