@@ -139,6 +139,51 @@ chirality_cli.py       # Main Python CLI
 neo4j_admin.py        # Database administration
 ```
 
+## Backend Development Status
+
+### 🚧 Current Work in Progress
+**Important**: Active backend development is ongoing to enhance production-grade operations:
+
+**✅ Completed:**
+- Admin UI CLI Integration: Real CLI commands (push-axioms, generate-c) replacing mock functions in `chirality-admin/pages/api/phase1/step.ts`
+- Enhanced Process Management: Proper CLI process lifecycle with output streaming
+- GraphQL Foundation: Basic GraphQL service operational at localhost:8080
+
+**🔄 In Progress:**
+- Complete CLI Integration: Adding remaining commands (generate-f, generate-d, verify-stages)
+- Error Handling: Robust failure recovery and timeout management for long-running operations
+- Performance Optimization: GraphQL query optimization and database connection pooling
+
+### 🎯 Backend Development Priorities
+
+**High Priority Tasks for Claude Code:**
+1. **Complete CLI Integration** in `chirality-admin/pages/api/phase1/step.ts`
+   - Add remaining CLI commands with proper error handling
+   - Implement timeout management for long operations
+   - Stream real-time CLI output to frontend
+
+2. **GraphQL Service Enhancements** in `graphql-service/src/index.ts`
+   - Add health check endpoints (`/health`, `/ready`)
+   - Implement request logging and performance metrics
+   - Add rate limiting protection
+
+3. **Python CLI Improvements** in `chirality_cli.py`
+   - Add `--json-output` flag for structured responses
+   - Improve error messages with actionable suggestions
+   - Add progress reporting for long operations
+
+**Key Files for Backend Development:**
+- `chirality-admin/pages/api/phase1/step.ts` - CLI integration (current work)
+- `graphql-service/src/index.ts` - GraphQL service enhancements
+- `chirality_cli.py` - CLI improvements and new features
+- `neo4j_admin.py` - Database administration enhancements
+
+### 📋 Technical Debt to Address
+- Remove hardcoded file paths in API routes
+- Standardize error response formats across backend APIs
+- Implement proper configuration management
+- Add comprehensive test coverage for CLI integration
+
 ## Migration Notes
 
 If migrating from the monolithic version:
@@ -147,3 +192,31 @@ If migrating from the monolithic version:
 3. API routes have moved from app/ to src/app/
 4. Test files are now in scripts/ and src/__tests__/
 5. Configuration remains backward compatible
+
+## Claude Code Development Guidelines
+
+### When Working on Backend Tasks
+1. **Always check current development status** in this file before starting work
+2. **Prioritize tasks** listed in "Backend Development Priorities" section
+3. **Follow the Chirality Boundary** - maintain separation between constructive and generative operations
+4. **Test thoroughly** using provided smoke tests and benchmarks
+5. **Update documentation** when making architectural changes
+
+### Environment Setup for Development
+```bash
+# Start GraphQL service for backend work
+cd graphql-service && npm run dev
+
+# Run smoke tests to verify setup
+npm run smoke:rest && npm run smoke:gql
+
+# Test CLI operations
+python chirality_cli.py --help
+python neo4j_admin.py list
+```
+
+### Before Making Changes
+- Review the current git status for ongoing work
+- Check `BACKEND_DEVELOPMENT.md` for detailed development roadmap
+- Understand the polyrepo architecture and service interactions
+- Ensure all environment variables are properly configured

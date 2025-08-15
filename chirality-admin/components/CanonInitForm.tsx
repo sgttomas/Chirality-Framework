@@ -15,9 +15,9 @@ export default function FrameworkInitController({ defaultPack }: { defaultPack?:
   const [steps, setSteps] = useState<InitStep[]>([
     { id: 'load-pack', name: 'Load Domain Pack', description: 'Load and validate CF14 domain pack configuration', status: 'pending' },
     { id: 'init-stations', name: 'Initialize Stations', description: 'Create 10-station semantic valley structure in Neo4j', status: 'pending' },
-    { id: 'setup-axioms', name: 'Setup Axiomatic Matrices', description: 'Generate structural templates for Matrix A and B', status: 'pending' },
+    { id: 'setup-axioms', name: 'Setup Axiomatic Matrices', description: 'Load canonical matrices A, B, and J into Neo4j', status: 'pending' },
     { id: 'define-ontologies', name: 'Define Ontologies', description: 'Setup row/column families and semantic lenses', status: 'pending' },
-    { id: 'create-canon', name: 'Create Canon', description: 'Generate canonical seed configuration', status: 'pending' },
+    { id: 'create-canon', name: 'Generate Requirements Matrix', description: 'Generate Matrix C using A*B semantic multiplication', status: 'pending' },
     { id: 'validate-structure', name: 'Validate Structure', description: 'Verify structural integrity and completeness', status: 'pending' }
   ]);
   const [currentStep, setCurrentStep] = useState<string | null>(null);

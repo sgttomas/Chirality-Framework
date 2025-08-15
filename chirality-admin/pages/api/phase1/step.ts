@@ -65,14 +65,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       case 'setup-axioms':
         // Use the push-axioms command to load the canonical framework matrices
-        if (!packPath) return res.status(400).json({ error: "Pack path required" });
-        
         const specFile = "/Users/ryan/Desktop/ai-env/chirality-semantic-framework/NORMATIVE_Chriality_Framework_14.2.1.1.txt";
         const axiomResult = await runCliCommand([
           "push-axioms", 
           "--spec", specFile, 
-          "--api-base", GRAPHQL_API,
-          "--dry-run"
+          "--api-base", GRAPHQL_API
         ]);
         
         if (!axiomResult.success) {
@@ -82,9 +79,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({
           step: 'setup-axioms',
           data: {
-            matrix_a_template: "Generated",
-            matrix_b_template: "Generated", 
-            matrix_j_template: "Generated",
+            matrices_loaded: ["A", "B", "J"],
+            problem_statement_matrix: "Loaded Matrix A (3x4)",
+            decisions_matrix: "Loaded Matrix B (4x4)", 
+            truncated_decisions_matrix: "Loaded Matrix J (3x4)",
             cli_output: axiomResult.stdout,
             ready_for_generation: true
           }
@@ -103,17 +101,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
       case 'create-canon':
-        const canonResult = await cliSemanticInit({ 
-          packPath: packPath!, 
-          matrix: "A", 
-          dryRun: true 
-        });
+        // Use the generate-c command to create the Requirements matrix
+        const canonResult = await runCliCommand([
+          "generate-c", 
+          "--api-base", GRAPHQL_API
+        ]);
+        
+        if (!canonResult.success) {
+          return res.status(500).json({ error: `Failed to create canon: ${canonResult.stderr}` });
+        }
+        
         return res.status(200).json({
           step: 'create-canon',
           data: {
-            canon_generated: true,
-            structure: JSON.parse(canonResult),
-            ready_for_persistence: true
+            matrix_generated: "C",
+            requirements_matrix: "Generated Matrix C (3x4) using A*B multiplication",
+            semantic_operations: "12 semantic multiplications completed",
+            cli_output: canonResult.stdout,
+            ready_for_objectives: true
           }
         });
 
