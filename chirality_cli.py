@@ -1,1916 +1,333 @@
 #!/usr/bin/env python3
-"""
-Chirality CLI — Semantic Integrity Contract (CF14)
+# chirality_cli.py — Phase-1 canonical (compact)
+from __future__ import annotations
+import os, sys, json, argparse, logging, traceback
+from typing import List, Tuple, Iterable, Dict, Any
 
-This CLI now:
-1) Emits canonical A/B with full cells and labels on any C generation path.
-2) Performs construction (× then +) followed by column-lens and row-lens interpretation; writes narratives to `resolved`.
-3) Enforces fail-fast extraction: `_extract_string_value`/`_safe_resolved` never stringify arbitrary objects.
-4) Keeps data-vs-semantic separation: manual grids have empty `raw_terms`/`intermediate`.
-5) Prefers in-memory products for dependent matrices (e.g., D uses freshly built F) before persisting.
-
-See README for operational playbook and troubleshooting.
-"""
-import argparse, csv, json, requests, logging, os, re, sys
-from typing import List, Optional, Dict, Any
-
-# semmul boot/iv + guard
-try:
-    from semmul import ensure_api_key, initial_vector, semantic_interpret
-except Exception:  # keep CLI import-safe in editors
-    def ensure_api_key():
-        print("ERROR: semmul.ensure_api_key missing; install/align semmul.py", file=sys.stderr); raise SystemExit(1)
-    def initial_vector(*args, **kwargs):
-        print("ERROR: semmul.initial_vector missing; update semmul.py", file=sys.stderr); raise SystemExit(1)
-    def semantic_interpret(*args, **kwargs):
-        print("ERROR: semmul.semantic_interpret missing; update semmul.py", file=sys.stderr); raise SystemExit(1)
-from urllib.parse import urljoin
-from enum import Enum
-from datetime import datetime
-from chirality_components import ChiralityDocument, make_matrix, make_array, Cell
-try:
-    from semmul import ensure_api_key  # runtime key enforcement for LLM calls
-except Exception:
-    def ensure_api_key():
-        """Hard enforcement: exit when API key missing to prevent meaningless join-only generation."""
-        if not os.getenv("OPENAI_API_KEY"):
-            print("ERROR: OPENAI_API_KEY not set. CF14 semantic generation requires a language model.", file=sys.stderr)
-            raise SystemExit(1)
-        return None
-
-# CF14 v2.1.1 Configuration
-CF14_VERSION = "2.1.1"
-ONTOLOGY_ID = "cf14.core.v2.1.1"
-DEFAULT_API_BASE = os.getenv("CHIRALITY_API_BASE", "http://localhost:3000")
-
-# Canonical matrix sizes
-MATRIX_ROWS = 3       # Rows for A and C
-MATRIX_COLS = 4       # Cols for A and C
-B_ROWS = 4            # Rows for B (must equal A's columns)
-B_COLS = 4            # Cols for B (becomes C's columns)
-
-# Canonical matrices from the Chirality Framework
-MATRIX_A = [
-    ['Direction', 'Implementation', 'Evaluation', 'Assessment'],
-    ['Leadership', 'Execution', 'Decision-making', 'Quality Control'],
-    ['Standards', 'Performance', 'Feedback', 'Refinement']
-]
-
-MATRIX_B = [
-    ['Essential Facts', 'Adequate Inputs', 'Comprehensive Records', 'Reliable Records'],
-    ['Critical Context', 'Sufficient Detail', 'Holistic View', 'Congruent Patterns'],
-    ['Fundamental Understanding', 'Adequate Insight', 'Full Comprehension', 'Coherent Framework'],
-    ['Vital Judgment', 'Sound Reasoning', 'Thorough Prudence', 'Harmonious Principles']
-]
-
-# CF14 v2.1.1 Canonical Modalities
-PROCESS_MODALITIES = ['Normative', 'Operative', 'Evaluative']  # 3x4 matrices
-DECISION_MODALITIES = ['Necessity (vs Contingency)', 'Sufficiency', 'Completeness', 'Consistency']  # Standard columns
-KNOWLEDGE_HIERARCHY = ['Data', 'Information', 'Knowledge', 'Wisdom']  # 4x4 matrices
-ACTION_MODALITIES = ['Guiding', 'Applying', 'Judging', 'Reviewing']  # Problem Statement columns
-
-# Canonical row/column labels (backward compatibility)
-C_ROWS = PROCESS_MODALITIES
-C_COLS = DECISION_MODALITIES
-A_ROWS = PROCESS_MODALITIES
-A_COLS = ACTION_MODALITIES
-
-
-# Sanity checks to ensure framework compatibility at import time
-assert len(MATRIX_A) == MATRIX_ROWS and all(len(r) == MATRIX_COLS for r in MATRIX_A), (
-    f"MATRIX_A must be {MATRIX_ROWS}x{MATRIX_COLS}"
+from normative_spec import parse_normative_spec
+from chirality_graphql import (
+    pull_cell_with_context, upsert_cell_stage,
+    valley_summary_from_graph, stable_cell_id, propose_ufo_claim
 )
-assert len(MATRIX_B) == B_ROWS and all(len(r) == B_COLS for r in MATRIX_B), (
-    f"MATRIX_B must be {B_ROWS}x{B_COLS}"
+from chirality_prompts import (
+    prompt_multiply, prompt_add, prompt_interpret,
+    prompt_elementwise_F, prompt_add_D
 )
-assert MATRIX_COLS == B_ROWS, "A columns must equal B rows"
+import semmul_cf14 as sm
 
-# CF14 v2.1.1 Operation Types
-class Operation(str, Enum):
-    MULTIPLY = "*"
-    ADD = "+"
-    CROSS_PRODUCT = "×"
-    ELEMENT_WISE = "⊙"
-    TRUNCATION = "[1:n]"
-    EXTRACTION = "extract"
+LOG = logging.getLogger("chirality-cli")
+logging.basicConfig(level=os.getenv("LOGLEVEL","INFO"), format="%(message)s")
 
-# CF14 v2.1.1 Component Types
-class ComponentType(str, Enum):
-    MATRIX = "matrix"
-    ARRAY = "array"
-    SCALAR = "scalar"
-    TENSOR = "tensor"
+# ---- UFO defaults ------------------------------------------------------------
+UFO_DEFAULTS = {
+    ("Requirements","C"):            {"curie":"UFO:Requirement",   "relation":"CLOSE_MATCH","confidence":0.75},
+    ("Objectives","F"):              {"curie":"UFO:Objective",     "relation":"CLOSE_MATCH","confidence":0.70},
+    ("Solution Objectives","D"):     {"curie":"UFO:Recommendation","relation":"CLOSE_MATCH","confidence":0.70},
+}
+def ufo_for(station: str, matrix: str): return UFO_DEFAULTS.get((station,matrix))
 
-# CF14 v2.1.1 Station Names
-STATIONS = [
-    "Problem Statement", "Requirements", "Objectives", "Verification", "Validation",
-    "Evaluation", "Assessment", "Implementation", "Reflection", "Resolution"
-]
+# ---- small utils -------------------------------------------------------------
+def _int_list(spec: str|None, default: List[int]) -> List[int]:
+    if not spec: return default
+    out: List[int] = []
+    for tok in spec.split(","):
+        tok = tok.strip()
+        if not tok: continue
+        if ".." in tok:
+            a,b = tok.split(".."); out += list(range(int(a), int(b)+1))
+        else: out.append(int(tok))
+    seen=set(); res=[]
+    for n in out:
+        if n not in seen: seen.add(n); res.append(n)
+    return res
 
-# --- Ontology pack loader (no-op if path missing)
-def _load_ontology_pack(path: Optional[str]) -> Optional[Dict[str, Any]]:
-    if not path:
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        logging.warning(f"Could not load ontology pack at {path}: {e}")
-        return None
+def _iter_cells(rows: List[int], cols: List[int]) -> Iterable[Tuple[int,int]]:
+    for i in rows:
+        for j in cols:
+            yield (i,j)
 
-# --- Resolve meanings for labels: domain pack first; else empty strings (don't fabricate)
-def _resolve_ontology_meanings(col_label: str, row_label: str, pack: Optional[Dict[str, Any]]) -> Dict[str, str]:
-    def _find_meaning_by_label(groups: list, target: str) -> str:
-        for arr in groups:
-            if isinstance(arr, list):
-                for item in arr:
-                    if isinstance(item, dict) and item.get("label") == target:
-                        return (item.get("meaning") or "").strip()
-        return ""
+def _labels(ctx: Dict[str,Any], i:int, j:int) -> Tuple[str|None, str|None]:
+    m = ctx.get("matrix") or {}
+    rows = m.get("rowLabels") or []
+    cols = m.get("colLabels") or []
+    return (rows[i] if i < len(rows) else None, cols[j] if j < len(cols) else None)
 
-    col_meaning = ""
-    row_meaning = ""
-    if isinstance(pack, dict):
-        co = (pack.get("col_ontologies") or {})
-        ro = (pack.get("row_ontologies") or {})
-        # Columns can be in decision or action (and, defensively, knowledge_hierarchy)
-        col_meaning = _find_meaning_by_label([
-            co.get("decision_modalities"), co.get("action_modalities"), co.get("knowledge_hierarchy")
-        ], col_label)
-        # Rows can be in process, but sometimes rows are knowledge_hierarchy
-        row_meaning = _find_meaning_by_label([
-            ro.get("process_modalities"), co.get("knowledge_hierarchy")
-        ], row_label)
-    return {"col_meaning": col_meaning, "row_meaning": row_meaning}
-
-_SLICE_RE = re.compile(r'^\s*([^\[\]]+)\s*(?:\[(.*?)\])?\s*$')
-
-def _labels_from_ref(registry: Dict[str, Any], ref: Optional[str], *, axis: Optional[str] = None) -> List[str]:
-    """
-    Resolve a label list from ontology_registry given a ref like:
-      "knowledge_hierarchy"        -> full list
-      "knowledge_hierarchy[:3]"    -> first 3
-      "knowledge_hierarchy[1:]"    -> from index 1 to end
-      "knowledge_hierarchy[1:3]"   -> slice 1..3 (exclusive)
-    axis: "row" or "col" biases which registry dict to check first.
-    Returns [] on unknown refs (with a warning).
-    """
-    if not isinstance(ref, str) or not ref.strip():
-        return []
-    m = _SLICE_RE.match(ref)
-    if not m:
-        logging.warning(f"Ontology ref parse failed: {ref!r}")
-        return []
-    base, slice_text = m.group(1).strip(), (m.group(2) or "").strip()
-    row_sets = (registry.get("row_sets") or {})
-    col_sets = (registry.get("col_sets") or {})
-    if axis == "row":
-        seq = row_sets.get(base) or col_sets.get(base) or []
-    elif axis == "col":
-        seq = col_sets.get(base) or row_sets.get(base) or []
+def _log_stage(args, station, matrix, i, j, stage, upsert_result, meta=None):
+    ver = upsert_result["upsertCellStage"]["version"]
+    ded = upsert_result["upsertCellStage"]["deduped"]
+    if args.log_json:
+        rec = {"event":"stage_write","station":station,"matrix":matrix,"i":i,"j":j,
+               "stage":stage,"version":ver,"deduped":ded}
+        if meta:
+            rec.update({k:meta.get(k) for k in ("modelId","latencyMs","promptHash","systemVersion")})
+        LOG.info(json.dumps(rec, ensure_ascii=False))
     else:
-        seq = col_sets.get(base) or row_sets.get(base) or []
-    if not isinstance(seq, list) or not seq:
-        logging.warning(f"Unknown ontology set '{base}' in ref {ref!r}")
-        return []
-    if slice_text == "":
-        return list(seq)
+        LOG.info(f"{station}/{matrix}[{i},{j}] {stage} → v{ver}{' (deduped)' if ded else ''}")
+
+def _infer_k_from_graph(api: str) -> int:
+    a0 = pull_cell_with_context(api, "Problem Statement","A",0,0, include_ontologies=False)
+    b0 = pull_cell_with_context(api, "Decisions","B",0,0, include_ontologies=False)
+    a_cols = len((a0.get("matrix") or {}).get("colLabels") or [])
+    b_rows = len((b0.get("matrix") or {}).get("rowLabels") or [])
+    if a_cols != b_rows:
+        raise ValueError(f"Shape mismatch: A.cols={a_cols} != B.rows={b_rows}. Seed axioms first.")
+    return a_cols
+
+def _ufo(args, station, matrix, i, j, evidence_obj, evidence_meta):
+    if not args.ufo_propose: return
+    cfg = ufo_for(station, matrix)
+    if not cfg: return
     try:
-        parts = [p.strip() for p in slice_text.split(":")]
-        if len(parts) != 2:
-            logging.warning(f"Unsupported slice syntax in {ref!r}; expected 'start:stop'")
-            return list(seq)
-        start = int(parts[0]) if parts[0] else None
-        stop  = int(parts[1]) if parts[1] else None
-        return list(seq[slice(start, stop)])
-    except Exception as e:
-        logging.warning(f"Slice parse error for {ref!r}: {e}")
-        return list(seq)
-
-def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
-    """Configure CF14 v2.1.1 structured logging"""
-    if quiet:
-        level = logging.WARNING
-    elif verbose:
-        level = logging.DEBUG
-    else:
-        level = logging.INFO
-    
-    logging.basicConfig(
-        level=level,
-        format='[CF14 v2.1.1] %(asctime)s - %(levelname)s: %(message)s',
-        datefmt='%H:%M:%S'
-    )
-
-def _trim_cells(data: List[List[str]]) -> List[List[str]]:
-    """Clean up CSV data by trimming whitespace from all cells"""
-    return [[cell.strip() if cell else "" for cell in row] for row in data]
-
-def read_csv_simple(path: str) -> List[List[str]]:
-    with open(path, newline='', encoding='utf-8-sig') as f:
-        return [row for row in csv.reader(f)]
-
-def write_json(doc: ChiralityDocument, out_path: str):
-    out = doc.to_json(pretty=True)
-    with open(out_path, 'w', encoding='utf-8') as f:
-        f.write(out)
-    return out_path
-
-def validate_rectangular_matrix(matrix: List[List[str]], name: str) -> None:
-    """Validate that matrix is rectangular (all rows same length)"""
-    if not matrix:
-        raise ValueError(f"Matrix {name} must be non-empty.")
-    expected_cols = len(matrix[0])
-    for i, row in enumerate(matrix):
-        if len(row) != expected_cols:
-            raise ValueError(f"Matrix {name} row {i} has {len(row)} columns, expected {expected_cols}.")
-
-def _extract_string_value(value: Any, fallback_label: str) -> str:
-    """Extract human-readable string from any value (never returns IDs or nested dicts)"""
-    if isinstance(value, str):
-        return value.strip()
-    elif isinstance(value, dict):
-        # Try resolved first, then other text fields, avoid IDs
-        for field in ['resolved', 'content', 'value', 'text', 'name']:
-            if field in value and isinstance(value[field], str):
-                result = value[field].strip()
-                if result:  # Don't return empty strings
-                    return result
-        
-        # Try intermediate array - look for semantically meaningful content only
-        if 'intermediate' in value and isinstance(value['intermediate'], list):
-            for item in reversed(value['intermediate']):  # Check latest first
-                if isinstance(item, str):
-                    try:
-                        parsed = json.loads(item)
-                        if isinstance(parsed, dict):
-                            # Only extract from semantic phases, not raw construction
-                            if parsed.get('phase') in ['interpretation_result', 'semantic_multiply', 'sum_concat', 'f1_sum_concat']:
-                                val = parsed.get('value', '')
-                                # NEW: prefer synthesis for interpretation results
-                                if parsed.get('phase') == 'interpretation_result' and isinstance(val, dict):
-                                    syn = val.get('synthesis')
-                                    if isinstance(syn, str) and syn.strip():
-                                        return syn.strip()
-                                # existing behavior for string values
-                                result = str(val).strip()
-                                if result:
-                                    return result
-                    except (json.JSONDecodeError, KeyError):
-                        pass
-        
-        # If no semantic content found, fail with fallback rather than return gibberish
-        return fallback_label
-    elif hasattr(value, 'resolved'):
-        resolved = getattr(value, 'resolved', None)
-        if isinstance(resolved, str) and resolved.strip():
-            return resolved.strip()
-        return fallback_label
-    else:
-        # CF14 semantic integrity: only extract from semantic structures, not arbitrary objects
-        return fallback_label
-
-def _safe_resolved(cell_rows: List[List[Any]], i: int, j: int, fallback_label: str) -> str:
-    """Safely extract resolved value from matrix cell with fallback"""
-    try:
-        cell = cell_rows[i][j]
-        return _extract_string_value(cell, fallback_label)
-    except (IndexError, AttributeError, TypeError):
-        return fallback_label
-
-def _pack_intermediates(entries: List[Any]) -> List[str]:
-    """Pack mixed intermediate entries (dict/list/str/other) into List[str] for Cell typing.
-    Dicts/lists are JSON-encoded; other values are stringified.
-    """
-    packed: List[str] = []
-    for e in entries:
-        if isinstance(e, (dict, list)):
-            try:
-                packed.append(json.dumps(e, ensure_ascii=False))
-            except Exception:
-                packed.append(str(e))
-        else:
-            packed.append(str(e))
-    return packed
-
-# ---- PACK / INIT / IV HELPERS ------------------------------------------------
-def _load_pack(path: str) -> Dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def _first_or_default(seq: List[Dict[str, Any]], default: Dict[str, Any]) -> Dict[str, Any]:
-    return seq[0] if seq else default
-
-def _resolve_station1(pack: Dict[str, Any]) -> Dict[str, Any]:
-    stations = pack.get("stations") or []
-    s1 = _first_or_default(stations, {"id": "problem_statement", "label": "Problem Statement"})
-    return {"id": s1.get("id", "problem_statement"), "label": s1.get("label", "Problem Statement")}
-
-def _resolve_rows_cols_for_matrix(pack: Dict[str, Any], matrix_id: str) -> (List[Dict[str, Any]], List[Dict[str, Any]]):
-    matrices = {m["id"]: m for m in (pack.get("matrices") or []) if "id" in m}
-    m = matrices.get(matrix_id, {})
-    rows_ref = m.get("rows_ref"); cols_ref = m.get("cols_ref")
-    rows = (pack.get("row_ontologies") or {}).get(rows_ref, []) if rows_ref else []
-    cols = (pack.get("col_ontologies") or {}).get(cols_ref, []) if cols_ref else []
-    for x in rows: x.setdefault("meaning", x.get("meaning",""))
-    for x in cols: x.setdefault("meaning", x.get("meaning",""))
-    return rows, cols
-
-def create_semantic_matrix_c(matrix_a_elements: List[List[str]], matrix_b_elements: List[List[str]]) -> List[List[Cell]]:
-    """
-    Implements proper A * B = C from Chirality Framework using semantic multiplication
-    Matrix A: 3x4, Matrix B: 4x4, Result C: 3x4
-    Uses correct matrix multiplication: C(i,j) = sum over k of A(i,k) * B(k,j)
-    """
-    ensure_api_key()
-    from semmul import semantic_multiply
-    
-    # Validate matrix dimensions
-    validate_rectangular_matrix(matrix_a_elements, "A")
-    validate_rectangular_matrix(matrix_b_elements, "B")
-    
-    rows_a = len(matrix_a_elements)
-    shared = len(matrix_a_elements[0])  # A's column count
-    if len(matrix_b_elements) != shared:
-        raise ValueError(f"Matrix A has {shared} columns but Matrix B has {len(matrix_b_elements)} rows. Cannot multiply.")
-    cols_b = len(matrix_b_elements[0])
-    
-    logging.info(f"Performing semantic multiplication A({rows_a}×{shared}) * B({shared}×{cols_b}) = C({rows_a}×{cols_b})")
-    
-    cells_2d = []
-    for i in range(rows_a):
-        cell_row = []
-        for j in range(cols_b):
-            # Compute proper matrix multiplication: sum over k of A(i,k) * B(k,j)
-            partials = []
-            raw_terms = []
-            for k in range(shared):
-                a_term = matrix_a_elements[i][k]
-                b_term = matrix_b_elements[k][j]
-                partial = semantic_multiply(a_term, b_term)
-                partials.append(partial)
-                raw_terms.extend([a_term, b_term])
-                logging.debug(f"  A({i+1},{k+1})*B({k+1},{j+1}): {a_term} * {b_term} = {partial}")
-            
-            # Semantic addition (concatenation) per NORMATIVE spec: multiply then add
-            sum_concat = '; '.join(p for p in partials if isinstance(p, str) and p.strip())
-            logging.debug(f"  C({i+1},{j+1}) sum (concat) = {sum_concat}")
-
-            partial_records = [{"a": matrix_a_elements[i][k], "b": matrix_b_elements[k][j], "product": partials[k]} for k in range(shared)]
-
-            cell = Cell(
-                resolved=sum_concat,
-                raw_terms=raw_terms,
-                intermediate=_pack_intermediates([
-                    {"phase": "partials", "items": partial_records},
-                    {"phase": "sum_concat", "value": sum_concat},
-                ]),
-                operation=Operation.MULTIPLY.value,
-                notes=f"C({i+1},{j+1}) from semantic dot product: multiply per-k, then concatenate"
-            )
-            cell_row.append(cell)
-        cells_2d.append(cell_row)
-    
-    return cells_2d
-
-def create_semantic_matrix_f(matrix_j_elements: List[List[str]], matrix_c_cells: List[List[Cell]]) -> List[List[Cell]]:
-    """
-    Implements F = join(J(i,j), C(i,j)) as a constructive (non-LLM) operation.
-    Matrix J: 3x4 (truncated Matrix B), Matrix C: 3x4 (Requirements), Result F: 3x4
-    """
-    rows = len(matrix_j_elements)  # Should be 3
-    cols = len(matrix_j_elements[0]) if matrix_j_elements else 0  # Should be 4
-    
-    logging.info(f"Performing constructive join J ⊙ C = F for {rows}×{cols} matrix...")
-    
-    cells_2d = []
-    for i in range(rows):
-        cell_row = []
-        for j in range(cols):
-            if i < len(matrix_j_elements) and j < len(matrix_j_elements[i]) and i < len(matrix_c_cells) and j < len(matrix_c_cells[i]):
-                j_term = matrix_j_elements[i][j]
-                c_term = matrix_c_cells[i][j].resolved
-                join_concat = f"{j_term}; {c_term}"
-                logging.debug(f"  F0({i+1},{j+1}) join = {join_concat}")
-
-                cell = Cell(
-                    resolved=join_concat,
-                    raw_terms=[j_term, c_term],
-                    intermediate=_pack_intermediates([
-                        {"phase": "join_inputs", "value": {"j": j_term, "c": c_term}},
-                        {"phase": "join_concat", "value": join_concat},
-                    ]),
-                    operation=Operation.ELEMENT_WISE.value,
-                    notes=f"F({i+1},{j+1}) = join(J,C) constructive"
-                )
-                cell_row.append(cell)
-        cells_2d.append(cell_row)
-    
-    return cells_2d
-
-def validate_neo4j_matrix_data(matrix_data: Dict[str, Any]) -> None:
-    """Validate Neo4j matrix data structure"""
-    if not isinstance(matrix_data, dict):
-        raise ValueError("Matrix data must be a dictionary")
-    
-    required_fields = ['id', 'name', 'data']
-    for field in required_fields:
-        if field not in matrix_data:
-            raise ValueError(f"Matrix data missing required field: {field}")
-    
-    data = matrix_data.get('data')
-    if not isinstance(data, list):
-        raise ValueError("Matrix 'data' field must be a list")
-    
-    if data and not all(isinstance(row, list) for row in data):
-        raise ValueError("Matrix data must be a list of lists (rectangular)")
-
-def query_neo4j_matrix(component_id: Optional[str] = None, station: Optional[str] = None, 
-                      api_base: str = DEFAULT_API_BASE, timeout: int = 30) -> Optional[Dict[str, Any]]:
-    """Query Neo4j for matrix data by ID or station"""
-    api_url = f"{api_base}/api/neo4j/query"
-    
-    try:
-        if component_id:
-            payload = {"query_type": "get_matrix_by_id", "component_id": component_id}
-        elif station:
-            payload = {"query_type": "get_latest_matrix_by_station", "station": station}
-        else:
-            raise ValueError("Must provide either component_id or station")
-        
-        logging.debug(f"Querying Neo4j at {api_url} with payload: {payload}")
-        
-        response = requests.post(
-            api_url,
-            json=payload,
-            headers={'Content-Type': 'application/json'},
-            timeout=timeout
+        _ = propose_ufo_claim(
+            args.api_base,
+            subject_id=stable_cell_id(station, matrix, i, j),
+            ufo_curie=cfg["curie"], relation=cfg["relation"], confidence=cfg["confidence"],
+            evidence=[{"kind":"LLM_OUTPUT","source":f"phase1.{matrix}.{station}.sum",
+                       "payload":evidence_obj,"promptHash":evidence_meta.get("promptHash"),
+                       "modelId":evidence_meta.get("modelId")}],
+            note=f"Auto-proposed for {station}/{matrix}[{i},{j}]"
         )
-        
-        if response.status_code == 200:
-            result = response.json()
-            if result.get('success'):
-                component = result.get('component')
-                if component:
-                    validate_neo4j_matrix_data(component)
-                    logging.info(f"✓ Successfully retrieved matrix: {component['name']}")
-                    return component
-                else:
-                    logging.error("No component data in successful response")
-                    return None
+        if not args.log_json:
+            LOG.info(f"UFO proposed: {cfg['curie']} for {station}/{matrix}[{i},{j}]")
+    except Exception as e:
+        LOG.warning(f"UFO proposal failed for {station}/{matrix}[{i},{j}]: {e}")
+
+# ---- commands ---------------------------------------------------------------
+def cmd_push_axioms(args):
+    spec = parse_normative_spec(args.spec)
+    model = args.model
+    def push_matrix(station, name, M, stage):
+        rows, cols, cells = M["rows"], M["cols"], M["cells"]
+        for i,row in enumerate(cells):
+            for j,val in enumerate(row):
+                if args.dry_run:
+                    LOG.info(f"[dry-run] {station}/{name}[{i},{j}] {stage}: {str(val)[:120]}"); continue
+                res = upsert_cell_stage(args.api_base, station=station, matrix=name, row=i, col=j,
+                    stage=stage, value=str(val), model_id=model, prompt_hash=f"{stage}:{name}:{i}:{j}",
+                    labels={"rowLabel": rows[i], "colLabel": cols[j]},
+                    meta={"source":"normative_spec","systemVersion":"axiom"})
+                _log_stage(args, station,name,i,j,stage,res)
+                _ = pull_cell_with_context(args.api_base, station,name,i,j, include_ontologies=False)
+    push_matrix("Problem Statement","A", spec["A"], "axiom")
+    push_matrix("Decisions","B", spec["B"], "axiom")
+    push_matrix("Truncated Decisions","J", spec["J"], "axiomatic_truncation")
+
+def cmd_generate_C(args):
+    model, api = args.model, args.api_base
+    rows = args.rows or [0,1,2]; cols = args.cols or [0,1,2,3]; K = _infer_k_from_graph(api)
+    for (i,j) in _iter_cells(rows, cols):
+        try:
+            ctx = pull_cell_with_context(api, "Requirements","C", i,j, include_ontologies=True)
+            row_label, col_label = _labels(ctx,i,j)
+            valley = valley_summary_from_graph(ctx.get("valley"), ctx.get("station"))
+            if not args.dry_run:
+                res = upsert_cell_stage(api,"Requirements","C",i,j,"context_loaded","",model,
+                    f"context:C:{i}:{j}", labels={"rowLabel":row_label,"colLabel":col_label},
+                    meta={"valleyStation":(ctx.get('station') or {}).get('name'),
+                          "rowLabel":row_label,"colLabel":col_label})
+                _log_stage(args,"Requirements","C",i,j,"context_loaded",res)
             else:
-                error_msg = result.get('error', 'Unknown error')
-                logging.error(f"Neo4j query failed: {error_msg}")
-                return None
-        else:
-            logging.error(f"HTTP error {response.status_code}: {response.text}")
-            return None
-            
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Network error querying Neo4j: {e}")
-        return None
-    except Exception as e:
-        logging.error(f"Error querying Neo4j: {e}")
-        return None
-
-def send_to_neo4j(doc: ChiralityDocument, api_base: str = DEFAULT_API_BASE, timeout: int = 30) -> bool:
-    """Send ChiralityDocument to Neo4j via Next.js API"""
-    api_url = urljoin(api_base.rstrip('/') + '/', "api/neo4j/ingest-ufo")
-    
-    try:
-        # Convert to dict for JSON serialization
-        doc_dict = json.loads(doc.to_json(pretty=False))
-        
-        logging.debug(f"Sending document to Neo4j at {api_url}")
-        
-        response = requests.post(
-            api_url,
-            json=doc_dict,
-            headers={'Content-Type': 'application/json'},
-            timeout=timeout
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            document_id = result.get('documentId')
-            logging.info(f"✓ Successfully sent to Neo4j. Document ID: {document_id}")
-            return True
-        else:
-            logging.error(f"✗ Neo4j ingest failed: {response.status_code} - {response.text}")
-            return False
-            
-    except requests.exceptions.RequestException as e:
-        logging.error(f"✗ Network error sending to Neo4j: {e}")
-        return False
-    except Exception as e:
-        logging.error(f"✗ Error sending to Neo4j: {e}")
-        return False
-
-def matrix_from_grid(args):
-    grid = read_csv_simple(args.grid)
-    if not grid:
-        raise SystemExit("Empty CSV.")
-    # Expect top-left empty, row1 col headers, col1 row labels
-    header = grid[0]
-    if len(header) < 2:
-        raise SystemExit("Matrix grid CSV must have at least 2 columns (first empty, then column labels).")
-    cols = header[1:]
-    rows = []
-    cells_2d = []
-    for r in grid[1:]:
-        if len(r) < 2:
-            raise SystemExit("Each data row must have a row label in col1 and at least one value.")
-        rows.append(r[0])
-        # pad/truncate to match cols
-        row_vals = (r[1:] + [""] * len(cols))[:len(cols)]
-        # Convert string values to Cell objects - CF14: these are direct data, not semantic results
-        cell_row = [Cell(resolved=val, raw_terms=[], intermediate=[]) for val in row_vals]
-        cells_2d.append(cell_row)
-    
-    doc = ChiralityDocument(version=CF14_VERSION, meta={"source": "chirality_cli", "mode": "matrix-grid"})
-    ontology = {
-        "rows_name": args.rows_name,
-        "cols_name": args.cols_name,
-        "notes": args.notes
-    }
-    ontology["row_labels"] = rows
-    ontology["col_labels"] = cols
-    comp = make_matrix(
-        id=f"matrix_{args.title}",
-        name=args.title,
-        station=args.station,
-        row_labels=rows,
-        col_labels=cols,
-        cells_2d=cells_2d,
-        ontology=ontology
-    )
-    doc.components.append(comp)
-    json_path = write_json(doc, args.out)
-    
-    # Also send to Neo4j
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    return json_path
-
-def matrix_from_lists(args) -> str:
-    """Build a matrix from rows.csv, cols.csv, and data.csv, standardizing to Cell-based representation."""
-    rows_csv = _trim_cells(read_csv_simple(args.rows))
-    cols_csv = _trim_cells(read_csv_simple(args.cols))
-    data = _trim_cells(read_csv_simple(args.data))
-
-    if not cols_csv or not cols_csv[0]:
-        raise SystemExit("Empty or invalid cols.csv (need one header row).")
-    rows = [r[0] for r in rows_csv if r]
-    cols = cols_csv[0]
-
-    # Basic shape checks
-    if len(data) != len(rows):
-        raise SystemExit(f"Data rows ({len(data)}) != number of rows ({len(rows)}).")
-    for i, row in enumerate(data):
-        if len(row) != len(cols):
-            raise SystemExit(f"Row {i} length ({len(row)}) != number of cols ({len(cols)}).")
-
-    # Convert data (2D list of strings) to Cell objects - CF14: these are direct data, not semantic results
-    cells_2d = [
-        [Cell(resolved=(val or "").strip(), raw_terms=[], intermediate=[]) for val in row]
-        for row in data
-    ]
-
-    doc = ChiralityDocument(version=CF14_VERSION, meta={"source": "chirality_cli", "mode": "matrix-lists"})
-    ontology = {"rows_name": args.rows_name, "cols_name": args.cols_name, "notes": args.notes}
-    ontology["row_labels"] = rows
-    ontology["col_labels"] = cols
-    comp = make_matrix(
-        id=f"matrix_{args.title}",
-        name=args.title,
-        station=args.station,
-        row_labels=rows,
-        col_labels=cols,
-        cells_2d=cells_2d,
-        ontology=ontology,
-    )
-    doc.components.append(comp)
-
-    json_path = write_json(doc, args.out)
-    
-    # Also send to Neo4j
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    return json_path
-
-def array_from_list(args):
-    items = [r[0] for r in read_csv_simple(args.list)]
-    doc = ChiralityDocument(version=CF14_VERSION, meta={"source": "chirality_cli", "mode": "array-list"})
-    ontology = {"axis0_name": args.axis_name, "notes": args.notes}
-    labels = [str(x).strip() for x in items]
-    cells = [Cell(resolved=lbl, raw_terms=[], intermediate=[]) for lbl in labels]
-    comp = make_array(
-        id=f"array_{args.title}",
-        name=args.title,
-        station=args.station,
-        labels=labels,
-        cells=cells,
-        ontology=ontology,
-    )
-    doc.components.append(comp)
-    json_path = write_json(doc, args.out)
-    
-    # Also send to Neo4j
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    return json_path
-
-def load_domain_pack(domain_pack_path: Optional[str]) -> Dict[str, Any]:
-    """Load domain pack if provided, return merged ontology context"""
-    if not domain_pack_path:
-        return {"domain": "general", "modalities": get_default_modalities()}
-    
-    try:
-        with open(domain_pack_path, 'r') as f:
-            domain_pack = json.load(f)
-        
-        # Validate domain pack structure
-        if domain_pack.get("extends") != ONTOLOGY_ID:
-            raise ValueError(f"Domain pack incompatible. Expected: {ONTOLOGY_ID}, Got: {domain_pack.get('extends')}")
-        
-        logging.info(f"✓ Loaded domain pack: {domain_pack.get('domain', 'unknown')}")
-        return {
-            "domain": domain_pack.get("domain", "general"),
-            "modalities": domain_pack.get("modalities", get_default_modalities()),
-            "axiomatic_matrices": domain_pack.get("axiomatic_matrices", {})
-        }
-    
-    except Exception as e:
-        logging.error(f"Failed to load domain pack: {e}")
-        return {"domain": "general", "modalities": get_default_modalities()}
-
-def get_default_modalities() -> Dict[str, List[str]]:
-    """Get default CF14 v2.1.1 modalities"""
-    return {
-        "process": PROCESS_MODALITIES,
-        "decision": DECISION_MODALITIES,
-        "knowledge_hierarchy": KNOWLEDGE_HIERARCHY,
-        "action": ACTION_MODALITIES
-    }
-
-def generate_matrix_c_semantic(args):
-    """Generate Matrix C using semantic multiplication A * B = C from CF14 v2.1.1"""
-    
-    logging.info(f"Generating Matrix C from semantic multiplication A * B = C (CF14 v{CF14_VERSION})...")
-    
-    # Load ontology pack and flags
-    pack = _load_ontology_pack(getattr(args, "ontology_pack", None))
-    include_station = bool(getattr(args, "include_station_context", False))
-    
-    # Load domain pack if provided
-    domain_context = load_domain_pack(getattr(args, 'domain_pack', None))
-    
-    # Use domain-specific matrices if available, otherwise defaults
-    matrix_a = MATRIX_A
-    matrix_b = MATRIX_B
-    
-    if "axiomatic_matrices" in domain_context:
-        if "A" in domain_context["axiomatic_matrices"]:
-            matrix_a = domain_context["axiomatic_matrices"]["A"]["cells"]
-            logging.info("Using domain-specific Matrix A")
-        if "B" in domain_context["axiomatic_matrices"]:
-            matrix_b = domain_context["axiomatic_matrices"]["B"]["cells"]
-            logging.info("Using domain-specific Matrix B")
-    
-    # Validate rectangularity for domain-overridden A/B
-    validate_rectangular_matrix(matrix_a, "A")
-    validate_rectangular_matrix(matrix_b, "B")
-    
-    logging.info("Matrix A (Problem Statement):")
-    for i, row in enumerate(matrix_a):
-        logging.info(f"  {PROCESS_MODALITIES[i]}: {row}")
-    logging.info("Matrix B (Decision Framework):")
-    for i, row in enumerate(matrix_b):
-        logging.info(f"  {KNOWLEDGE_HIERARCHY[i]}: {row}")
-
-    # Check if interpretations should be run
-    run_interpret = bool(getattr(args, "run_interpretations", False))
-    
-    # Generate semantic Matrix C with domain context
-    cells_2d = create_semantic_matrix_c_with_context(matrix_a, matrix_b, domain_context, pack, include_station, run_interpret)
-
-    # Create CF14 v2.1.1 document with enhanced metadata
-    doc = ChiralityDocument(
-        version=CF14_VERSION, 
-        meta={
-            "source": "chirality_cli", 
-            "mode": "semantic-matrix-c",
-            "ontology_id": ONTOLOGY_ID,
-            "timestamp": datetime.now().isoformat(),
-            "cf14_version": CF14_VERSION,
-            "domain": domain_context["domain"],
-            "run_interpretations": bool(getattr(args, "run_interpretations", False)),
-            "ontology_pack": getattr(args, "ontology_pack", None)
-        }
-    )
-    ontology = {
-        "operation": "A * B = C",
-        "matrix_a": "Problem Statement (3x4)",
-        "matrix_b": "Decision Framework (4x4)", 
-        "result": "Requirements (3x4)",
-        "framework": f"Chirality Framework v{CF14_VERSION} multiply then concatenate",
-        "modalities": domain_context["modalities"],
-        "ufo_type": "Endurant",
-        "domain": domain_context["domain"]
-    }
-
-    # Optionally attach A and B so consumers always have canonical axioms with C
-    compA = make_matrix(
-        id="A",
-        name="Matrix A (Problem Statement)",
-        station="Problem Statement",
-        row_labels=PROCESS_MODALITIES,
-        col_labels=ACTION_MODALITIES,
-        cells_2d=[[Cell(resolved=str(v), raw_terms=[str(v)], intermediate=[]) for v in row] for row in matrix_a],
-        ontology={
-            "operation": "axiomatic",
-            "framework": f"Chirality Framework v{CF14_VERSION}",
-            "ufo_type": "Endurant",
-            "ontology_id": ONTOLOGY_ID,
-            "domain": domain_context["domain"],
-        },
-    )
-    compB = make_matrix(
-        id="B",
-        name="Matrix B (Decision Framework)",
-        station="Problem Statement",
-        row_labels=KNOWLEDGE_HIERARCHY,
-        col_labels=DECISION_MODALITIES,
-        cells_2d=[[Cell(resolved=str(v), raw_terms=[str(v)], intermediate=[]) for v in row] for row in matrix_b],
-        ontology={
-            "operation": "axiomatic",
-            "framework": f"Chirality Framework v{CF14_VERSION}",
-            "ufo_type": "Endurant",
-            "ontology_id": ONTOLOGY_ID,
-            "domain": domain_context["domain"],
-        },
-    )
-    
-    comp = make_matrix(
-        id="C",
-        name="Matrix C (Requirements)",
-        station="Requirements",
-        row_labels=PROCESS_MODALITIES,
-        col_labels=DECISION_MODALITIES,
-        cells_2d=cells_2d,
-        ontology=ontology
-    )
-
-    doc.components.append(compA)
-    doc.components.append(compB)
-    doc.components.append(comp)
-    json_path = write_json(doc, args.out)
-
-    # Send to Neo4j with CF14 v2.1.1 metadata
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-
-    return json_path
-
-def create_semantic_matrix_c_with_context(matrix_a_elements: List[List[str]], matrix_b_elements: List[List[str]], domain_context: Dict[str, Any], pack: Optional[Dict[str, Any]] = None, include_station: bool = False, run_interpretations: bool = False) -> List[List[Cell]]:
-    """
-    Enhanced semantic matrix multiplication with domain context for CF14 v2.1.1
-    """
-    ensure_api_key()
-    from semmul import semantic_multiply
-    
-    # Import semantic_interpret if interpretations are enabled
-    semantic_interpret = None
-    if run_interpretations:
-        try:
-            from semmul import semantic_interpret
-            logging.info("✓ semantic_interpret loaded for Matrix C Step-2 interpretations")
-        except ImportError as e:
-            logging.warning(f"semantic_interpret unavailable; proceeding without Step-2 interpretations: {e}")
-            run_interpretations = False
-    
-    validate_rectangular_matrix(matrix_a_elements, "A")
-    validate_rectangular_matrix(matrix_b_elements, "B")
-    
-    rows_a = len(matrix_a_elements)
-    shared = len(matrix_a_elements[0])
-    if len(matrix_b_elements) != shared:
-        raise ValueError(f"Matrix A has {shared} columns but Matrix B has {len(matrix_b_elements)} rows. Cannot multiply.")
-    cols_b = len(matrix_b_elements[0])
-    
-    logging.info(f"Performing semantic multiplication A({rows_a}×{shared}) * B({shared}×{cols_b}) = C({rows_a}×{cols_b}) [Domain: {domain_context['domain']}]")
-    
-    cells_2d = []
-    for i in range(rows_a):
-        cell_row = []
-        for j in range(cols_b):
-            partials = []
-            raw_terms = []
-            for k in range(shared):
-                a_term = matrix_a_elements[i][k]
-                b_term = matrix_b_elements[k][j]
-                partial = semantic_multiply(a_term, b_term)
-                partials.append(partial)
-                raw_terms.extend([a_term, b_term])
-                logging.debug(f"  A({i+1},{k+1})*B({k+1},{j+1}): {a_term} * {b_term} = {partial}")
-            
-            # Semantic addition (concatenation) per NORMATIVE spec: multiply then add
-            sum_concat = '; '.join(str(p).strip() for p in partials if p is not None and str(p).strip())
-            logging.debug(f"  C({i+1},{j+1}) sum (concat) = {sum_concat}")
-            
-            # Build interpretation inputs
-            col_label = DECISION_MODALITIES[j] if j < len(DECISION_MODALITIES) else f"col{j+1}"
-            row_label = PROCESS_MODALITIES[i] if i < len(PROCESS_MODALITIES) else f"row{i+1}"
-            meanings = _resolve_ontology_meanings(col_label, row_label, pack)
-
-            interpretation_inputs = {
-                "cell": sum_concat,
-                "col_label": col_label,
-                "col_meaning": meanings["col_meaning"],
-                "row_label": row_label,
-                "row_meaning": meanings["row_meaning"],
-                **({"station": "Requirements"} if include_station else {})
-            }
-            
-            # Execute Step-2 interpretation if enabled
-            interpretation_result = None
-            final_resolved = sum_concat  # Default to constructive result
-            if run_interpretations and semantic_interpret:
-                try:
-                    interpretation_result = semantic_interpret(
-                        cell=sum_concat,
-                        col_label=col_label,
-                        col_meaning=meanings["col_meaning"],
-                        row_label=row_label,
-                        row_meaning=meanings["row_meaning"],
-                        station="Requirements" if include_station else None
-                    )
-                    # Use synthesis as the final resolved value
-                    final_resolved = interpretation_result.get("synthesis", sum_concat)
-                    logging.debug(f"  C({i+1},{j+1}) interpretation: {interpretation_result.get('synthesis', 'N/A')}")
-                except Exception as e:
-                    logging.warning(f"Interpretation failed for C({i+1},{j+1}): {e}")
-                    interpretation_result = None
-            
-            # Build partial records for audit trail
-            partial_records = [{"a": matrix_a_elements[i][k], "b": matrix_b_elements[k][j], "product": partials[k]} for k in range(shared)]
-            
-            # Build intermediate data with interpretation results if available
-            intermediate_data = [
-                {"phase": "partials", "items": partial_records},
-                {"phase": "sum_concat", "value": sum_concat},
-                {"phase": "interpretation_inputs", "value": interpretation_inputs},
-            ]
-            if interpretation_result:
-                intermediate_data.append({"phase": "interpretation_result", "value": interpretation_result})
-            
-            cell = Cell(
-                resolved=final_resolved,
-                raw_terms=raw_terms,
-                intermediate=_pack_intermediates(intermediate_data),
-                operation=Operation.MULTIPLY.value,
-                notes=f"C({i+1},{j+1}) multiply per-k then concatenate" + ("; interpreted through row/col ontologies" if interpretation_result else "; interpretation inputs prepared")
-            )
-            cell_row.append(cell)
-        cells_2d.append(cell_row)
-    
-    return cells_2d
-
-def extract_array_p_from_neo4j(args):
-    """Extract Array P (Validity Parameters) from row 4 of Validation matrix Z"""
-    
-    logging.info("Step 1: Querying Matrix Z from Neo4j (Validation station)...")
-    matrix_z_data = query_neo4j_matrix(component_id=args.matrix_z_id, api_base=args.api_base)
-    
-    if not matrix_z_data:
-        raise SystemExit(f"Matrix Z not found with ID: {args.matrix_z_id}")
-    
-    logging.info(f"✓ Found Matrix Z: {matrix_z_data['name']} (ID: {matrix_z_data['id']})")
-    
-    # Extract row 4 (index 3) as Array P
-    z_data = matrix_z_data['data']
-    if len(z_data) < 4:
-        raise SystemExit("Matrix Z must have at least 4 rows to extract Array P")
-    
-    array_p_row = z_data[3]  # Fourth row
-    logging.info(f"Extracted Array P: {array_p_row}")
-    
-    # Convert to Cell objects
-    cells_1d = []
-    for j, value in enumerate(array_p_row):
-        cell_value = _safe_resolved([[value]], 0, 0, f"P({j+1})")
-        cell = Cell(
-            resolved=cell_value,
-            raw_terms=[cell_value],
-            intermediate=[],
-            operation=Operation.EXTRACTION.value,
-            notes=f"Array P element from Matrix Z row 4, col {j+1}"
-        )
-        cells_1d.append(cell)
-    
-    # Create CF14 v2.1.1 document
-    doc = ChiralityDocument(
-        version=CF14_VERSION,
-        meta={
-            "source": "chirality_cli",
-            "mode": "extract-array-p",
-            "ontology_id": ONTOLOGY_ID,
-            "timestamp": datetime.now().isoformat(),
-            "source_matrix_z_id": args.matrix_z_id
-        }
-    )
-    
-    ontology = {
-        "operation": "Extract Array P from Matrix Z",
-        "source": f"Matrix Z row 4 (ID: {args.matrix_z_id})",
-        "result": "Array P (Validity Parameters, 1x4)",
-        "framework": f"CF14 v{CF14_VERSION} extraction operation",
-        "ufo_type": "Endurant"
-    }
-    
-    labels = [cell.resolved for cell in cells_1d]
-    arr_cells = [Cell(resolved=lbl, raw_terms=[lbl], intermediate=[lbl], operation=Operation.EXTRACTION.value) for lbl in labels]
-    comp = make_array(
-        id="array_P_validity_parameters",
-        name="Array P (Validity Parameters)",
-        station="Reflection",
-        labels=labels,
-        cells=arr_cells,
-        ontology=ontology,
-    )
-    
-    doc.components.append(comp)
-    json_path = write_json(doc, args.out)
-    
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    return json_path
-
-def extract_array_h_from_neo4j(args):
-    """Extract Array H (Consistency Dialectic) from element 4 of Array P"""
-    
-    logging.info("Step 1: Querying Array P from Neo4j...")
-    array_p_data = query_neo4j_matrix(component_id=args.array_p_id, api_base=args.api_base)
-    
-    if not array_p_data:
-        raise SystemExit(f"Array P not found with ID: {args.array_p_id}")
-    
-    logging.info(f"✓ Found Array P: {array_p_data['name']} (ID: {array_p_data['id']})")
-    
-    # Extract element 4 (Consistency) as Array H
-    p_data = array_p_data['data']
-    if not p_data or len(p_data[0]) < 4:
-        raise SystemExit("Array P must have at least 4 elements to extract Array H")
-    
-    consistency_value = _safe_resolved(p_data, 0, 3, "Consistency")  # Fourth element
-    logging.info(f"Extracted Array H (Consistency Dialectic): {consistency_value}")
-    
-    # Create scalar Cell
-    cell = Cell(
-        resolved=consistency_value,
-        raw_terms=[consistency_value],
-        intermediate=[],
-        operation=Operation.EXTRACTION.value,
-        notes="Array H (Consistency Dialectic) from Array P element 4"
-    )
-    
-    # Create CF14 v2.1.1 document
-    doc = ChiralityDocument(
-        version=CF14_VERSION,
-        meta={
-            "source": "chirality_cli",
-            "mode": "extract-array-h",
-            "ontology_id": ONTOLOGY_ID,
-            "timestamp": datetime.now().isoformat(),
-            "source_array_p_id": args.array_p_id
-        }
-    )
-    
-    ontology = {
-        "operation": "Extract Array H from Array P",
-        "source": f"Array P element 4 (ID: {args.array_p_id})",
-        "result": "Array H (Consistency Dialectic, 1x1)",
-        "framework": f"CF14 v{CF14_VERSION} extraction operation",
-        "ufo_type": "Endurant"
-    }
-    
-    # Create scalar component (special case array with single element)
-    labels_h = [consistency_value]
-    arr_cells_h = [Cell(resolved=consistency_value, raw_terms=[consistency_value], intermediate=[consistency_value], operation=Operation.EXTRACTION.value)]
-    comp = make_array(
-        id="array_H_consistency_dialectic",
-        name="Array H (Consistency Dialectic)",
-        station="Resolution",
-        labels=labels_h,
-        cells=arr_cells_h,
-        ontology=ontology,
-    )
-    
-    doc.components.append(comp)
-    json_path = write_json(doc, args.out)
-    
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    return json_path
-
-def execute_full_pipeline(args):
-    """Execute complete CF14 v2.1.1 pipeline through all implemented stations"""
-    
-    logging.info(f"Executing full CF14 v{CF14_VERSION} pipeline...")
-    
-    # Load domain pack if provided
-    domain_context = load_domain_pack(getattr(args, 'domain_pack', None))
-    logging.info(f"Domain: {domain_context['domain']}")
-    
-    # Get matrices A and B
-    matrix_a = MATRIX_A
-    matrix_b = MATRIX_B
-    
-    if "axiomatic_matrices" in domain_context:
-        if "A" in domain_context["axiomatic_matrices"]:
-            matrix_a = domain_context["axiomatic_matrices"]["A"]["cells"]
-        if "B" in domain_context["axiomatic_matrices"]:
-            matrix_b = domain_context["axiomatic_matrices"]["B"]["cells"]
-    
-    # Validate rectangularity for domain-overridden A/B
-    validate_rectangular_matrix(matrix_a, "A")
-    validate_rectangular_matrix(matrix_b, "B")
-    
-    results = {"pipeline_metadata": {
-        "cf14_version": CF14_VERSION,
-        "ontology_id": ONTOLOGY_ID,
-        "domain": domain_context["domain"],
-        "timestamp": datetime.now().isoformat(),
-        "stations_executed": []
-    }}
-    
-    # Station 1: Problem Statement (A, B are axiomatic)
-    logging.info("Station 1: Problem Statement (Axiomatic matrices A, B)")
-    results["matrix_A"] = create_axiomatic_component("A", matrix_a, "Problem Statement", PROCESS_MODALITIES, ACTION_MODALITIES, domain_context)
-    results["matrix_B"] = create_axiomatic_component("B", matrix_b, "Problem Statement", KNOWLEDGE_HIERARCHY, DECISION_MODALITIES, domain_context)
-    results["pipeline_metadata"]["stations_executed"].append("Problem Statement")
-    
-    # Station 2: Requirements (C = A * B)
-    logging.info("Station 2: Requirements (C = A * B)")
-    matrix_c_cells = create_semantic_matrix_c_with_context(matrix_a, matrix_b, domain_context)
-    results["matrix_C"] = create_derived_component("C", matrix_c_cells, "Requirements", PROCESS_MODALITIES, DECISION_MODALITIES, "multiplication", domain_context)
-    results["pipeline_metadata"]["stations_executed"].append("Requirements")
-    
-    # Station 3: Objectives (J, F, D)
-    logging.info("Station 3: Objectives (J = B[1:3], F = join→sem*→sem+, D = A + F)")
-    
-    # J = truncated B (first 3 rows)
-    matrix_j = matrix_b[:3]
-    matrix_j_cells = [[Cell(resolved=val, raw_terms=[val], intermediate=[], operation=Operation.TRUNCATION.value) for val in row] for row in matrix_j]
-    results["matrix_J"] = create_derived_component("J", matrix_j_cells, "Objectives", KNOWLEDGE_HIERARCHY[:3], DECISION_MODALITIES, "truncation", domain_context)
-    
-    # F = J ⊙ C (join then sem_multiply → sem_add; no Step-2 in pipeline helper)
-    matrix_f_cells = create_element_wise_multiplication(matrix_j, extract_matrix_values(matrix_c_cells), domain_context)
-    results["matrix_F"] = create_derived_component("F", matrix_f_cells, "Objectives", KNOWLEDGE_HIERARCHY[:3], DECISION_MODALITIES, "sem_multiply_then_add", domain_context)
-    
-    # D = A + F (matrix addition)
-    matrix_d_cells = create_matrix_addition(matrix_a, extract_matrix_values(matrix_f_cells), domain_context)
-    results["matrix_D"] = create_derived_component("D", matrix_d_cells, "Objectives", PROCESS_MODALITIES, ACTION_MODALITIES, "addition", domain_context)
-    
-    results["pipeline_metadata"]["stations_executed"].append("Objectives")
-    
-    # Create consolidated document
-    doc = ChiralityDocument(
-        version=CF14_VERSION,
-        meta={
-            "source": "chirality_cli",
-            "mode": "full-pipeline",
-            "ontology_id": ONTOLOGY_ID,
-            "timestamp": datetime.now().isoformat(),
-            "domain": domain_context["domain"],
-            "stations_executed": results["pipeline_metadata"]["stations_executed"]
-        }
-    )
-    
-    # Add all components to document
-    for comp_name, comp_data in results.items():
-        if comp_name != "pipeline_metadata" and isinstance(comp_data, dict):
-            doc.components.append(convert_dict_to_component(comp_data))
-    
-    json_path = write_json(doc, args.out)
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    logging.info(f"✓ Full pipeline completed. Generated {len(doc.components)} components across {len(results['pipeline_metadata']['stations_executed'])} stations.")
-    
-    return json_path
-
-def validate_domain_pack(args):
-    """Validate domain pack compatibility with CF14 v2.1.1"""
-    
-    logging.info(f"Validating domain pack: {args.domain_pack}")
-    
-    try:
-        domain_context = load_domain_pack(args.domain_pack)
-        
-        if domain_context["domain"] == "general":
-            logging.warning("Domain pack loaded as general - may indicate parsing issues")
-        else:
-            logging.info(f"✓ Domain pack valid: {domain_context['domain']}")
-            logging.info(f"  Modalities: {list(domain_context['modalities'].keys())}")
-            if "axiomatic_matrices" in domain_context:
-                logging.info(f"  Axiomatic matrices: {list(domain_context['axiomatic_matrices'].keys())}")
-        
-    except Exception as e:
-        logging.error(f"✗ Domain pack validation failed: {e}")
-        return False
-    
-    return True
-
-# Helper functions for full pipeline
-def create_axiomatic_component(name: str, matrix: List[List[str]], station: str, row_labels: List[str], col_labels: List[str], domain_context: Dict[str, Any]) -> Dict[str, Any]:
-    """Create axiomatic component metadata **with cells** so A & B serialize canonically."""
-    cells = [
-        [Cell(resolved=str(val).strip(), raw_terms=[str(val).strip()], intermediate=[]) for val in row]
-        for row in matrix
-    ]
-    return {
-        "id": f"matrix_{name}_{domain_context['domain']}",
-        "name": f"Matrix {name}",
-        "station": station,
-        "dimensions": [len(matrix), len(matrix[0]) if matrix else 0],
-        "row_labels": row_labels,
-        "col_labels": col_labels,
-        "operation_type": "axiomatic",
-        "ontology_id": ONTOLOGY_ID,
-        "domain": domain_context["domain"],
-        "ufo_type": "Endurant",
-        "cells": cells  # <-- critical
-    }
-
-def create_derived_component(name: str, cells: List[List[Cell]], station: str, row_labels: List[str], col_labels: List[str], operation: str, domain_context: Dict[str, Any]) -> Dict[str, Any]:
-    """Create derived component metadata"""
-    return {
-        "id": f"matrix_{name}_{domain_context['domain']}",
-        "name": f"Matrix {name}",
-        "station": station,
-        "dimensions": [len(cells), len(cells[0])],
-        "row_labels": row_labels,
-        "col_labels": col_labels,
-        "operation_type": operation,
-        "ontology_id": ONTOLOGY_ID,
-        "domain": domain_context["domain"],
-        "ufo_type": "Endurant",
-        "cells": cells
-    }
-
-def create_element_wise_multiplication(matrix_j: List[List[str]], matrix_c: List[List[str]], domain_context: Dict[str, Any]) -> List[List[Cell]]:
-    """Create F = J ⊙ C with Step-1 (semantic_multiply → semantic_add); no Step-2 interpretation here."""
-    
-    cells_2d = []
-    for i in range(len(matrix_j)):
-        cell_row = []
-        for j in range(len(matrix_j[0])):
-            j_term = matrix_j[i][j]
-            c_term = matrix_c[i][j]
-            # Phase 0: join
-            join_concat = f"{j_term}; {c_term}"
-            # Phase 1: multiply → add (mandatory; exit if unavailable)
-            f1_product = None
-            f1_sum_concat = None
-            try:
-                ensure_api_key()
-                from semmul import semantic_multiply
-                f1_product = semantic_multiply(j_term, c_term)
-                f1_sum_concat = '; '.join(str(t).strip() for t in [f1_product, j_term, c_term] if t and str(t).strip())
-            except Exception as e:
-                logging.error(f"F({i+1},{j+1}) semantic kernel unavailable or failed: {e}")
-                raise SystemExit(1)
-
-            inter_list = [
-                {"phase": "join_inputs", "value": {"j": j_term, "c": c_term}},
-                {"phase": "join_concat", "value": join_concat},
-            ]
-            if f1_product is not None:
-                inter_list.append({"phase": "f1_product", "value": f1_product})
-            if f1_sum_concat is not None:
-                inter_list.append({"phase": "f1_sum_concat", "value": f1_sum_concat})
-
-            inter_list = _pack_intermediates(inter_list)
-            cell = Cell(
-                resolved=f1_sum_concat or join_concat,
-                raw_terms=[j_term, c_term],
-                intermediate=inter_list,
-                operation=Operation.ELEMENT_WISE.value,
-                notes=f"F({i+1},{j+1}) join → sem_multiply → sem_add (helper path)"
-            )
-            cell_row.append(cell)
-        cells_2d.append(cell_row)
-    
-    return cells_2d
-
-def create_matrix_addition(matrix_a: List[List[str]], matrix_f: List[List[str]], domain_context: Dict[str, Any]) -> List[List[Cell]]:
-    """Create D = A + F matrix addition"""
-    cells_2d = []
-    for i in range(len(matrix_a)):
-        cell_row = []
-        for j in range(len(matrix_a[0])):
-            a_term = matrix_a[i][j]
-            f_term = matrix_f[i][j]
-            resolved_sentence = f"{a_term} applied to frame the problem; {f_term} to resolve the problem."
-            
-            cell = Cell(
-                resolved=resolved_sentence,
-                raw_terms=[a_term, f_term],
-                intermediate=_pack_intermediates([
-                    {"phase": "constructive_sentence", "value": resolved_sentence}
-                ]),
-                operation=Operation.ADD.value,
-                notes=f"D({i+1},{j+1}) from A + F semantic addition (constructive recorded)"
-            )
-            cell_row.append(cell)
-        cells_2d.append(cell_row)
-    
-    return cells_2d
-
-def extract_matrix_values(cells: List[List[Cell]]) -> List[List[str]]:
-    """Extract resolved values from Cell matrix"""
-    return [[cell.resolved for cell in row] for row in cells]
-
-def convert_dict_to_component(comp_dict: Dict[str, Any]):
-    """Convert pipeline dict to a proper Component using make_matrix."""
-    rid = comp_dict.get("id") or "component_unnamed"
-    name = comp_dict.get("name") or rid
-    station = comp_dict.get("station")
-    row_labels = comp_dict.get("row_labels") or []
-    col_labels = comp_dict.get("col_labels") or []
-    cells_payload = comp_dict.get("cells")
-    cells_2d: List[List[Cell]] = []
-    if cells_payload:
-        for row in cells_payload:
-            new_row: List[Cell] = []
-            for c in row:
-                if isinstance(c, Cell):
-                    new_row.append(c)
-                elif isinstance(c, dict):
-                    new_row.append(
-                        Cell(
-                            resolved=str(c.get("resolved", "")),
-                            raw_terms=[str(x) for x in c.get("raw_terms", [])],
-                            intermediate=_pack_intermediates(c.get("intermediate", [])),
-                            operation=str(c.get("operation", Operation.MULTIPLY.value)),
-                            notes=c.get("notes"),
-                        )
-                    )
-                else:
-                    # CF14 semantic integrity: don't convert arbitrary objects to semantic cells
-                    raise ValueError(f"Cannot convert non-semantic object to Cell: {type(c)}")
-            cells_2d.append(new_row)
-    else:
-        # CF14 semantic integrity: legacy matrix format should not be converted with raw_terms
-        matrix_vals = comp_dict.get("matrix") or []
-        if not matrix_vals and not cells_payload:
-            # Prevent silently generating empty components
-            raise ValueError(f"Component {rid} has no cells or matrix data - cannot create empty semantic component")
-        cells_2d = [[Cell(resolved=str(v), raw_terms=[], intermediate=[]) for v in row] for row in matrix_vals]
-
-    ontology = {
-        "operation_type": comp_dict.get("operation_type"),
-        "ontology_id": comp_dict.get("ontology_id"),
-        "domain": comp_dict.get("domain"),
-        "ufo_type": comp_dict.get("ufo_type"),
-    }
-
-    return make_matrix(
-        id=rid,
-        name=name,
-        station=station,
-        row_labels=row_labels,
-        col_labels=col_labels,
-        cells_2d=cells_2d,
-        ontology=ontology,
-    )
-
-def generate_matrix_f_from_neo4j(args):
-    """
-    Generate Matrix F using the complete CF14 v2.1.1 pipeline:
-    join → sem_multiply → sem_add → interpret
-    
-    Matrix F: F(i,j) = join(J(i,j), C(i,j)) → sem_multiply → sem_add → interpret(row,col)
-    """
-    
-    # Load ontology pack and flags
-    pack = _load_ontology_pack(getattr(args, "ontology_pack", None))
-    include_station = bool(getattr(args, "include_station_context", False))
-    run_interpret = bool(getattr(args, "run_interpretations", False))  # gates Step-2 only
-    
-    # Step-1 (semantic_multiply → sem_add) is mandatory for F; exit if unavailable.
-    # Step-2 (row/col interpretation) remains gated by --run-interpretations, but requires the same key.
-    try:
-        ensure_api_key()
-        from semmul import semantic_multiply
-    except Exception as e:
-        logging.error(f"semantic_multiply unavailable; cannot generate Matrix F: {e}")
-        raise SystemExit(1)
-
-    semantic_interpret = None
-    if run_interpret:
-        try:
-            from semmul import semantic_interpret
-        except ImportError as e:
-            logging.warning(f"semantic_interpret unavailable; proceeding without Step-2 interpretations: {e}")
-            run_interpret = False
-    
-    # Step 1: Query Matrix C from Neo4j
-    logging.info("Step 1: Querying Matrix C from Neo4j (Requirements station)...")
-    matrix_c_data = query_neo4j_matrix(station="Requirements", api_base=args.api_base)
-    
-    if not matrix_c_data:
-        raise SystemExit("Matrix C not found in Neo4j. Generate it first using 'semantic-matrix-c'.")
-    
-    logging.info(f"✓ Found Matrix C: {matrix_c_data['name']} (ID: {matrix_c_data['id']})")
-    logging.info(f"  Shape: {matrix_c_data.get('shape', 'unknown')}")
-    logging.info(f"  Station: {matrix_c_data.get('station', 'unknown')}")
-    
-    # Extract Matrix C structure and ensure correct dimensions
-    c_data = matrix_c_data['data']
-    
-    # Use correct Matrix C structure (3x4) regardless of what Neo4j returns
-    logging.debug(f"  Rows: {C_ROWS}")
-    logging.debug(f"  Cols: {C_COLS}")
-    logging.info(f"  Ensuring {MATRIX_ROWS}x{MATRIX_COLS} matrix structure...")
-    
-    # Step 2: Define Matrix J (truncated Matrix B)
-    logging.info("Step 2: Defining Matrix J (truncated Decisions - Data, Information, Knowledge)...")
-    matrix_j = MATRIX_B[:3]
-    
-    # Use ontology pack for labels if available, otherwise fallback
-    reg = pack.get("ontology_registry", {}) if pack else {}
-    j_rows = _labels_from_ref(reg, "knowledge_hierarchy[:3]", axis="row") or ['Data', 'Information', 'Knowledge']
-
-    logging.info("Matrix J:")
-    for i, row_label in enumerate(j_rows):
-        logging.debug(f"  {row_label}: {matrix_j[i]}")
-    
-    # Step 3: Generate Matrix F via three phases
-    phase_desc = "join → sem_multiply → sem_add"
-    if run_interpret:
-        phase_desc += " → interpret"
-    logging.info(f"Step 3: Generating Matrix F via {phase_desc}...")
-    
-    cells_2d = []
-    for i in range(MATRIX_ROWS):
-        cell_row = []
-        for j in range(MATRIX_COLS):
-            j_term = matrix_j[i][j]
-            c_term = _safe_resolved(c_data, i, j, f"C({i+1},{j+1})")
-            
-            # Phase 0: Constructive join (no LLM)
-            join_inputs = {"j": j_term, "c": c_term}
-            join_concat = f"{j_term}; {c_term}"
-            logging.debug(f"  F({i+1},{j+1}) Phase 0 - join: {join_concat}")
-            
-            # Initialize intermediate tracking
-            intermediate = [
-                {"phase": "join_inputs", "value": join_inputs},
-                {"phase": "join_concat", "value": join_concat},
-            ]
-            
-            # Phase 1: Semantic multiplication J(i,j) * C(i,j) and addition
-            f1_product = None
-            f1_sum_concat = None
-            if semantic_multiply:
-                try:
-                    # Direct semantic multiplication: J(i,j) * C(i,j)
-                    f1_product = semantic_multiply(j_term, c_term)
-                    logging.debug(f"    Semantic multiply: {j_term} * {c_term} = {f1_product}")
-                    intermediate.append({"phase": "semantic_multiply", "value": f1_product})
-                    
-                    # Semantic addition (concatenation) - per CF14 order of operations
-                    if f1_product:
-                        # For F, we typically just use the product as the sum
-                        # But we can also concatenate if needed: product; j_term; c_term
-                        f1_sum_concat = f1_product  # Simple case for F
-                        intermediate.append({"phase": "f1_sum_concat", "value": f1_sum_concat})
-                    
-                except Exception as e:
-                    logging.warning(f"  F({i+1},{j+1}) semantic multiplication failed: {e}")
-                    f1_product = None
-                    f1_sum_concat = None
-            
-            # Build interpretation inputs (always present)
-            col_label = C_COLS[j] if j < len(C_COLS) else f"col{j+1}"
-            row_label = j_rows[i] if i < len(j_rows) else f"row{i+1}"
-            meanings = _resolve_ontology_meanings(col_label, row_label, pack)
-
-            interpretation_inputs = {
-                "cell": f1_sum_concat or f1_product or join_concat,
-                "col_label": col_label,
-                "col_meaning": meanings.get("col_meaning", ""),
-                "row_label": row_label,
-                "row_meaning": meanings.get("row_meaning", ""),
-                **({"station": "Objectives"} if include_station else {})
-            }
-            intermediate.append({"phase": "interpretation_inputs", "value": interpretation_inputs})
-            
-            # Phase 2: Interpretation (if enabled and inputs available)
-            interpretation_result = None
-            if run_interpret and (f1_sum_concat or f1_product) and semantic_interpret:
-                try:
-                    # Pass compact phase context to the kernel for minimal, structured prompts
-                    interpretation_result = semantic_interpret(
-                        cell=f1_sum_concat or f1_product or join_concat,  # Best available semantic result
-                        col_label=col_label,
-                        col_meaning=meanings.get("col_meaning", ""),  # Safe access with default
-                        row_label=row_label,
-                        row_meaning=meanings.get("row_meaning", ""),   # Safe access with default
-                        station="Objectives" if include_station else None,
-                        phase0_join=join_concat,             # constructive join "J; C"
-                        phase1_product=f1_product,            # semantic multiply result
-                        phase1_sum=f1_sum_concat             # semantic addition result
-                    )
-                    logging.debug(f"    Step-2 interpretation: synthesis={interpretation_result.get('synthesis', 'N/A')[:50]}...")
-                    intermediate.append({"phase": "interpretation", "value": interpretation_result})
-                except Exception as e:
-                    logging.warning(f"  F({i+1},{j+1}) interpretation failed: {e}")
-                    interpretation_result = None
-            else:
-                if run_interpret:
-                    logging.debug(f"  F({i+1},{j+1}) interpretation skipped (no semantic result)")
-                else:
-                    logging.debug(f"  F({i+1},{j+1}) interpretation skipped by flag")
-            
-            # Final resolution: prefer interpretation → f1_sum_concat → f1_product → join_concat
-            if interpretation_result and interpretation_result.get("synthesis"):
-                resolved_value = interpretation_result["synthesis"]
-                resolution_source = "interpretation.synthesis"
-            elif f1_sum_concat:
-                resolved_value = f1_sum_concat
-                resolution_source = "f1_sum_concat"
-            elif f1_product:
-                resolved_value = f1_product
-                resolution_source = "semantic_multiply"
-            else:
-                resolved_value = join_concat
-                resolution_source = "join_concat"
-            
-            intermediate = _pack_intermediates(intermediate)
-            logging.debug(f"  F({i+1},{j+1}) resolved via {resolution_source}: {resolved_value[:50]}...")
-            
-            cell = Cell(
-                resolved=resolved_value,
-                raw_terms=[j_term, c_term],
-                intermediate=intermediate,
-                operation=Operation.ELEMENT_WISE.value,
-                notes=f"F({i+1},{j+1}) {phase_desc}; resolved via {resolution_source}"
-            )
-            cell_row.append(cell)
-        cells_2d.append(cell_row)
-    
-    # Step 4: Create Chirality document for Matrix F
-    doc = ChiralityDocument(version=CF14_VERSION, meta={
-        "source": "chirality_cli", 
-        "mode": "semantic-matrix-f-from-neo4j",
-        "run_interpretations": run_interpret,
-        "ontology_pack": getattr(args, "ontology_pack", None)
-    })
-    ontology = {
-        "operation": "F(i,j): join(J,C) → sem_multiply → sem_add → interpret(row,col)",
-        "matrix_j": "Truncated Decisions (3x4)",
-        "matrix_c_source": f"Neo4j Matrix C (ID: {matrix_c_data['id']})", 
-        "result": "Matrix F (3x4)",
-        "framework": f"Chirality Framework v{CF14_VERSION} {phase_desc}",
-        "source_matrix_c_id": matrix_c_data['id'],
-        "row_labels": j_rows,
-        "col_labels": C_COLS
-    }
-    
-    comp = make_matrix(
-        id="F",
-        name="Matrix F (Objectives)",
-        station="Objectives",
-        row_labels=j_rows,
-        col_labels=C_COLS,
-        cells_2d=cells_2d,
-        ontology=ontology
-    )
-    
-    doc.components.append(comp)
-    json_path = write_json(doc, args.out)
-    
-    # Step 5: Send Matrix F to Neo4j
-    logging.info(f"Step 5: Storing Matrix F in Neo4j...")
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    return json_path
-
-def generate_matrix_d_from_neo4j(args):
-    """Generate Matrix D using A(i,j) + F(i,j) = D(i,j) with semantic addition from Neo4j"""
-    
-    # Load ontology pack and flags
-    pack = _load_ontology_pack(getattr(args, "ontology_pack", None))
-    include_station = bool(getattr(args, "include_station_context", False))
-    run_interpret = bool(getattr(args, "run_interpretations", False))
-    
-    # Import semantic_interpret if interpretations are enabled
-    semantic_interpret = None
-    if run_interpret:
-        try:
-            from semmul import semantic_interpret
-            logging.info("✓ semantic_interpret loaded for Matrix D Step-2 interpretations")
-        except ImportError as e:
-            logging.warning(f"semantic_interpret unavailable; proceeding without Step-2 interpretations: {e}")
-            run_interpret = False
-    
-    # Step 1: Query Matrix F from Neo4j (Objectives station)
-    logging.info("Step 1: Querying Matrix F from Neo4j (Objectives station)...")
-    matrix_f_data = query_neo4j_matrix(station="Objectives", api_base=args.api_base)
-    
-    if not matrix_f_data:
-        raise SystemExit("Matrix F not found in Neo4j. Generate it first using 'semantic-matrix-f'.")
-    
-    logging.info(f"✓ Found Matrix F: {matrix_f_data['name']} (ID: {matrix_f_data['id']})")
-    logging.info(f"  Shape: {matrix_f_data.get('shape', 'unknown')}")
-    logging.info(f"  Station: {matrix_f_data.get('station', 'unknown')}")
-    
-    # Extract Matrix F structure  
-    f_data = matrix_f_data['data']
-    
-    # Step 2: Define Matrix A (axiomatic from framework)
-    logging.info("Step 2: Defining Matrix A (Problem Statement)...")
-    logging.info("Matrix A:")
-    for i, row_label in enumerate(A_ROWS):
-        logging.debug(f"  {row_label}: {MATRIX_A[i]}")
-    
-    # Step 3: Generate Matrix D via semantic addition A(i,j) + F(i,j) = D(i,j)
-    # According to framework: D(i,j) = A(i,j) + " applied to frame the problem; " + F(i,j) + " to resolve the problem."
-    logging.info(f"Step 3: Generating Matrix D via A(i,j) + F(i,j) = D(i,j) with semantic addition...")
-    
-    cells_2d = []
-    for i in range(MATRIX_ROWS):
-        cell_row = []
-        for j in range(MATRIX_COLS):
-            a_term = MATRIX_A[i][j]
-            f_term = _safe_resolved(f_data, i, j, f"F({i+1},{j+1})")
-
-            # Constructive sentence
-            resolved_sentence = f"{a_term} applied to frame the problem; {f_term} to resolve the problem."
-            logging.debug(f"  D0({i+1},{j+1}) constructive = {resolved_sentence}")
-
-            # Interpretation prompts through column & row lenses
-            col_label = A_COLS[j] if j < len(A_COLS) else f"col{j+1}"
-            row_label = A_ROWS[i] if i < len(A_ROWS) else f"row{i+1}"
-            meanings = _resolve_ontology_meanings(col_label, row_label, pack)
-            
-            interpretation_inputs = {
-                "cell": resolved_sentence,
-                "col_label": col_label,
-                "col_meaning": meanings["col_meaning"],
-                "row_label": row_label,
-                "row_meaning": meanings["row_meaning"],
-                **({"station": "Objectives"} if include_station else {})
-            }
-
-            # Execute Step-2 interpretation if enabled
-            interpretation_result = None
-            final_resolved = resolved_sentence  # Default to constructive result
-            intermediate_data = [
-                {"phase": "constructive_sentence", "value": resolved_sentence},
-                {"phase": "interpretation_inputs", "value": interpretation_inputs},
-            ]
-            
-            if run_interpret and semantic_interpret:
-                try:
-                    interpretation_result = semantic_interpret(
-                        cell=resolved_sentence,
-                        col_label=col_label,
-                        col_meaning=meanings["col_meaning"],
-                        row_label=row_label,
-                        row_meaning=meanings["row_meaning"],
-                        station="Objectives" if include_station else None
-                    )
-                    # Use synthesis as the final resolved value
-                    final_resolved = interpretation_result.get("synthesis", resolved_sentence)
-                    intermediate_data.append({"phase": "interpretation_result", "value": interpretation_result})
-                    logging.debug(f"  D({i+1},{j+1}) interpretation: {interpretation_result.get('synthesis', 'N/A')}")
-                except Exception as e:
-                    logging.warning(f"Interpretation failed for D({i+1},{j+1}): {e}")
-                    interpretation_result = None
-
-            cell = Cell(
-                resolved=final_resolved,
-                raw_terms=[a_term, f_term],
-                intermediate=_pack_intermediates(intermediate_data),
-                operation=Operation.ADD.value,
-                notes=f"D({i+1},{j+1}) = A+F constructive" + ("; interpreted through row/col ontologies" if interpretation_result else "; interpretation inputs prepared") + f" - ({row_label}, {col_label})",
-            )
-            cell_row.append(cell)
-        cells_2d.append(cell_row)
-    
-    # Step 4: Create Chirality document for Matrix D
-    doc = ChiralityDocument(version=CF14_VERSION, meta={
-        "source": "chirality_cli", 
-        "mode": "semantic-matrix-d-from-neo4j",
-        "run_interpretations": bool(getattr(args, "run_interpretations", False)),
-        "ontology_pack": getattr(args, "ontology_pack", None)
-    })
-    ontology = {
-        "operation": "A(i,j) + F(i,j) = D(i,j)",
-        "matrix_a": "Problem Statement (3x4)",
-        "matrix_f_source": f"Neo4j Matrix F (ID: {matrix_f_data['id']})", 
-        "result": "Solution Objectives (3x4)",
-        "framework": f"Chirality Framework v{CF14_VERSION} semantic addition",
-        "source_matrix_f_id": matrix_f_data['id'],
-        "formula": "A(i,j) + ' applied to frame the problem; ' + F(i,j) + ' to resolve the problem.'",
-        "row_labels": A_ROWS,
-        "col_labels": A_COLS
-    }
-    
-    comp = make_matrix(
-        id="D",
-        name="Matrix D (Objectives)",
-        station="Objectives",
-        row_labels=A_ROWS,
-        col_labels=A_COLS,
-        cells_2d=cells_2d,
-        ontology=ontology
-    )
-    
-    doc.components.append(comp)
-    json_path = write_json(doc, args.out)
-    
-    # Step 5: Send Matrix D to Neo4j
-    logging.info(f"Step 5: Storing Matrix D in Neo4j...")
-    send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    return json_path
-
-def generate_initial_vector(args):
-    """Generate Initial Vector from a question to bootstrap semantic operations"""
-    
-    # Import the initial_vector function from semmul
-    try:
-        from semmul import initial_vector, ensure_api_key
-        ensure_api_key()
-    except ImportError as e:
-        logging.error(f"Failed to import initial_vector from semmul: {e}")
-        return None
-    
-    logging.info(f"Generating Initial Vector from question: {args.question[:100]}...")
-    
-    # Define Station 1 context
-    station1 = {"id": "problem_statement", "label": "Problem Statement"}
-    
-    # Define the ontological families (from CF14 axioms)
-    rows_station1 = [
-        {"label": "Normative", "meaning": "Standards, values, and principles that guide behavior"},
-        {"label": "Operative", "meaning": "Actions, processes, and implementation methods"},
-        {"label": "Evaluative", "meaning": "Assessment, judgment, and feedback mechanisms"}
-    ]
-    
-    cols_station1 = [
-        {"label": "Guiding", "meaning": "Direction-setting and strategic orientation"},
-        {"label": "Applying", "meaning": "Implementation and execution of plans"},
-        {"label": "Judging", "meaning": "Evaluation and decision-making"},
-        {"label": "Reviewing", "meaning": "Assessment and continuous improvement"}
-    ]
-    
-    # Generate the Initial Vector
-    try:
-        iv_result = initial_vector(
-            question=args.question,
-            station1=station1,
-            rows_station1=rows_station1,
-            cols_station1=cols_station1,
-            matrix_station1="A"
-        )
-        
-        logging.info(f"Initial Vector generated successfully:")
-        logging.info(f"  Subject: {iv_result.get('subject', 'N/A')}")
-        logging.info(f"  Domain: {iv_result.get('domain', 'N/A')}")
-        logging.info(f"  Matrix: {iv_result.get('matrix', 'N/A')}")
-        logging.info(f"  Cell: ({iv_result.get('cell', {}).get('i', 'N/A')}, {iv_result.get('cell', {}).get('j', 'N/A')})")
-        logging.info(f"  Row Lens: {iv_result.get('lenses', {}).get('row', {}).get('label', 'N/A')}")
-        logging.info(f"  Col Lens: {iv_result.get('lenses', {}).get('col', {}).get('label', 'N/A')}")
-        
-    except Exception as e:
-        logging.error(f"Failed to generate Initial Vector: {e}")
-        return None
-    
-    # Create Chirality document
-    doc = ChiralityDocument(version=CF14_VERSION, meta={
-        "source": "chirality_cli",
-        "mode": "initial-vector",
-        "question": args.question
-    })
-    
-    # Create a special component for the Initial Vector
-    comp = Component(
-        id="IV",
-        name="Initial Vector",
-        station="Bootstrap",
-        type="InitialVector",
-        shape={"format": "object"},
-        cells=[Cell(
-            resolved=json.dumps(iv_result, ensure_ascii=False),
-            raw_terms=[args.question],
-            intermediate=[],
-            operation="initial_vector",
-            notes="Bootstrap configuration for CF14 semantic operations"
-        )],
-        ontology={
-            "description": "Initial Vector for semantic operations",
-            "question": args.question,
-            "result": iv_result
-        }
-    )
-    
-    doc.components.append(comp)
-    
-    # Write to JSON file
-    json_path = write_json(doc, args.out)
-    logging.info(f"Initial Vector written to: {json_path}")
-    
-    # Optionally send to Neo4j
-    if getattr(args, 'send_to_neo4j', False):
-        logging.info("Sending Initial Vector to Neo4j...")
-        send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
-    
-    return json_path
-
-def main():
-    p = argparse.ArgumentParser(prog="chirality-cli", description="Tiny CLI: feed CSV lists/grids → Chirality JSON.")
-    
-    # Global flags
-    p.add_argument("--verbose", action="store_true", help="Enable verbose logging")
-    p.add_argument("--quiet", action="store_true", help="Suppress info messages, show only warnings/errors")
-    p.add_argument("--api-base", default=DEFAULT_API_BASE, help="Base URL for the Next.js API")
-    
-    sub = p.add_subparsers(dest="cmd", required=True)
-
-    # Phase 1: canonical, model-agnostic initialization (boot)
-    p_init = sub.add_parser("semantic-init", help="Phase 1: initialize canonical domain-agnostic seed for the active model")
-    p_init.add_argument("--pack", required=True, help="Path to cf14.core.pack.json (or equivalent pack)")
-    p_init.add_argument("--matrix", default="A", help="Starting matrix id (default: A)")
-    p_init.add_argument("--dry-run", action="store_true", help="Print JSON only; do not write to Neo4j")
-
-    # Phase 2: instantiation (question → initial vector with first cell lenses)
-    p_iv = sub.add_parser("semantic-iv", help="Phase 2: instantiate initial vector from a question")
-    p_iv.add_argument("--pack", required=True, help="Path to cf14.core.pack.json")
-    p_iv.add_argument("--question", required=True, help="The user question or problem gist")
-    p_iv.add_argument("--matrix", default="A", help="Station-1 matrix id (default: A)")
-    p_iv.add_argument("--dry-run", action="store_true", help="Print JSON only; do not write to Neo4j")
-
-    # matrix from a single grid CSV (top-left blank; header row = columns; first col = rows)
-    mg = sub.add_parser("matrix-grid", help="Build a matrix from a single grid CSV with row/col headers.")
-    mg.add_argument("--grid", required=True, help="CSV file: cell[0,0] blank; row 0 = column labels; col 0 = row labels.")
-    mg.add_argument("--title", required=True)
-    mg.add_argument("--station", default=None)
-    mg.add_argument("--rows_name", default=None)
-    mg.add_argument("--cols_name", default=None)
-    mg.add_argument("--notes", default=None)
-    mg.add_argument("--out", required=True, help="Output JSON path.")
-    mg.set_defaults(func=matrix_from_grid)
-
-    # matrix from three CSVs
-    ml = sub.add_parser("matrix-lists", help="Build a matrix from rows.csv, cols.csv, and data.csv")
-    ml.add_argument("--rows", required=True, help="CSV with one label per row (single column).")
-    ml.add_argument("--cols", required=True, help="CSV with one header row of labels (single row).")
-    ml.add_argument("--data", required=True, help="CSV with rectangular data (len(rows) × len(cols)).")
-    ml.add_argument("--title", required=True)
-    ml.add_argument("--station", default=None)
-    ml.add_argument("--rows_name", default=None)
-    ml.add_argument("--cols_name", default=None)
-    ml.add_argument("--notes", default=None)
-    ml.add_argument("--out", required=True)
-    ml.set_defaults(func=matrix_from_lists)
-
-    # array from a single list
-    al = sub.add_parser("array", help="Build an array (1D) from a single-column CSV.")
-    al.add_argument("--list", required=True, help="CSV with one item per row.")
-    al.add_argument("--axis_name", default="items")
-    al.add_argument("--title", required=True)
-    al.add_argument("--station", default=None)
-    al.add_argument("--notes", default=None)
-    al.add_argument("--out", required=True)
-    al.set_defaults(func=array_from_list)
-
-    # CF14 v2.1.1 semantic operations
-    sc = sub.add_parser("semantic-matrix-c", help="Generate Matrix C using semantic multiplication A * B = C (CF14 v2.1.1)")
-    sc.add_argument("--out", required=True, help="Output JSON path for Matrix C.")
-    sc.add_argument("--domain-pack", help="Path to domain-specific ontology pack")
-    sc.add_argument("--ontology-pack", type=str, default=None, help="Path to CF14 ontology pack JSON with labels/meanings.")
-    sc.add_argument("--run-interpretations", action="store_true", default=False, help="Marks intent for downstream interpretation (no LLM call here).")
-    sc.add_argument("--include-station-context", action="store_true", default=False, help="If set, include station name in interpretation_inputs.")
-    sc.add_argument("--iv-id", help="Neo4j id/uuid of InitialVector to guide this run")
-    sc.add_argument("--iv-json", help="Inline IV JSON string (overrides --iv-id).")
-    sc.set_defaults(func=generate_matrix_c_semantic)
-
-    sf = sub.add_parser("semantic-matrix-f", help="Generate Matrix F (join → sem_multiply → sem_add; optional interpret) (CF14 v2.1.1)")
-    sf.add_argument("--out", required=True, help="Output JSON path for Matrix F.")
-    sf.add_argument("--domain-pack", help="Path to domain-specific ontology pack")
-    sf.add_argument("--ontology-pack", type=str, default=None, help="Path to CF14 ontology pack JSON with labels/meanings.")
-    sf.add_argument("--run-interpretations", action="store_true", default=False, help="Marks intent for downstream interpretation (no LLM call here).")
-    sf.add_argument("--include-station-context", action="store_true", default=False, help="If set, include station name in interpretation_inputs.")
-    sf.add_argument("--iv-id", help="Neo4j id/uuid of InitialVector to guide this run")
-    sf.add_argument("--iv-json", help="Inline IV JSON string (overrides --iv-id).")
-    sf.set_defaults(func=generate_matrix_f_from_neo4j)
-
-    sd = sub.add_parser("semantic-matrix-d", help="Generate Matrix D using A + F = D semantic addition (CF14 v2.1.1)")
-    sd.add_argument("--out", required=True, help="Output JSON path for Matrix D.")
-    sd.add_argument("--domain-pack", help="Path to domain-specific ontology pack")
-    sd.add_argument("--ontology-pack", type=str, default=None, help="Path to CF14 ontology pack JSON with labels/meanings.")
-    sd.add_argument("--run-interpretations", action="store_true", default=False, help="Marks intent for downstream interpretation (no LLM call here).")
-    sd.add_argument("--include-station-context", action="store_true", default=False, help="If set, include station name in interpretation_inputs.")
-    sd.add_argument("--iv-id", help="Neo4j id/uuid of InitialVector to guide this run")
-    sd.add_argument("--iv-json", help="Inline IV JSON string (overrides --iv-id).")
-    sd.set_defaults(func=generate_matrix_d_from_neo4j)
-
-    # Initial Vector generation
-    iv = sub.add_parser("initial-vector", help="Generate Initial Vector from a question to bootstrap semantic operations")
-    iv.add_argument("--question", required=True, help="The question or problem statement to analyze")
-    iv.add_argument("--out", required=True, help="Output JSON path for Initial Vector")
-    iv.add_argument("--send-to-neo4j", action="store_true", help="Also store IV in Neo4j")
-    iv.set_defaults(func=generate_initial_vector)
-    
-    # CF14 v2.1.1 new components
-    sp = sub.add_parser("extract-array-p", help="Extract Array P (Validity Parameters) from Validation matrix Z")
-    sp.add_argument("--matrix-z-id", required=True, help="Component ID of Matrix Z in Neo4j")
-    sp.add_argument("--out", required=True, help="Output JSON path for Array P.")
-    sp.set_defaults(func=extract_array_p_from_neo4j)
-
-    sh = sub.add_parser("extract-array-h", help="Extract Array H (Consistency Dialectic) from Array P")
-    sh.add_argument("--array-p-id", required=True, help="Component ID of Array P in Neo4j")
-    sh.add_argument("--out", required=True, help="Output JSON path for Array H.")
-    sh.set_defaults(func=extract_array_h_from_neo4j)
-
-    # Full pipeline execution
-    fp = sub.add_parser("full-pipeline", help="Execute complete CF14 v2.1.1 pipeline through all implemented stations")
-    fp.add_argument("--out", required=True, help="Output JSON path for full pipeline results.")
-    fp.add_argument("--domain-pack", help="Path to domain-specific ontology pack")
-    fp.set_defaults(func=execute_full_pipeline)
-
-    # Domain pack validation
-    dp = sub.add_parser("validate-domain", help="Validate domain pack compatibility with CF14 v2.1.1")
-    dp.add_argument("--domain-pack", required=True, help="Path to domain-specific ontology pack")
-    dp.set_defaults(func=validate_domain_pack)
-
-    args = p.parse_args()
-    
-    # Set up logging based on flags
-    setup_logging(verbose=getattr(args, "verbose", False), quiet=getattr(args, "quiet", False))
-    
-    # ---- Phase 1: Initialization (canonical seed) ----
-    if args.cmd == "semantic-init":
-        ensure_api_key()
-        pack = _load_pack(args.pack)
-        station1 = _resolve_station1(pack)
-        rows, cols = _resolve_rows_cols_for_matrix(pack, args.matrix)
-        canon = {
-            "cf_version": os.getenv("CF14_VERSION", "14.2.1.1"),
-            "model": os.getenv("CHIRALITY_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o",
-            "station_default": station1,
-            "matrix_default": args.matrix,
-            "principles": [
-                "Multiply then add; never skip.",
-                "Interpret column lens, then row lens, then synthesize.",
-                "Use only provided content."
-            ],
-            "row_family": [{"label": r.get("label",""), "meaning": r.get("meaning","")} for r in rows],
-            "col_family": [{"label": c.get("label",""), "meaning": c.get("meaning","")} for c in cols],
-        }
-        if args.dry_run:
-            print(json.dumps({"Canon": canon}, indent=2, ensure_ascii=False))
-            return
-        try:
-            from neo4j_admin import create_initial_canon
-            node_id = create_initial_canon(canon)
-            print(json.dumps({"neo4j_id": node_id, "Canon": canon}, indent=2, ensure_ascii=False))
+                LOG.info(f"[dry-run] C[{i},{j}] context_loaded; then {K} products → sum → interpret"); continue
+            products=[]
+            for k in range(K):
+                a = pull_cell_with_context(api,"Problem Statement","A", i,k, include_ontologies=False)
+                b = pull_cell_with_context(api,"Decisions","B", k,j, include_ontologies=False)
+                a_val = (((a.get("matrix") or {}).get("cell") or {}).get("value")) or ""
+                b_val = (((b.get("matrix") or {}).get("cell") or {}).get("value")) or ""
+                user = prompt_multiply(valley,"Requirements",row_label,col_label,a_val,b_val)
+                obj, meta = sm.semantic_multiply_checked(user, a_val, b_val, temperature=0.7)
+                products.append(obj["text"])
+                res = upsert_cell_stage(api,"Requirements","C",i,j,f"product:k={k}",obj["text"],meta["modelId"],
+                    meta["promptHash"], labels={"rowLabel":row_label,"colLabel":col_label},
+                    meta={**meta,"a_pos":[i,k],"b_pos":[k,j],"terms_used":obj.get("terms_used",[]),
+                         "valleyStation":"Requirements","rowLabel":row_label,"colLabel":col_label})
+                _log_stage(args,"Requirements","C",i,j,f"product:k={k}",res,meta)
+            user_add = prompt_add(valley,"Requirements",row_label,col_label,products)
+            obj_sum, meta_sum = sm.semantic_add(user_add, temperature=0.5)
+            res = upsert_cell_stage(api,"Requirements","C",i,j,"sum",obj_sum["text"],meta_sum["modelId"],
+                meta_sum["promptHash"], labels={"rowLabel":row_label,"colLabel":col_label},
+                meta={**meta_sum,"valleyStation":"Requirements","rowLabel":row_label,"colLabel":col_label})
+            _log_stage(args,"Requirements","C",i,j,"sum",res,meta_sum)
+            user_it = prompt_interpret(valley,"Requirements",row_label,col_label,obj_sum["text"])
+            obj_it, meta_it = sm.semantic_interpret(user_it, temperature=0.5)
+            res = upsert_cell_stage(api,"Requirements","C",i,j,"interpretation",obj_it["text"],meta_it["modelId"],
+                meta_it["promptHash"], labels={"rowLabel":row_label,"colLabel":col_label},
+                meta={**meta_it,"valleyStation":"Requirements","rowLabel":row_label,"colLabel":col_label})
+            _log_stage(args,"Requirements","C",i,j,"interpretation",res,meta_it)
+            res = upsert_cell_stage(api,"Requirements","C",i,j,"final_resolved",obj_it["text"],model,
+                f"final:C:{i}:{j}")
+            _log_stage(args,"Requirements","C",i,j,"final_resolved",res)
+            _ufo(args,"Requirements","C",i,j, obj_sum, meta_sum)
         except Exception as e:
-            logging.error(f"Failed to write Canon to Neo4j: {e}")
-            print(json.dumps({"Canon": canon}, indent=2, ensure_ascii=False))
-        return
+            tb = traceback.format_exc(limit=1)
+            if not args.dry_run:
+                res = upsert_cell_stage(api,"Requirements","C",i,j,"error","",model,f"error:C:{i}:{j}",
+                    labels={"rowLabel":row_label,"colLabel":col_label} if 'row_label' in locals() else {},
+                    meta={"error":str(e),"trace":tb})
+                _log_stage(args,"Requirements","C",i,j,"error",res)
+            LOG.error(f"C[{i},{j}] failed: {e}")
+            if args.stop_on_error: raise
 
-    # ---- Phase 2: Instantiation (question → IV for first cell) ----
-    if args.cmd == "semantic-iv":
-        ensure_api_key()
-        pack = _load_pack(args.pack)
-        station1 = _resolve_station1(pack)
-        rows, cols = _resolve_rows_cols_for_matrix(pack, args.matrix)
-        iv = initial_vector(
-            question=args.question,
-            station1=station1,
-            rows_station1=[{"label": r.get("label",""), "meaning": r.get("meaning","")} for r in rows],
-            cols_station1=[{"label": c.get("label",""), "meaning": c.get("meaning","")} for c in cols],
-            matrix_station1=args.matrix
-        )
-        if args.dry_run:
-            print(json.dumps({"InitialVector": iv}, indent=2, ensure_ascii=False))
-            return
+def cmd_generate_F(args):
+    model, api = args.model, args.api_base
+    rows = args.rows or [0,1,2]; cols = args.cols or [0,1,2,3]
+    for (i,j) in _iter_cells(rows, cols):
         try:
-            from neo4j_admin import create_initial_vector
-            iv_id = create_initial_vector(iv)
-            print(json.dumps({"neo4j_id": iv_id, "InitialVector": iv}, indent=2, ensure_ascii=False))
+            ctx = pull_cell_with_context(api,"Objectives","F", i,j, include_ontologies=True)
+            row_label, col_label = _labels(ctx,i,j)
+            valley = valley_summary_from_graph(ctx.get("valley"), ctx.get("station"))
+            if not args.dry_run:
+                res = upsert_cell_stage(api,"Objectives","F",i,j,"context_loaded","",model,
+                    f"context:F:{i}:{j}", labels={"rowLabel":row_label,"colLabel":col_label},
+                    meta={"valleyStation":(ctx.get('station') or {}).get('name'),
+                          "rowLabel":row_label,"colLabel":col_label})
+                _log_stage(args,"Objectives","F",i,j,"context_loaded",res)
+            else:
+                LOG.info(f"[dry-run] F[{i},{j}] context_loaded; then J⊙C → interpret"); continue
+            jv = pull_cell_with_context(api,"Truncated Decisions","J", i,j, include_ontologies=False)
+            cv = pull_cell_with_context(api,"Requirements","C", i,j, include_ontologies=False)
+            j_val = (((jv.get("matrix") or {}).get("cell") or {}).get("value")) or ""
+            c_val = (((cv.get("matrix") or {}).get("cell") or {}).get("value")) or ""
+            user = prompt_elementwise_F(valley, row_label, col_label, j_val, c_val)
+            obj, meta = sm.semantic_multiply_checked(user, j_val, c_val, temperature=0.7)
+            res = upsert_cell_stage(api,"Objectives","F",i,j,"element_wise",obj["text"],meta["modelId"],
+                meta["promptHash"], labels={"rowLabel":row_label,"colLabel":col_label},
+                meta={**meta,"terms_used":obj.get("terms_used",[]),
+                      "valleyStation":"Objectives","rowLabel":row_label,"colLabel":col_label})
+            _log_stage(args,"Objectives","F",i,j,"element_wise",res,meta)
+            user_it = prompt_interpret(valley,"Objectives",row_label,col_label,obj["text"])
+            obj_it, meta_it = sm.semantic_interpret(user_it, temperature=0.5)
+            res = upsert_cell_stage(api,"Objectives","F",i,j,"interpretation",obj_it["text"],meta_it["modelId"],
+                meta_it["promptHash"], labels={"rowLabel":row_label,"colLabel":col_label},
+                meta={**meta_it,"valleyStation":"Objectives","rowLabel":row_label,"colLabel":col_label})
+            _log_stage(args,"Objectives","F",i,j,"interpretation",res,meta_it)
+            res = upsert_cell_stage(api,"Objectives","F",i,j,"final_resolved",obj_it["text"],model,
+                f"final:F:{i}:{j}")
+            _log_stage(args,"Objectives","F",i,j,"final_resolved",res)
+            _ufo(args,"Objectives","F",i,j, obj, meta)
         except Exception as e:
-            logging.error(f"Failed to write InitialVector to Neo4j: {e}")
-            print(json.dumps({"InitialVector": iv}, indent=2, ensure_ascii=False))
-        return
-    
-    out_path = args.func(args)
-    print(out_path)
+            tb = traceback.format_exc(limit=1)
+            if not args.dry_run:
+                res = upsert_cell_stage(api,"Objectives","F",i,j,"error","",model,f"error:F:{i}:{j}",
+                    labels={"rowLabel":row_label,"colLabel":col_label} if 'row_label' in locals() else {},
+                    meta={"error":str(e),"trace":tb})
+                _log_stage(args,"Objectives","F",i,j,"error",res)
+            LOG.error(f"F[{i},{j}] failed: {e}")
+            if args.stop_on_error: raise
+
+def cmd_generate_D(args):
+    model, api = args.model, args.api_base
+    rows = args.rows or [0,1,2]; cols = args.cols or [0,1,2,3]
+    for (i,j) in _iter_cells(rows, cols):
+        try:
+            ctx = pull_cell_with_context(api,"Solution Objectives","D", i,j, include_ontologies=True)
+            row_label, col_label = _labels(ctx,i,j)
+            valley = valley_summary_from_graph(ctx.get("valley"), ctx.get("station"))
+            if not args.dry_run:
+                res = upsert_cell_stage(api,"Solution Objectives","D",i,j,"context_loaded","",model,
+                    f"context:D:{i}:{j}", labels={"rowLabel":row_label,"colLabel":col_label},
+                    meta={"valleyStation":(ctx.get('station') or {}).get('name'),
+                          "rowLabel":row_label,"colLabel":col_label})
+                _log_stage(args,"Solution Objectives","D",i,j,"context_loaded",res)
+            else:
+                LOG.info(f"[dry-run] D[{i},{j}] context_loaded; then A+F → interpret"); continue
+            a = pull_cell_with_context(api,"Problem Statement","A", i,j, include_ontologies=False)
+            f = pull_cell_with_context(api,"Objectives","F", i,j, include_ontologies=False)
+            a_val = (((a.get("matrix") or {}).get("cell") or {}).get("value")) or ""
+            f_val = (((f.get("matrix") or {}).get("cell") or {}).get("value")) or ""
+            user = prompt_add_D(valley, row_label, col_label, a_val, f_val)
+            obj, meta = sm.semantic_add(user, temperature=0.5)
+            res = upsert_cell_stage(api,"Solution Objectives","D",i,j,"sum",obj["text"],meta["modelId"],
+                meta["promptHash"], labels={"rowLabel":row_label,"colLabel":col_label},
+                meta={**meta,"terms_used":obj.get("terms_used",[]),
+                      "valleyStation":"Solution Objectives","rowLabel":row_label,"colLabel":col_label})
+            _log_stage(args,"Solution Objectives","D",i,j,"sum",res,meta)
+            user_it = prompt_interpret(valley,"Solution Objectives",row_label,col_label,obj["text"])
+            obj_it, meta_it = sm.semantic_interpret(user_it, temperature=0.5)
+            res = upsert_cell_stage(api,"Solution Objectives","D",i,j,"interpretation",obj_it["text"],meta_it["modelId"],
+                meta_it["promptHash"], labels={"rowLabel":row_label,"colLabel":col_label},
+                meta={**meta_it,"valleyStation":"Solution Objectives","rowLabel":row_label,"colLabel":col_label})
+            _log_stage(args,"Solution Objectives","D",i,j,"interpretation",res,meta_it)
+            res = upsert_cell_stage(api,"Solution Objectives","D",i,j,"final_resolved",obj_it["text"],model,
+                f"final:D:{i}:{j}")
+            _log_stage(args,"Solution Objectives","D",i,j,"final_resolved",res)
+            _ufo(args,"Solution Objectives","D",i,j, obj, meta)
+        except Exception as e:
+            tb = traceback.format_exc(limit=1)
+            if not args.dry_run:
+                res = upsert_cell_stage(api,"Solution Objectives","D",i,j,"error","",model,f"error:D:{i}:{j}",
+                    labels={"rowLabel":row_label,"colLabel":col_label} if 'row_label' in locals() else {},
+                    meta={"error":str(e),"trace":tb})
+                _log_stage(args,"Solution Objectives","D",i,j,"error",res)
+            LOG.error(f"D[{i},{j}] failed: {e}")
+            if args.stop_on_error: raise
+
+def cmd_verify(args):
+    rows = args.rows or [0,1,2]; cols = args.cols or [0,1,2,3]; problems=[]
+    for (i,j) in _iter_cells(rows, cols):
+        ctx = pull_cell_with_context(args.api_base, args.station, args.matrix, i, j, include_ontologies=False)
+        cell = (ctx.get("matrix") or {}).get("cell") or {}
+        if cell.get("stage") != "final_resolved" or not cell.get("value"):
+            problems.append({"i":i,"j":j,"stage":cell.get("stage")})
+    if args.log_json: LOG.info(json.dumps({"event":"verify","station":args.station,"matrix":args.matrix,"issues":problems}, ensure_ascii=False))
+    elif problems:
+        LOG.info(f"Issues in {args.station}/{args.matrix}:")
+        for p in problems: LOG.info(f"  [{p['i']},{p['j']}] missing_final (stage={p['stage']})")
+    else: LOG.info(f"OK: {args.station}/{args.matrix} selection complete.")
+
+# ---- argparse / main ---------------------------------------------------------
+def main() -> int:
+    if not os.getenv("OPENAI_API_KEY"):
+        LOG.error("OPENAI_API_KEY is required"); return 1
+
+    ap = argparse.ArgumentParser("chirality-cli (Phase-1 canonical)")
+    sub = ap.add_subparsers(dest="command", required=True)
+
+    p0 = sub.add_parser("push-axioms"); p0.add_argument("--spec", required=True); p0.add_argument("--api-base", required=True)
+    p0.add_argument("--model", default=os.getenv("OPENAI_MODEL","gpt-4o")); p0.add_argument("--dry-run", action="store_true")
+    p0.add_argument("--log-json", action="store_true")
+
+    pc = sub.add_parser("generate-c"); pc.add_argument("--api-base", required=True)
+    pc.add_argument("--model", default=os.getenv("OPENAI_MODEL","gpt-4o"))
+    pc.add_argument("--rows", type=lambda s: _int_list(s,[0,1,2])); pc.add_argument("--cols", type=lambda s: _int_list(s,[0,1,2,3]))
+    pc.add_argument("--ufo-propose", action="store_true"); pc.add_argument("--dry-run", action="store_true")
+    pc.add_argument("--stop-on-error", action="store_true"); pc.add_argument("--log-json", action="store_true")
+
+    pf = sub.add_parser("generate-f"); pf.add_argument("--api-base", required=True)
+    pf.add_argument("--model", default=os.getenv("OPENAI_MODEL","gpt-4o"))
+    pf.add_argument("--rows", type=lambda s: _int_list(s,[0,1,2])); pf.add_argument("--cols", type=lambda s: _int_list(s,[0,1,2,3]))
+    pf.add_argument("--ufo-propose", action="store_true"); pf.add_argument("--dry-run", action="store_true")
+    pf.add_argument("--stop-on-error", action="store_true"); pf.add_argument("--log-json", action="store_true")
+
+    pd = sub.add_parser("generate-d"); pd.add_argument("--api-base", required=True)
+    pd.add_argument("--model", default=os.getenv("OPENAI_MODEL","gpt-4o"))
+    pd.add_argument("--rows", type=lambda s: _int_list(s,[0,1,2])); pd.add_argument("--cols", type=lambda s: _int_list(s,[0,1,2,3]))
+    pd.add_argument("--ufo-propose", action="store_true"); pd.add_argument("--dry-run", action="store_true")
+    pd.add_argument("--stop-on-error", action="store_true"); pd.add_argument("--log-json", action="store_true")
+
+    pv = sub.add_parser("verify-stages"); pv.add_argument("--api-base", required=True)
+    pv.add_argument("--station", required=True, choices=[
+        "Problem Statement","Decisions","Truncated Decisions","Requirements","Objectives","Solution Objectives"])
+    pv.add_argument("--matrix", required=True, choices=["A","B","J","C","F","D"])
+    pv.add_argument("--rows", type=lambda s: _int_list(s,[0,1,2])); pv.add_argument("--cols", type=lambda s: _int_list(s,[0,1,2,3]))
+    pv.add_argument("--log-json", action="store_true")
+
+    args = ap.parse_args()
+    try:
+        if   args.command == "push-axioms":   cmd_push_axioms(args)
+        elif args.command == "generate-c":    cmd_generate_C(args)
+        elif args.command == "generate-f":    cmd_generate_F(args)
+        elif args.command == "generate-d":    cmd_generate_D(args)
+        elif args.command == "verify-stages": cmd_verify(args)
+        else:
+            LOG.error(f"Unknown command: {args.command}"); return 1
+        return 0
+    except KeyboardInterrupt:
+        LOG.warning("Cancelled"); return 130
+    except Exception as e:
+        LOG.error(f"Unexpected error: {e}")
+        LOG.debug("Traceback:", exc_info=True)
+        return 1
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
