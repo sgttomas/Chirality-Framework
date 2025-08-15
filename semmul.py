@@ -1,458 +1,160 @@
+#!/usr/bin/env python3
 """
-CF14 Semantic Integrity (module policy)
+CF14 Semantic Kernel (normative, structure-first)
 
-This module enforces the Chirality Framework's normative rules:
-- Order of operations: semantic multiplication first, then addition.
-- Interpretation: column-lens → row-lens → synthesis.
-- Fail-fast: reject empty terms; do not coerce arbitrary values to strings; no non-JSON fallbacks.
-- Traceability: populate `intermediate` with ordered steps; keep `raw_terms` for true input terms only.
-- Axioms: A and B must be consumed as canonical matrices, not recomputed.
+- Code is scaffolding; meaning is produced by the model in its context window.
+- Python builds strict frames for each primitive semantic operation and preserves full lineage.
+- Deterministic where appropriate (semantic addition is concatenation).
+- Uses OpenAI API with JSON-only outputs for robust chaining.
 
-Rationale: These constraints ensure every cell is a reliable "semantic anchor," consistent with CF14.
+Public, CLI-facing helpers (back-compat with chirality_cli.py):
+  ensure_api_key()                   -> exits if missing
+  semantic_multiply(a, b)           -> str
+  semantic_multiply_full(a, b, ...) -> SemanticResult
+  semantic_add(terms)               -> str
+  semantic_add_full(terms, ...)     -> SemanticResult
+  semantic_interpret(...)           -> dict[column_view,row_view,synthesis]
+  semantic_interpret_full(...)      -> SemanticResult
+  semantic_cross_product(seed,lens) -> str
+  semantic_cross_product_full(...)  -> SemanticResult
+  initial_vector(...)               -> dict (IV for bootstrap)
 """
 
-# semmul.py — semantic multiplication utilities (CSV + CLI + REPL)
 from __future__ import annotations
-from collections import OrderedDict
-from typing import List, Dict, Tuple, Optional, Any
+
+import os
+import sys
 import json
+import logging
 import time
-from openai import OpenAI
-import csv
-from pathlib import Path
-# filepath: /Users/ryan/Desktop/ai-env/chirality-semantic-framework/semmul.py
-import os, sys
-script_name = os.path.basename(sys.argv[0])
+import random
+from dataclasses import dataclass, field, asdict
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-class LRU:
-    def __init__(self, capacity: int = 512):
-        self.capacity = capacity
-        self._d: OrderedDict[str, dict] = OrderedDict()
-    def _mk(self, k: Tuple[str, str, str]) -> str:
-        # normalize for stable caching
-        t1, t2, ctx = k
-        def norm(s: str) -> str:
-            return " ".join(s.strip().split()).lower()
-        return json.dumps({"t1": norm(t1), "t2": norm(t2), "ctx": norm(ctx or "")}, sort_keys=True)
-    def get(self, k: Tuple[str, str, str]) -> Optional[dict]:
-        key = self._mk(k)
-        if key in self._d:
-            self._d.move_to_end(key)
-            return self._d[key]
-        return None
-    def set(self, k: Tuple[str, str, str], v: dict):
-        key = self._mk(k)
-        self._d[key] = v
-        self._d.move_to_end(key)
-        if len(self._d) > self.capacity:
-            self._d.popitem(last=False)
+# -----------------------------------------------------------------------------
+# Configuration
+# -----------------------------------------------------------------------------
 
-class SemanticCombiner:
-    """
-    Provider: OpenAI
-    Features implemented:
-      (a) System prompt anchoring semantic multiplication
-      (b) Batch API with strict JSON response
-      (c) LRU cache for pair results
-    """
-    SYSTEM_PROMPT = (
-        "You perform *semantic multiplication*.\n"
-        "Given two terms, output a SINGLE word or SHORT PHRASE (≤ 4 words) that represents their "
-        "INTERSECTION OF MEANING (not concatenation, not definition, not explanation).\n"
-        "Return STRICT JSON ONLY with shape:\n"
-        "{ \"results\": [ { \"term\": str, \"alternates\": [str, ...], \"confidence\": number } ... ] }\n"
-        "- Each item corresponds to the input pair at the same index.\n"
-        "- `term` must be ≤ 40 characters, ≤ 4 words.\n"
-        "- Provide up to 3 `alternates` (may be empty).\n"
-        "- `confidence` is a float in [0,1].\n"
-        "Do not include any extra text."
-    )
-
-    def __init__(self, api_key: str, model: Optional[str] = None, cache_capacity: int = 512):
-        self.client = OpenAI(api_key=api_key)
-        # Centralized default model selection (env-driven with fallback)
-        self.model = model or DEFAULT_TEXT_MODEL
-        self.cache = LRU(cache_capacity)
-
-    @staticmethod
-    def _schema() -> dict:
-        # Used as a hint inside the user message; the API enforces JSON via response_format.
-        return {
-            "type": "object",
-            "properties": {
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "term": {"type": "string", "maxLength": 40},
-                            "alternates": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
-                            "confidence": {"type": "number", "minimum": 0, "maximum": 1}
-                        },
-                        "required": ["term"]
-                    }
-                }
-            },
-            "required": ["results"]
-        }
-
-    def combine_terms(self, term1: str, term2: str, context: str = "") -> dict:
-        """
-        Returns: {"term": str, "alternates":[...], "confidence": float}
-        """
-        cached = self.cache.get((term1, term2, context))
-        if cached:
-            return cached
-
-        res = self.combine_batch([
-            {"t1": term1, "t2": term2, "context": context}
-        ])[0]
-        self.cache.set((term1, term2, context), res)
-        return res
-
-    def combine_batch(self, pairs: List[Dict[str, str]]) -> List[dict]:
-        """
-        pairs: [{"t1": "...", "t2": "...", "context": "..."}]
-        Returns list aligned with input order. Each item:
-          {"term": str, "alternates":[...], "confidence": float}
-        Uses cache where possible; only uncached pairs trigger an LLM call.
-        """
-        results: List[Optional[dict]] = [None] * len(pairs)
-        to_query: List[Tuple[int, Dict[str, str]]] = []
-
-        # Check cache first
-        for i, p in enumerate(pairs):
-            t1, t2, ctx = p.get("t1", ""), p.get("t2", ""), p.get("context", "")
-            cached = self.cache.get((t1, t2, ctx))
-            if cached:
-                results[i] = cached
-            else:
-                to_query.append((i, {"t1": t1, "t2": t2, "context": ctx}))
-
-        if to_query:
-            # Make one LLM call for all uncached pairs
-            llm_payload = {
-                "pairs": to_query and [q[1] for q in to_query] or [],
-                "output_schema": self._schema()
-            }
-            llm_json = self._call_llm_json(llm_payload)
-            # Validate & align
-            parsed = self._validate_and_clean(llm_json, expected=len(to_query))
-
-            # Fill results + cache
-            for (orig_idx, pair_dict), item in zip(to_query, parsed):
-                # Post constraints: ≤ 4 words for "term"
-                item["term"] = self._enforce_word_limit(item.get("term", ""), max_words=4)
-                item["alternates"] = [self._enforce_word_limit(a, max_words=4) for a in item.get("alternates", [])][:3]
-                # Default confidence if missing
-                if "confidence" not in item or not isinstance(item["confidence"], (int, float)):
-                    item["confidence"] = 0.5
-                results[orig_idx] = item
-                self.cache.set((pair_dict["t1"], pair_dict["t2"], pair_dict.get("context", "")), item)
-
-        # All indices should be filled now
-        return [r for r in results]  # type: ignore
-
-    def _call_llm_json(self, user_obj: dict, attempts: int = 2, backoff: float = 0.8) -> dict:
-        """
-        Calls OpenAI Chat Completions with JSON-only response.
-        Retries a couple times if JSON parsing fails.
-        """
-        last_err = None
-        for attempt in range(attempts):
-            try:
-                resp = self.client.chat.completions.create(
-                    model=self.model,
-                    temperature=0.2,
-                    messages=[
-                        {"role": "system", "content": self.SYSTEM_PROMPT},
-                        {"role": "user", "content": json.dumps(user_obj, ensure_ascii=False)}
-                    ],
-                    response_format={"type": "json_object"},
-                    max_tokens=256
-                )
-                # Pylance: message.content can be Optional[str]; guard and coerce to str
-                content: str = resp.choices[0].message.content or ""
-                if not content.strip():
-                    raise RuntimeError(
-                        "LLM returned empty content; ensure response_format=json_object and model supports it."
-                    )
-                return json.loads(content)
-            except Exception as e:
-                last_err = e
-                time.sleep(backoff * (attempt + 1))
-        raise RuntimeError(f"LLM JSON response failed: {last_err}")
-
-    @staticmethod
-    def _validate_and_clean(obj: dict, expected: int) -> List[dict]:
-        if not isinstance(obj, dict) or "results" not in obj or not isinstance(obj["results"], list):
-            raise ValueError("Invalid JSON: missing 'results' array.")
-        results = obj["results"]
-        if len(results) != expected:
-            # CF14 semantic integrity: fail on wrong count rather than pad with empty terms
-            raise ValueError(f"LLM returned {len(results)} results, expected {expected}. Cannot maintain semantic integrity with empty terms.")
-        cleaned = []
-        for i, item in enumerate(results):
-            term = (item.get("term") or "").strip()
-            alts = item.get("alternates") or []
-            conf = item.get("confidence", 0.5)
-            
-            # CF14 semantic integrity: reject empty terms
-            if not term:
-                raise ValueError(f"LLM returned empty term at index {i}. CF14 requires semantically meaningful content.")
-            
-            if not isinstance(alts, list):
-                alts = []
-            cleaned.append({"term": term, "alternates": alts, "confidence": conf})
-        return cleaned
-
-    @staticmethod
-    def _enforce_word_limit(s: str, max_words: int = 4) -> str:
-        words = [w for w in s.strip().split() if w]
-        return " ".join(words[:max_words])
-
-
-# CSV batch processing utility
-def process_csv(input_path: str, output_path: Optional[str] = None, model: Optional[str] = None, batch_size: int = 64) -> str:
-    """
-    Process a CSV of semantic multiplications using the batch API.
-
-    Input CSV requirements:
-      - Headers: 't1','t2' are required; optional 'context'.
-      - Each row will be semantically multiplied as (t1 * t2) with the given context.
-
-    Output CSV columns:
-      - t1, t2, context, term, alternates, confidence
-
-    Returns: the output CSV path written.
-
-    Notes:
-      - Uses OPENAI_API_KEY from environment (see ensure_api_key()).
-      - 'alternates' is written as a semicolon-separated list.
-    """
-    ensure_api_key()
-    in_path = Path(input_path).expanduser().resolve()
-    if not in_path.exists():
-        raise FileNotFoundError(f"Input CSV not found: {in_path}")
-
-    out_path = Path(output_path).expanduser().resolve() if output_path else in_path.with_suffix(".out.csv")
-
-    # Prepare model + client-backed combiner
-    selected_model = model or os.getenv("OPENAI_MODEL") or os.getenv("OPENAI_TEXT_MODEL") or "gpt-4.1-nano"
-    combiner = SemanticCombiner(api_key=os.getenv("OPENAI_API_KEY", ""), model=selected_model)
-
-    rows: List[Dict[str, str]] = []
-    with in_path.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        required = {"t1", "t2"}
-        missing = [c for c in required if c not in (reader.fieldnames or [])]
-        if missing:
-            raise ValueError(f"Input CSV missing required columns: {', '.join(missing)}. Found: {reader.fieldnames or '[]'}")
-        for r in reader:
-            rows.append({
-                "t1": (r.get("t1") or "").strip(),
-                "t2": (r.get("t2") or "").strip(),
-                "context": (r.get("context") or "").strip(),
-            })
-
-    # Batch in chunks to control token use
-    results: List[dict] = []
-    for i in range(0, len(rows), batch_size):
-        batch = rows[i:i+batch_size]
-        # map to expected input
-        pairs = [{"t1": b["t1"], "t2": b["t2"], "context": b.get("context","")} for b in batch]
-        outs = combiner.combine_batch(pairs)
-        results.extend(outs)
-
-    # Write output CSV
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["t1", "t2", "context", "term", "alternates", "confidence"])
-        for src, res in zip(rows, results):
-            alts = res.get("alternates") or []
-            conf = res.get("confidence")
-            writer.writerow([
-                src.get("t1",""),
-                src.get("t2",""),
-                src.get("context",""),
-                res.get("term",""),
-                "; ".join(a for a in alts if a),
-                f"{conf:.3f}" if isinstance(conf, (int, float)) else "",
-            ])
-
-    return str(out_path)
-
-
-# -------------------------
-# Example (single + batch)
-# -------------------------
-# combiner = SemanticCombiner(api_key="YOUR_OPENAI_KEY")
-# r1 = combiner.combine_terms("Values", "Necessary", "Normative × Determinacy")
-# rN = combiner.combine_batch([
-#     {"t1":"Values","t2":"Necessary","context":"Normative × Determinacy"},
-#     {"t1":"Actions","t2":"Contingent","context":"Normative × Determinacy"},
-#     {"t1":"Benchmarks","t2":"Fundamental","context":"Normative × Determinacy"},
-#     {"t1":"Benchmarks","t2":"Best Practices","context":"Normative × Determinacy"}
-# ])
-
-# Optional import: if python-dotenv isn't installed, fall back to a no-op and suppress Pylance warning
-try:
-    from dotenv import load_dotenv  # type: ignore[reportMissingImports]
-except ImportError:
-    def load_dotenv(*args, **kwargs):
-        return False
-load_dotenv()  # loads OPENAI_API_KEY from .env if available
-load_dotenv('.env.local')  # also load from .env.local if available
-
-# Centralized default text model and shared OpenAI client
-DEFAULT_TEXT_MODEL = os.getenv("OPENAI_TEXT_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4.1-nano"
-_client: Optional[OpenAI] = None
-
-def get_openai_client() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI()  # uses OPENAI_API_KEY from environment
-    return _client
-
-def ensure_api_key():
-    if not os.getenv("OPENAI_API_KEY"):
-        print("ERROR: OPENAI_API_KEY not set. Create a .env with OPENAI_API_KEY=...", file=sys.stderr)
-        sys.exit(1)
-
-def semantic_multiply(a: str, b: str) -> str:
-    """
-    Ask the model for the 'semantic multiplication' of two terms.
-    Supports quick single lookups for ad‑hoc use; for bulk use, prefer --csv.
-    """
-    client = get_openai_client()
-    model = DEFAULT_TEXT_MODEL
-    prompt = (
-        "Semantic multiplication (*): combine two terms into a single coherent concept.\n"
-        "Examples:\n"
-        "sufficient * reason = justification\n"
-        "analysis * judgment = informed decision\n"
-        "precision * durability = reliability\n"
-        "probability * consequence = risk\n\n"
-        f"Now compute: {a} * {b} ="
-    )
-
-    last_err = None
-    for attempt in range(2):
-        try:
-            resp = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-            )
-            content = resp.choices[0].message.content or ""
-            text = content.strip()
-            if "=" in text:
-                text = text.split("=", 1)[-1].strip()
-            return text
-        except Exception as e:
-            last_err = e
-            time.sleep(0.8 * (attempt + 1))
-    raise RuntimeError(f"semantic_multiply failed: {last_err}")
-
-def semantic_interpret(*, cell: str,
-                       col_label: str, col_meaning: str,
-                       row_label: str, row_meaning: str,
-                       station: Optional[str] = None) -> Dict[str, str]:
-    """
-    Interpret a semantic cell through column and row ontology perspectives.
-    
-    Contract per NORMATIVE CF14 v2.1.1:
-    1. First interpret through column ontology lens
-    2. Then interpret through row ontology lens  
-    3. Synthesize into final narrative integrating both perspectives
-    
-    Args:
-        cell: The semantic result to interpret
-        col_label: Column ontology label
-        col_meaning: Column ontology meaning/definition
-        row_label: Row ontology label  
-        row_meaning: Row ontology meaning/definition
-        station: Optional station context for interpretation
-        
-    Returns:
-        Dict with keys: "column_view", "row_view", "synthesis"
-    """
-    return _call_llm_for_interpretation(
-        cell=cell,
-        col_label=col_label, col_meaning=col_meaning,
-        row_label=row_label, row_meaning=row_meaning,
-        station=station
-    )
-
-# CF14 v2.1.1 Interpretation System
-SYSTEM_PROMPT_INTERPRET = (
-    "You are an interpretation kernel inside the CF14 Chirality Framework. "
-    "You must generate reliable knowledge. Follow the order of operations: "
-    "1) semantic multiplication, 2) semantic addition, then produce interpretations. "
-    "Return concise, plain-language outputs. Avoid fabricating facts."
+CF_VERSION = os.getenv("CF14_VERSION", "14.2.1.1")
+DEFAULT_TEXT_MODEL = (
+    os.getenv("CHIRALITY_MODEL")
+    or os.getenv("OPENAI_TEXT_MODEL")
+    or os.getenv("OPENAI_MODEL")
+    or "gpt-4o"   # Using best available model
 )
 
-USER_PROMPT_TEMPLATE = """\
-You are resolving meaning for a single matrix cell in CF14.
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s: %(message)s',
+    datefmt='%H:%M:%S'
+)
 
-Cell (post Step-1): {cell}
+# OpenAI client
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None
 
-Column lens:
-  - label: {col_label}
-  - meaning: {col_meaning}
+_client: Optional["OpenAI"] = None
 
-Row lens:
-  - label: {row_label}
-  - meaning: {row_meaning}
 
-Task:
-1) Column view: Interpret the cell through the column ontology lens (one concise paragraph).
-2) Row view: Interpret the cell through the row ontology lens (one concise paragraph).
-3) Synthesis: Integrate both perspectives into a single concise narrative that preserves both constraints.
-
-Constraints:
-- Be specific but concise (2–4 sentences per view, 3–6 sentences for synthesis).
-- Use only provided content; do not invent external facts.
-- The objective is generating reliable knowledge.
-
-{station_hint}
-
-Output a single JSON object with keys: "column_view", "row_view", "synthesis".
-"""
-
-def _station_hint(station: Optional[str]) -> str:
-    if not station:
-        return ""
-    return f"In this context, the current station is '{station}'. Adjust tone/aim accordingly."
-
-def _call_llm_for_interpretation(cell: str,
-                                 col_label: str, col_meaning: str,
-                                 row_label: str, row_meaning: str,
-                                 station: Optional[str]) -> Dict[str, str]:
-    """
-    Call LLM for semantic interpretation using structured output.
-    Returns a dict with keys: column_view, row_view, synthesis.
-    """
-    # CF14 semantic integrity: API key required for semantic interpretation
+def ensure_api_key():
+    """Hard enforcement: exit when API key missing to prevent meaningless join-only generation."""
     if not os.getenv("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY required for CF14 semantic interpretation. Cannot proceed without LLM access.")
+        logging.error("OPENAI_API_KEY not set. CF14 semantic generation requires a language model.")
+        raise SystemExit(1)
 
+
+def get_openai_client() -> "OpenAI":
+    """Lazy singleton client; requires ensure_api_key() first."""
+    global _client
+    if _client is None:
+        if OpenAI is None:
+            logging.error("OpenAI SDK not available. Install `openai` package.")
+            raise SystemExit(1)
+        _client = OpenAI()  # reads OPENAI_API_KEY
+    return _client
+
+
+# -----------------------------------------------------------------------------
+# Core types
+# -----------------------------------------------------------------------------
+
+class SemanticOperation(Enum):
+    MULTIPLY = "MULTIPLY"        # semantic multiplication (LLM)
+    ADD = "ADD"                  # semantic addition (deterministic concatenation)
+    INTERPRET = "INTERPRET"      # interpret via column lens, row lens, then synthesize (LLM)
+    CROSS_PRODUCT = "CROSS_PRODUCT"  # tensor-like expansion / lens-based expansion (LLM)
+
+
+@dataclass
+class OntologyContext:
+    row_label: Optional[str] = None
+    row_meaning: Optional[str] = None
+    col_label: Optional[str] = None
+    col_meaning: Optional[str] = None
+    station: Optional[str] = None
+    matrix: Optional[str] = None
+    # room for future: subject/domain/UFO if you choose to pass them here
+
+
+@dataclass
+class SemanticFrame:
+    operation: SemanticOperation
+    terms: List[str] = field(default_factory=list)
+    ontology: Optional[OntologyContext] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class SemanticResult:
+    resolved: str
+    inputs: Dict[str, Any]
+    ontology: Dict[str, Any]
+    intermediates: List[Dict[str, Any]]
+    operation: str
+    meta: Dict[str, Any] = field(default_factory=dict)
+
+
+# -----------------------------------------------------------------------------
+# Small utilities
+# -----------------------------------------------------------------------------
+
+def _norm(s: Optional[str]) -> str:
+    if not s:
+        return ""
+    return " ".join(str(s).strip().split())
+
+
+def _json(obj: Any) -> str:
+    try:
+        return json.dumps(obj, ensure_ascii=False)
+    except Exception:
+        return str(obj)
+
+
+def _llm_json(messages: List[Dict[str, str]], model: Optional[str] = None, 
+              max_retries: int = 3) -> Dict[str, Any]:
+    """
+    Call the OpenAI API with JSON-only output.
+    Returns parsed dict; if parsing fails, returns {"_raw": "..."}.
+    Includes retry logic for transient errors.
+    """
+    ensure_api_key()
     client = get_openai_client()
-    model = DEFAULT_TEXT_MODEL
+    model = model or DEFAULT_TEXT_MODEL
     
-    messages: Any = [
-        {"role": "system", "content": SYSTEM_PROMPT_INTERPRET},
-        {"role": "user", "content": USER_PROMPT_TEMPLATE.format(
-            cell=cell,
-            col_label=col_label, col_meaning=col_meaning or "(none provided)",
-            row_label=row_label, row_meaning=row_meaning or "(none provided)",
-            station_hint=_station_hint(station),
-        )}
-    ]
-
-    last_err = None
-    for attempt in range(2):
+    last_error = None
+    for attempt in range(max_retries):
         try:
+            # Add exponential backoff with jitter for retries
+            if attempt > 0:
+                wait_time = (2 ** attempt) + random.uniform(0, 1)
+                logging.debug(f"Retry {attempt + 1}/{max_retries} after {wait_time:.1f}s")
+                time.sleep(wait_time)
+            
             resp = client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -460,120 +162,469 @@ def _call_llm_for_interpretation(cell: str,
                 response_format={"type": "json_object"},
                 max_tokens=512
             )
-            content = resp.choices[0].message.content or ""
             
-            # Parse JSON response - CF14 requires structured interpretation
+            # Extract content from response
+            content = resp.choices[0].message.content
+            
+            if not content:
+                logging.warning("LLM returned empty content")
+                return {"_raw": ""}
+            
             try:
-                obj = json.loads(content)
-                column_view = obj.get("column_view", "").strip()
-                row_view = obj.get("row_view", "").strip()
-                synthesis = obj.get("synthesis", "").strip()
-                
-                # CF14 semantic integrity: all three interpretations must be present
-                if not column_view or not row_view or not synthesis:
-                    raise ValueError("CF14 requires complete interpretation: column_view, row_view, and synthesis must all be non-empty.")
-                
-                return {
-                    "column_view": column_view,
-                    "row_view": row_view,
-                    "synthesis": synthesis,
-                }
+                return json.loads(content)
             except json.JSONDecodeError as e:
-                # CF14 semantic integrity: no fallback to raw content
-                raise ValueError(f"LLM failed to return structured JSON interpretation required by CF14: {e}")
+                logging.warning(f"LLM returned non-JSON; stashing raw output under _raw: {e}")
+                return {"_raw": _norm(content)}
+                
         except Exception as e:
-            last_err = e
-            time.sleep(0.8 * (attempt + 1))
+            last_error = e
+            if hasattr(e, 'status_code'):
+                if e.status_code in [429, 500, 502, 503, 504]:
+                    logging.debug(f"Transient error {e.status_code}, will retry")
+                    continue
+            logging.warning(f"LLM call error: {e}")
     
-    # CF14 semantic integrity: fail rather than return empty interpretations
-    raise RuntimeError(f"Failed to generate CF14-compliant semantic interpretation after retries: {last_err}")
+    # All retries exhausted
+    raise RuntimeError(f"LLM call failed after {max_retries} attempts: {last_error}")
 
-    # --- Option B: Responses API (if you prefer) ---
-    # resp = client.responses.create(
-    #     model="gpt-4.1-nano",
-    #     input=prompt,
-    #     temperature=0.2,
-    # )
-    # return resp.output_text.strip()
+
+# -----------------------------------------------------------------------------
+# Prompts
+# -----------------------------------------------------------------------------
+
+SYSTEM_MULTIPLY = (
+    "You are the semantic multiplication kernel in the CF14 Chirality Framework.\n"
+    "Combine the two input terms into ONE concise phrase for generating reliable knowledge.\n"
+    "This is the semantic INTERSECTION of meaning, not concatenation.\n"
+    "No external facts. Output JSON with key: product."
+)
+
+SYSTEM_INTERPRET = (
+    "You are the interpretation kernel in the CF14 Chirality Framework.\n"
+    "Task: Interpret the provided cell through the COLUMN lens, then the ROW lens, then synthesize both.\n"
+    "Be specific, concise (2-4 sentences per view, 3-6 for synthesis).\n"
+    "No external facts. Output JSON with keys: column_view, row_view, synthesis."
+)
+
+SYSTEM_CROSS = (
+    "You are the semantic cross-product kernel in the CF14 Chirality Framework.\n"
+    "Expand the seed through the lens perspective into a higher-dimensional semantic tensor.\n"
+    "Create a hierarchy of meaning by exploring the seed through the lens.\n"
+    "No external facts. Output JSON with keys: expansion, items (list of expanded concepts), rationale."
+)
+
+
+# -----------------------------------------------------------------------------
+# Kernel
+# -----------------------------------------------------------------------------
+
+class SemanticKernel:
+    """
+    Pure dispatcher:
+      - MULTIPLY / INTERPRET / CROSS_PRODUCT go to the LLM with structured prompts.
+      - ADD is deterministic concatenation (no LLM).
+    """
+
+    def __init__(self, model: Optional[str] = None):
+        self.model = model or DEFAULT_TEXT_MODEL
+
+    def execute(self, frame: SemanticFrame) -> SemanticResult:
+        op = frame.operation
+        ontology_dict = asdict(frame.ontology) if frame.ontology else {}
+        intermediates: List[Dict[str, Any]] = []
+
+        if op == SemanticOperation.ADD:
+            # Deterministic concatenation (semantic '+')
+            terms = [_norm(t) for t in frame.terms if _norm(t)]
+            resolved = "; ".join(terms)
+            intermediates.append({
+                "phase": "add_concat",
+                "value": resolved,
+                "terms": terms
+            })
+            return SemanticResult(
+                resolved=resolved,
+                inputs={"terms": frame.terms},
+                ontology=ontology_dict,
+                intermediates=intermediates,
+                operation=op.value,
+                meta={"cf_version": CF_VERSION, "model": "deterministic"}
+            )
+
+        if op == SemanticOperation.MULTIPLY:
+            ensure_api_key()
+            a = _norm(frame.terms[0] if frame.terms else "")
+            b = _norm(frame.terms[1] if len(frame.terms) > 1 else "")
+            messages = [
+                {"role": "system", "content": SYSTEM_MULTIPLY},
+                {"role": "user", "content": _json({"a": a, "b": b, "ontology": ontology_dict})},
+            ]
+            obj = _llm_json(messages, model=self.model)
+            product = _norm(obj.get("product") or obj.get("_raw") or "")
+            intermediates.append({"phase": "llm_product", "value": product, "raw": obj})
+            return SemanticResult(
+                resolved=product,
+                inputs={"a": a, "b": b},
+                ontology=ontology_dict,
+                intermediates=intermediates,
+                operation=op.value,
+                meta={"cf_version": CF_VERSION, "model": self.model}
+            )
+
+        if op == SemanticOperation.INTERPRET:
+            ensure_api_key()
+            cell = _norm(frame.terms[0] if frame.terms else "")
+            
+            # Build payload with optional phase context
+            payload = {
+                "cell": cell,
+                "lenses": {
+                    "col": {"label": ontology_dict.get("col_label", ""), "meaning": ontology_dict.get("col_meaning", "")},
+                    "row": {"label": ontology_dict.get("row_label", ""), "meaning": ontology_dict.get("row_meaning", "")},
+                },
+                **({"station": ontology_dict.get("station")} if ontology_dict.get("station") else {})
+            }
+            
+            # Add phase context if provided
+            if "phases" in frame.metadata:
+                payload["context"] = frame.metadata["phases"]
+            
+            messages = [
+                {"role": "system", "content": SYSTEM_INTERPRET},
+                {"role": "user", "content": _json(payload)},
+            ]
+            obj = _llm_json(messages, model=self.model)
+
+            if "_raw" in obj and not any(k in obj for k in ("column_view", "row_view", "synthesis")):
+                # Non-JSON or unexpected schema → stash raw into synthesis
+                intermediates.append({"phase": "llm_interpret_raw", "value": obj["_raw"]})
+                resolved_synth = obj["_raw"]
+                out = {"column_view": "", "row_view": "", "synthesis": resolved_synth}
+            else:
+                col_view = _norm(obj.get("column_view"))
+                row_view = _norm(obj.get("row_view"))
+                resolved_synth = _norm(obj.get("synthesis"))
+                out = {"column_view": col_view, "row_view": row_view, "synthesis": resolved_synth}
+                intermediates.append({"phase": "llm_interpret", "value": out, "raw": obj})
+
+            return SemanticResult(
+                resolved=resolved_synth,
+                inputs={"cell": cell},
+                ontology=ontology_dict,
+                intermediates=intermediates,
+                operation=op.value,
+                meta={"cf_version": CF_VERSION, "model": self.model}
+            )
+
+        if op == SemanticOperation.CROSS_PRODUCT:
+            ensure_api_key()
+            seed = _norm(frame.terms[0] if frame.terms else "")
+            lens = _norm(frame.terms[1] if len(frame.terms) > 1 else "")
+            messages = [
+                {"role": "system", "content": SYSTEM_CROSS},
+                {"role": "user", "content": _json({"seed": seed, "lens": lens, "ontology": ontology_dict})},
+            ]
+            obj = _llm_json(messages, model=self.model)
+            expansion = _norm(obj.get("expansion") or obj.get("_raw") or "")
+            items = obj.get("items", [])
+            rationale = obj.get("rationale", "")
+            intermediates.append({
+                "phase": "llm_cross", 
+                "value": expansion, 
+                "items": items,
+                "rationale": rationale,
+                "raw": obj
+            })
+            return SemanticResult(
+                resolved=expansion,
+                inputs={"seed": seed, "lens": lens},
+                ontology=ontology_dict,
+                intermediates=intermediates,
+                operation=op.value,
+                meta={"cf_version": CF_VERSION, "model": self.model}
+            )
+
+        # Unknown op
+        raise ValueError(f"Unsupported operation: {op}")
+
+
+# Singleton kernel (simple accessor)
+_kernel: Optional[SemanticKernel] = None
+
+def get_kernel(model: Optional[str] = None) -> SemanticKernel:
+    global _kernel
+    if _kernel is None or (model and _kernel.model != model):
+        _kernel = SemanticKernel(model=model)
+    return _kernel
+
+
+# -----------------------------------------------------------------------------
+# Public, CLI-facing helpers (backward-compatible signatures)
+# -----------------------------------------------------------------------------
+
+def semantic_multiply(a: str, b: str,
+                      ontology: Optional[OntologyContext] = None,
+                      metadata: Optional[Dict[str, Any]] = None) -> str:
+    """Return ONLY the product string (legacy shape used by chirality_cli.py)."""
+    res = semantic_multiply_full(a, b, ontology=ontology, metadata=metadata)
+    return res.resolved
+
+
+def semantic_multiply_full(a: str, b: str,
+                           ontology: Optional[OntologyContext] = None,
+                           metadata: Optional[Dict[str, Any]] = None) -> SemanticResult:
+    kernel = get_kernel()
+    frame = SemanticFrame(
+        operation=SemanticOperation.MULTIPLY,
+        terms=[a, b],
+        ontology=ontology,
+        metadata=metadata or {}
+    )
+    return kernel.execute(frame)
+
+
+def semantic_add(terms: List[str], context: Optional[Dict[str, Any]] = None) -> str:
+    """
+    Deterministic semantic addition: concatenate terms into a coherent statement with '; '.
+    Returns ONLY the resolved statement – use semantic_add_full for complete lineage.
+    """
+    res = semantic_add_full(terms, None, context or {})
+    return res.resolved
+
+
+def semantic_add_full(terms: List[str],
+                      ontology: Optional[OntologyContext] = None,
+                      metadata: Optional[Dict[str, Any]] = None) -> SemanticResult:
+    kernel = get_kernel()
+    frame = SemanticFrame(
+        operation=SemanticOperation.ADD,
+        terms=terms,
+        ontology=ontology,
+        metadata=metadata or {}
+    )
+    return kernel.execute(frame)
+
+
+def semantic_interpret(*, cell: str,
+                       col_label: str, col_meaning: str,
+                       row_label: str, row_meaning: str,
+                       station: Optional[str] = None,
+                       phase0_join: Optional[str] = None,
+                       phase1_product: Optional[str] = None,
+                       phase1_sum: Optional[str] = None) -> Dict[str, str]:
+    """
+    Interpret semantic cell through column and row lenses.
+    Returns dict: {"column_view", "row_view", "synthesis"} for CLI compatibility.
+    
+    Optional phase parameters allow passing minimal context from prior operations.
+    """
+    kernel = get_kernel()
+    ontology = OntologyContext(
+        row_label=row_label, row_meaning=row_meaning,
+        col_label=col_label, col_meaning=col_meaning,
+        station=station
+    )
+    
+    # Build metadata with phase context if provided
+    meta = {}
+    if phase0_join or phase1_product or phase1_sum:
+        meta["phases"] = {
+            "phase0_join": phase0_join or "",
+            "phase1_product": phase1_product or "",
+            "phase1_sum": phase1_sum or ""
+        }
+    
+    frame = SemanticFrame(
+        operation=SemanticOperation.INTERPRET,
+        terms=[cell],
+        ontology=ontology,
+        metadata=meta
+    )
+    result = kernel.execute(frame)
+    
+    # Extract structured output from last intermediate
+    last = result.intermediates[-1] if result.intermediates else {}
+    payload = last.get("value", {}) if last.get("phase") in ("llm_interpret", "llm_interpret_raw") else {}
+    return {
+        "column_view": payload.get("column_view", "") if isinstance(payload, dict) else "",
+        "row_view": payload.get("row_view", "") if isinstance(payload, dict) else "",
+        "synthesis": result.resolved or (payload if isinstance(payload, str) else "")
+    }
+
+
+def semantic_interpret_full(cell: str,
+                            ontology: OntologyContext,
+                            metadata: Optional[Dict[str, Any]] = None) -> SemanticResult:
+    kernel = get_kernel()
+    frame = SemanticFrame(
+        operation=SemanticOperation.INTERPRET,
+        terms=[cell],
+        ontology=ontology,
+        metadata=metadata or {}
+    )
+    return kernel.execute(frame)
+
+
+def semantic_cross_product(seed: str, lens: str,
+                           ontology: Optional[OntologyContext] = None,
+                           metadata: Optional[Dict[str, Any]] = None) -> str:
+    res = semantic_cross_product_full(seed, lens, ontology=ontology, metadata=metadata)
+    return res.resolved
+
+
+def semantic_cross_product_full(seed: str, lens: str,
+                                ontology: Optional[OntologyContext] = None,
+                                metadata: Optional[Dict[str, Any]] = None) -> SemanticResult:
+    kernel = get_kernel()
+    frame = SemanticFrame(
+        operation=SemanticOperation.CROSS_PRODUCT,
+        terms=[seed, lens],
+        ontology=ontology,
+        metadata=metadata or {}
+    )
+    return kernel.execute(frame)
+
+
+# -----------------------------------------------------------------------------
+# Initial Vector Generation (Corrected Schema)
+# -----------------------------------------------------------------------------
+
+def initial_vector(
+    question: str,
+    station1: dict,              # {"id","label"}
+    rows_station1: list,         # [{"label","meaning"}, ...]
+    cols_station1: list,         # [{"label","meaning"}, ...]
+    matrix_station1: str = "A"
+) -> dict:
+    """
+    Generate Initial Vector from a question - bootstraps the semantic space.
+    
+    Returns the corrected schema:
+      {
+        "station": {"id","label"},
+        "matrix": "A",
+        "cell": {"i": 1, "j": 1},
+        "subject": "...",
+        "domain": "...",
+        "ufo": {"endurant","perdurant","quality","relator"},
+        "lenses": {"row":{"label","meaning"}, "col":{"label","meaning"}},
+        "principles": [...],
+        "notes": "..."
+      }
+    """
+    ensure_api_key()
+    
+    # Build prompt for IV generation
+    payload = {
+        "question": question.strip(),
+        "station": station1,
+        "matrix": matrix_station1,
+        "cell": {"i": 1, "j": 1},
+        "row_family": rows_station1[:3],  # First 3 rows
+        "col_family": cols_station1[:4],  # First 4 cols
+        "instructions": "Generate Initial Vector with exact schema"
+    }
+    
+    messages = [
+        {
+            "role": "system", 
+            "content": (
+                "You are the CF14 Initial Vector kernel. Generate the bootstrap configuration "
+                "for the Chirality Framework semantic operations.\n"
+                "Start at Station 1 (Problem Statement), Matrix A, Cell (1,1).\n"
+                "Choose appropriate row/col lenses from the provided families.\n"
+                "Extract subject and domain from the question.\n"
+                "Assign all four UFO categories.\n"
+                "Output JSON with keys: station, matrix, cell, subject, domain, ufo, lenses, principles, notes."
+            )
+        },
+        {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}
+    ]
+    
+    obj = _llm_json(messages, model=DEFAULT_TEXT_MODEL)
+    
+    # Helper to safely extract with defaults
+    def _get(d, k, default): 
+        v = d.get(k)
+        return v if isinstance(v, type(default)) else default
+    
+    # Build IV with guaranteed structure
+    iv = {
+        "station": _get(obj, "station", station1),
+        "matrix": _get(obj, "matrix", matrix_station1),
+        "cell": _get(obj, "cell", {"i": 1, "j": 1}),
+        "subject": _get(obj, "subject", "general knowledge work"),
+        "domain": _get(obj, "domain", "General"),
+        "ufo": _get(obj, "ufo", {
+            "endurant": "",
+            "perdurant": "",
+            "quality": "",
+            "relator": ""
+        }),
+        "lenses": _get(obj, "lenses", {
+            "row": rows_station1[0] if rows_station1 else {"label": "Normative", "meaning": ""},
+            "col": cols_station1[0] if cols_station1 else {"label": "Guiding", "meaning": ""}
+        }),
+        "principles": _get(obj, "principles", [
+            "Semantic multiplication before addition (order of operations)",
+            "Interpret through column lens, then row lens, then synthesize",
+            "Use only provided content - no external facts"
+        ]),
+        "notes": _get(obj, "notes", "Bootstrap configuration for CF14 semantic operations")
+    }
+    
+    return iv
+
+
+# -----------------------------------------------------------------------------
+# Simple CLI for local smoke tests
+# -----------------------------------------------------------------------------
 
 def main():
-    ensure_api_key()
-    args = sys.argv[1:]
-
-    # Usage:
-    #   python {script_name} termA termB
-    #   python {script_name} --csv input.csv [--out output.csv] [--model gpt-4.1-nano] [--batch 64]
-    #   python {script_name}       # starts REPL
-    if not args:
-        print("Semantic multiplication REPL (press Enter on an empty line to quit).")
-        while True:
-            try:
-                a = input("First term: ").strip()
-                if not a:
-                    break
-                b = input("Second term: ").strip()
-                if not b:
-                    break
-                res = semantic_multiply(a, b)
-                print(f"{a} * {b} = {res}\n")
-            except KeyboardInterrupt:
-                print("\nExiting.")
-                break
+    """Minimal CLI for testing semantic operations."""
+    if len(sys.argv) == 1:
+        print(f"Chirality Framework Semantic Kernel v{CF_VERSION}")
+        print("\nUsage:")
+        print("  python semmul.py multiply <term1> <term2>")
+        print("  python semmul.py add <term1> <term2> ...")
+        print("  python semmul.py interpret <cell> <col_label> <row_label> [station]")
+        print("  python semmul.py cross <seed> <lens>")
+        print("\nThis kernel implements ONLY the primitive semantic operations.")
+        print("All semantic work happens in the LLM context window.")
         return
 
-    # CSV mode
-    if args[0] == "--csv" or (len(args) == 1 and args[0].lower().endswith(".csv")):
-        # Normalize flags
-        input_csv = args[1] if args[0] == "--csv" and len(args) >= 2 else args[0]
-        output_csv = None
-        model = None
-        batch_size = 64
+    op = sys.argv[1].lower()
 
-        # Parse optional flags
-        i = 2 if args[0] == "--csv" else 1
-        while i < len(args):
-            if args[i] in ("--out", "-o") and i + 1 < len(args):
-                output_csv = args[i+1]
-                i += 2
-            elif args[i] == "--model" and i + 1 < len(args):
-                model = args[i+1]
-                i += 2
-            elif args[i] == "--batch" and i + 1 < len(args):
-                try:
-                    batch_size = max(1, int(args[i+1]))
-                except ValueError:
-                    print(f"WARNING: Invalid --batch value '{args[i+1]}', defaulting to 64.", file=sys.stderr)
-                    batch_size = 64
-                i += 2
-            else:
-                print(f"WARNING: Unrecognized argument '{args[i]}' ignored.", file=sys.stderr)
-                i += 1
+    if op == "multiply" and len(sys.argv) >= 4:
+        ensure_api_key()
+        result = semantic_multiply(sys.argv[2], sys.argv[3])
+        print(f"{sys.argv[2]} * {sys.argv[3]} = {result}")
 
-        try:
-            out_path = process_csv(input_csv, output_csv, model=model, batch_size=batch_size)
-            print(f"Wrote results to: {out_path}")
-        except Exception as e:
-            print(f"ERROR (CSV mode): {e}", file=sys.stderr)
-            sys.exit(2)
-        return
+    elif op == "add" and len(sys.argv) >= 3:
+        # No key required for ADD (deterministic)
+        result = semantic_add(sys.argv[2:])
+        print(f"Semantic sum: {result}")
 
-    # If two or more non-flag args provided, treat first two as terms
-    if len(args) >= 2 and not args[0].startswith("-") and not args[1].startswith("-"):
-        a = args[0]
-        b = args[1]
-        res = semantic_multiply(a, b)
-        print(f"{a} * {b} = {res}")
-        return
+    elif op == "interpret" and len(sys.argv) >= 5:
+        ensure_api_key()
+        out = semantic_interpret(
+            cell=sys.argv[2],
+            col_label=sys.argv[3],
+            col_meaning="",
+            row_label=sys.argv[4],
+            row_meaning="",
+            station=sys.argv[5] if len(sys.argv) > 5 else None
+        )
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        
+    elif op == "cross" and len(sys.argv) >= 4:
+        ensure_api_key()
+        result = semantic_cross_product(sys.argv[2], sys.argv[3])
+        print(f"Cross product: {result}")
 
-    # Fallback: show a brief help
-        print(f"""\
-Usage:
-    python {script_name} termA termB
-    python {script_name} --csv input.csv [--out output.csv] [--model gpt-4.1-nano] [--batch 64]
-    python {script_name}
-CSV input must include columns: t1,t2,[context]
-Results CSV will include: t1,t2,context,term,alternates,confidence
-""")
+    else:
+        print(f"Unknown operation or invalid arguments: {' '.join(sys.argv[1:])}")
+
 
 if __name__ == "__main__":
     main()

@@ -1335,18 +1335,27 @@ def generate_matrix_f_from_neo4j(args):
                 {"phase": "join_concat", "value": join_concat},
             ]
             
-            # Phase 1: Semantic multiplication J(i,j) * C(i,j) = F(i,j)
-            f1_semantic_result = None
+            # Phase 1: Semantic multiplication J(i,j) * C(i,j) and addition
+            f1_product = None
+            f1_sum_concat = None
             if semantic_multiply:
                 try:
                     # Direct semantic multiplication: J(i,j) * C(i,j)
-                    f1_semantic_result = semantic_multiply(j_term, c_term)
-                    logging.debug(f"    Semantic multiply: {j_term} * {c_term} = {f1_semantic_result}")
-                    intermediate.append({"phase": "semantic_multiply", "value": f1_semantic_result})
+                    f1_product = semantic_multiply(j_term, c_term)
+                    logging.debug(f"    Semantic multiply: {j_term} * {c_term} = {f1_product}")
+                    intermediate.append({"phase": "semantic_multiply", "value": f1_product})
+                    
+                    # Semantic addition (concatenation) - per CF14 order of operations
+                    if f1_product:
+                        # For F, we typically just use the product as the sum
+                        # But we can also concatenate if needed: product; j_term; c_term
+                        f1_sum_concat = f1_product  # Simple case for F
+                        intermediate.append({"phase": "f1_sum_concat", "value": f1_sum_concat})
                     
                 except Exception as e:
                     logging.warning(f"  F({i+1},{j+1}) semantic multiplication failed: {e}")
-                    f1_semantic_result = None
+                    f1_product = None
+                    f1_sum_concat = None
             
             # Build interpretation inputs (always present)
             col_label = C_COLS[j] if j < len(C_COLS) else f"col{j+1}"
@@ -1354,39 +1363,51 @@ def generate_matrix_f_from_neo4j(args):
             meanings = _resolve_ontology_meanings(col_label, row_label, pack)
 
             interpretation_inputs = {
-                "cell": f1_semantic_result or join_concat,
+                "cell": f1_sum_concat or f1_product or join_concat,
                 "col_label": col_label,
-                "col_meaning": meanings["col_meaning"],
+                "col_meaning": meanings.get("col_meaning", ""),
                 "row_label": row_label,
-                "row_meaning": meanings["row_meaning"],
+                "row_meaning": meanings.get("row_meaning", ""),
                 **({"station": "Objectives"} if include_station else {})
             }
             intermediate.append({"phase": "interpretation_inputs", "value": interpretation_inputs})
             
             # Phase 2: Interpretation (if enabled and inputs available)
             interpretation_result = None
-            if run_interpret and f1_semantic_result and semantic_interpret:
+            if run_interpret and (f1_sum_concat or f1_product) and semantic_interpret:
                 try:
+                    # Pass compact phase context to the kernel for minimal, structured prompts
                     interpretation_result = semantic_interpret(
-                        cell=f1_semantic_result,
+                        cell=f1_sum_concat or f1_product or join_concat,  # Best available semantic result
                         col_label=col_label,
-                        col_meaning=meanings["col_meaning"], 
+                        col_meaning=meanings.get("col_meaning", ""),  # Safe access with default
                         row_label=row_label,
-                        row_meaning=meanings["row_meaning"],
-                        station="Objectives" if include_station else None
+                        row_meaning=meanings.get("row_meaning", ""),   # Safe access with default
+                        station="Objectives" if include_station else None,
+                        phase0_join=join_concat,             # constructive join "J; C"
+                        phase1_product=f1_product,            # semantic multiply result
+                        phase1_sum=f1_sum_concat             # semantic addition result
                     )
                     logging.debug(f"    Step-2 interpretation: synthesis={interpretation_result.get('synthesis', 'N/A')[:50]}...")
                     intermediate.append({"phase": "interpretation", "value": interpretation_result})
                 except Exception as e:
                     logging.warning(f"  F({i+1},{j+1}) interpretation failed: {e}")
                     interpretation_result = None
+            else:
+                if run_interpret:
+                    logging.debug(f"  F({i+1},{j+1}) interpretation skipped (no semantic result)")
+                else:
+                    logging.debug(f"  F({i+1},{j+1}) interpretation skipped by flag")
             
-            # Final resolution: prefer interpretation → f1_semantic_result → join_concat
+            # Final resolution: prefer interpretation → f1_sum_concat → f1_product → join_concat
             if interpretation_result and interpretation_result.get("synthesis"):
                 resolved_value = interpretation_result["synthesis"]
                 resolution_source = "interpretation.synthesis"
-            elif f1_semantic_result:
-                resolved_value = f1_semantic_result
+            elif f1_sum_concat:
+                resolved_value = f1_sum_concat
+                resolution_source = "f1_sum_concat"
+            elif f1_product:
+                resolved_value = f1_product
                 resolution_source = "semantic_multiply"
             else:
                 resolved_value = join_concat
@@ -1583,6 +1604,99 @@ def generate_matrix_d_from_neo4j(args):
     
     return json_path
 
+def generate_initial_vector(args):
+    """Generate Initial Vector from a question to bootstrap semantic operations"""
+    
+    # Import the initial_vector function from semmul
+    try:
+        from semmul import initial_vector, ensure_api_key
+        ensure_api_key()
+    except ImportError as e:
+        logging.error(f"Failed to import initial_vector from semmul: {e}")
+        return None
+    
+    logging.info(f"Generating Initial Vector from question: {args.question[:100]}...")
+    
+    # Define Station 1 context
+    station1 = {"id": "problem_statement", "label": "Problem Statement"}
+    
+    # Define the ontological families (from CF14 axioms)
+    rows_station1 = [
+        {"label": "Normative", "meaning": "Standards, values, and principles that guide behavior"},
+        {"label": "Operative", "meaning": "Actions, processes, and implementation methods"},
+        {"label": "Evaluative", "meaning": "Assessment, judgment, and feedback mechanisms"}
+    ]
+    
+    cols_station1 = [
+        {"label": "Guiding", "meaning": "Direction-setting and strategic orientation"},
+        {"label": "Applying", "meaning": "Implementation and execution of plans"},
+        {"label": "Judging", "meaning": "Evaluation and decision-making"},
+        {"label": "Reviewing", "meaning": "Assessment and continuous improvement"}
+    ]
+    
+    # Generate the Initial Vector
+    try:
+        iv_result = initial_vector(
+            question=args.question,
+            station1=station1,
+            rows_station1=rows_station1,
+            cols_station1=cols_station1,
+            matrix_station1="A"
+        )
+        
+        logging.info(f"Initial Vector generated successfully:")
+        logging.info(f"  Subject: {iv_result.get('subject', 'N/A')}")
+        logging.info(f"  Domain: {iv_result.get('domain', 'N/A')}")
+        logging.info(f"  Matrix: {iv_result.get('matrix', 'N/A')}")
+        logging.info(f"  Cell: ({iv_result.get('cell', {}).get('i', 'N/A')}, {iv_result.get('cell', {}).get('j', 'N/A')})")
+        logging.info(f"  Row Lens: {iv_result.get('lenses', {}).get('row', {}).get('label', 'N/A')}")
+        logging.info(f"  Col Lens: {iv_result.get('lenses', {}).get('col', {}).get('label', 'N/A')}")
+        
+    except Exception as e:
+        logging.error(f"Failed to generate Initial Vector: {e}")
+        return None
+    
+    # Create Chirality document
+    doc = ChiralityDocument(version=CF14_VERSION, meta={
+        "source": "chirality_cli",
+        "mode": "initial-vector",
+        "question": args.question
+    })
+    
+    # Create a special component for the Initial Vector
+    comp = Component(
+        id="IV",
+        name="Initial Vector",
+        station="Bootstrap",
+        type="InitialVector",
+        shape={"format": "object"},
+        cells=[Cell(
+            resolved=json.dumps(iv_result, ensure_ascii=False),
+            raw_terms=[args.question],
+            intermediate=[],
+            operation="initial_vector",
+            notes="Bootstrap configuration for CF14 semantic operations"
+        )],
+        ontology={
+            "description": "Initial Vector for semantic operations",
+            "question": args.question,
+            "result": iv_result
+        }
+    )
+    
+    doc.components.append(comp)
+    
+    # Write to JSON file
+    json_path = write_json(doc, args.out)
+    logging.info(f"Initial Vector written to: {json_path}")
+    
+    # Optionally send to Neo4j
+    if getattr(args, 'send_to_neo4j', False):
+        logging.info("Sending Initial Vector to Neo4j...")
+        send_to_neo4j(doc, api_base=getattr(args, 'api_base', DEFAULT_API_BASE))
+    
+    return json_path
+
 def main():
     p = argparse.ArgumentParser(prog="chirality-cli", description="Tiny CLI: feed CSV lists/grids → Chirality JSON.")
     
@@ -1652,6 +1766,13 @@ def main():
     sd.add_argument("--include-station-context", action="store_true", default=False, help="If set, include station name in interpretation_inputs.")
     sd.set_defaults(func=generate_matrix_d_from_neo4j)
 
+    # Initial Vector generation
+    iv = sub.add_parser("initial-vector", help="Generate Initial Vector from a question to bootstrap semantic operations")
+    iv.add_argument("--question", required=True, help="The question or problem statement to analyze")
+    iv.add_argument("--out", required=True, help="Output JSON path for Initial Vector")
+    iv.add_argument("--send-to-neo4j", action="store_true", help="Also store IV in Neo4j")
+    iv.set_defaults(func=generate_initial_vector)
+    
     # CF14 v2.1.1 new components
     sp = sub.add_parser("extract-array-p", help="Extract Array P (Validity Parameters) from Validation matrix Z")
     sp.add_argument("--matrix-z-id", required=True, help="Component ID of Matrix Z in Neo4j")
