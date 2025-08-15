@@ -13,6 +13,17 @@ See README for operational playbook and troubleshooting.
 """
 import argparse, csv, json, requests, logging, os, re, sys
 from typing import List, Optional, Dict, Any
+
+# semmul boot/iv + guard
+try:
+    from semmul import ensure_api_key, initial_vector, semantic_interpret
+except Exception:  # keep CLI import-safe in editors
+    def ensure_api_key():
+        print("ERROR: semmul.ensure_api_key missing; install/align semmul.py", file=sys.stderr); raise SystemExit(1)
+    def initial_vector(*args, **kwargs):
+        print("ERROR: semmul.initial_vector missing; update semmul.py", file=sys.stderr); raise SystemExit(1)
+    def semantic_interpret(*args, **kwargs):
+        print("ERROR: semmul.semantic_interpret missing; update semmul.py", file=sys.stderr); raise SystemExit(1)
 from urllib.parse import urljoin
 from enum import Enum
 from datetime import datetime
@@ -281,6 +292,29 @@ def _pack_intermediates(entries: List[Any]) -> List[str]:
         else:
             packed.append(str(e))
     return packed
+
+# ---- PACK / INIT / IV HELPERS ------------------------------------------------
+def _load_pack(path: str) -> Dict[str, Any]:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def _first_or_default(seq: List[Dict[str, Any]], default: Dict[str, Any]) -> Dict[str, Any]:
+    return seq[0] if seq else default
+
+def _resolve_station1(pack: Dict[str, Any]) -> Dict[str, Any]:
+    stations = pack.get("stations") or []
+    s1 = _first_or_default(stations, {"id": "problem_statement", "label": "Problem Statement"})
+    return {"id": s1.get("id", "problem_statement"), "label": s1.get("label", "Problem Statement")}
+
+def _resolve_rows_cols_for_matrix(pack: Dict[str, Any], matrix_id: str) -> (List[Dict[str, Any]], List[Dict[str, Any]]):
+    matrices = {m["id"]: m for m in (pack.get("matrices") or []) if "id" in m}
+    m = matrices.get(matrix_id, {})
+    rows_ref = m.get("rows_ref"); cols_ref = m.get("cols_ref")
+    rows = (pack.get("row_ontologies") or {}).get(rows_ref, []) if rows_ref else []
+    cols = (pack.get("col_ontologies") or {}).get(cols_ref, []) if cols_ref else []
+    for x in rows: x.setdefault("meaning", x.get("meaning",""))
+    for x in cols: x.setdefault("meaning", x.get("meaning",""))
+    return rows, cols
 
 def create_semantic_matrix_c(matrix_a_elements: List[List[str]], matrix_b_elements: List[List[str]]) -> List[List[Cell]]:
     """
@@ -1707,6 +1741,19 @@ def main():
     
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    # Phase 1: canonical, model-agnostic initialization (boot)
+    p_init = sub.add_parser("semantic-init", help="Phase 1: initialize canonical domain-agnostic seed for the active model")
+    p_init.add_argument("--pack", required=True, help="Path to cf14.core.pack.json (or equivalent pack)")
+    p_init.add_argument("--matrix", default="A", help="Starting matrix id (default: A)")
+    p_init.add_argument("--dry-run", action="store_true", help="Print JSON only; do not write to Neo4j")
+
+    # Phase 2: instantiation (question → initial vector with first cell lenses)
+    p_iv = sub.add_parser("semantic-iv", help="Phase 2: instantiate initial vector from a question")
+    p_iv.add_argument("--pack", required=True, help="Path to cf14.core.pack.json")
+    p_iv.add_argument("--question", required=True, help="The user question or problem gist")
+    p_iv.add_argument("--matrix", default="A", help="Station-1 matrix id (default: A)")
+    p_iv.add_argument("--dry-run", action="store_true", help="Print JSON only; do not write to Neo4j")
+
     # matrix from a single grid CSV (top-left blank; header row = columns; first col = rows)
     mg = sub.add_parser("matrix-grid", help="Build a matrix from a single grid CSV with row/col headers.")
     mg.add_argument("--grid", required=True, help="CSV file: cell[0,0] blank; row 0 = column labels; col 0 = row labels.")
@@ -1748,6 +1795,8 @@ def main():
     sc.add_argument("--ontology-pack", type=str, default=None, help="Path to CF14 ontology pack JSON with labels/meanings.")
     sc.add_argument("--run-interpretations", action="store_true", default=False, help="Marks intent for downstream interpretation (no LLM call here).")
     sc.add_argument("--include-station-context", action="store_true", default=False, help="If set, include station name in interpretation_inputs.")
+    sc.add_argument("--iv-id", help="Neo4j id/uuid of InitialVector to guide this run")
+    sc.add_argument("--iv-json", help="Inline IV JSON string (overrides --iv-id).")
     sc.set_defaults(func=generate_matrix_c_semantic)
 
     sf = sub.add_parser("semantic-matrix-f", help="Generate Matrix F (join → sem_multiply → sem_add; optional interpret) (CF14 v2.1.1)")
@@ -1756,6 +1805,8 @@ def main():
     sf.add_argument("--ontology-pack", type=str, default=None, help="Path to CF14 ontology pack JSON with labels/meanings.")
     sf.add_argument("--run-interpretations", action="store_true", default=False, help="Marks intent for downstream interpretation (no LLM call here).")
     sf.add_argument("--include-station-context", action="store_true", default=False, help="If set, include station name in interpretation_inputs.")
+    sf.add_argument("--iv-id", help="Neo4j id/uuid of InitialVector to guide this run")
+    sf.add_argument("--iv-json", help="Inline IV JSON string (overrides --iv-id).")
     sf.set_defaults(func=generate_matrix_f_from_neo4j)
 
     sd = sub.add_parser("semantic-matrix-d", help="Generate Matrix D using A + F = D semantic addition (CF14 v2.1.1)")
@@ -1764,6 +1815,8 @@ def main():
     sd.add_argument("--ontology-pack", type=str, default=None, help="Path to CF14 ontology pack JSON with labels/meanings.")
     sd.add_argument("--run-interpretations", action="store_true", default=False, help="Marks intent for downstream interpretation (no LLM call here).")
     sd.add_argument("--include-station-context", action="store_true", default=False, help="If set, include station name in interpretation_inputs.")
+    sd.add_argument("--iv-id", help="Neo4j id/uuid of InitialVector to guide this run")
+    sd.add_argument("--iv-json", help="Inline IV JSON string (overrides --iv-id).")
     sd.set_defaults(func=generate_matrix_d_from_neo4j)
 
     # Initial Vector generation
@@ -1799,6 +1852,62 @@ def main():
     
     # Set up logging based on flags
     setup_logging(verbose=getattr(args, "verbose", False), quiet=getattr(args, "quiet", False))
+    
+    # ---- Phase 1: Initialization (canonical seed) ----
+    if args.cmd == "semantic-init":
+        ensure_api_key()
+        pack = _load_pack(args.pack)
+        station1 = _resolve_station1(pack)
+        rows, cols = _resolve_rows_cols_for_matrix(pack, args.matrix)
+        canon = {
+            "cf_version": os.getenv("CF14_VERSION", "14.2.1.1"),
+            "model": os.getenv("CHIRALITY_MODEL") or os.getenv("OPENAI_MODEL") or "gpt-4o",
+            "station_default": station1,
+            "matrix_default": args.matrix,
+            "principles": [
+                "Multiply then add; never skip.",
+                "Interpret column lens, then row lens, then synthesize.",
+                "Use only provided content."
+            ],
+            "row_family": [{"label": r.get("label",""), "meaning": r.get("meaning","")} for r in rows],
+            "col_family": [{"label": c.get("label",""), "meaning": c.get("meaning","")} for c in cols],
+        }
+        if args.dry_run:
+            print(json.dumps({"Canon": canon}, indent=2, ensure_ascii=False))
+            return
+        try:
+            from neo4j_admin import create_initial_canon
+            node_id = create_initial_canon(canon)
+            print(json.dumps({"neo4j_id": node_id, "Canon": canon}, indent=2, ensure_ascii=False))
+        except Exception as e:
+            logging.error(f"Failed to write Canon to Neo4j: {e}")
+            print(json.dumps({"Canon": canon}, indent=2, ensure_ascii=False))
+        return
+
+    # ---- Phase 2: Instantiation (question → IV for first cell) ----
+    if args.cmd == "semantic-iv":
+        ensure_api_key()
+        pack = _load_pack(args.pack)
+        station1 = _resolve_station1(pack)
+        rows, cols = _resolve_rows_cols_for_matrix(pack, args.matrix)
+        iv = initial_vector(
+            question=args.question,
+            station1=station1,
+            rows_station1=[{"label": r.get("label",""), "meaning": r.get("meaning","")} for r in rows],
+            cols_station1=[{"label": c.get("label",""), "meaning": c.get("meaning","")} for c in cols],
+            matrix_station1=args.matrix
+        )
+        if args.dry_run:
+            print(json.dumps({"InitialVector": iv}, indent=2, ensure_ascii=False))
+            return
+        try:
+            from neo4j_admin import create_initial_vector
+            iv_id = create_initial_vector(iv)
+            print(json.dumps({"neo4j_id": iv_id, "InitialVector": iv}, indent=2, ensure_ascii=False))
+        except Exception as e:
+            logging.error(f"Failed to write InitialVector to Neo4j: {e}")
+            print(json.dumps({"InitialVector": iv}, indent=2, ensure_ascii=False))
+        return
     
     out_path = args.func(args)
     print(out_path)
