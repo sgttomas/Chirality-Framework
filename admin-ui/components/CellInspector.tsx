@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import { Modal, Tabs, Timeline, Tag, Space, Button, Card, Descriptions, Alert, Tooltip, message } from 'antd';
+import { Modal, Tabs, Timeline, Tag, Space, Button, Card, Descriptions, Alert, Tooltip, message, Form, Input, Select, InputNumber } from 'antd';
 import { CopyOutlined, ReloadOutlined, ThunderboltOutlined, RocketOutlined } from '@ant-design/icons';
 import { CELL_INSPECTOR, PROPOSE_UFO } from '../lib/queries';
 
@@ -22,9 +22,30 @@ interface StageTrace {
   createdAt: string;
 }
 
+// Stage colors consistent with MatrixExplorer
+const STAGE_COLORS: Record<string, string> = {
+  axiom: '#52c41a',
+  axiomatic_truncation: '#52c41a',
+  context_loaded: '#1890ff',
+  'product:k=0': '#722ed1',
+  'product:k=1': '#722ed1',
+  'product:k=2': '#722ed1',
+  'product:k=3': '#722ed1',
+  sum: '#fa8c16',
+  element_wise: '#fa8c16',
+  interpretation: '#13c2c2',
+  final_resolved: '#52c41a',
+  error: '#f5222d',
+};
+
 const CellInspector: React.FC<CellInspectorProps> = ({ station, matrix, row, col, onClose }) => {
+  const [showUFOModal, setShowUFOModal] = useState(false);
+  const [ufoForm] = Form.useForm();
+  
   const { data, loading, refetch } = useQuery(CELL_INSPECTOR, {
     variables: { station, matrix, row, col },
+    fetchPolicy: 'network-only', // Always fetch fresh data
+    pollInterval: 0, // Disable polling, use manual refresh
   });
   
   const [proposeUFO] = useMutation(PROPOSE_UFO);
@@ -35,14 +56,15 @@ const CellInspector: React.FC<CellInspectorProps> = ({ station, matrix, row, col
   const matrixData = data?.matrix;
   const ontologies = data?.ontologies;
 
-  // Generate valley summary
+  // Generate valley summary with proper station bracketing
   const valleySummary = React.useMemo(() => {
-    if (!valleyData?.stations) return '';
-    const names = valleyData.stations.map((s: any, i: number) => 
-      i === stationData?.index ? `[${s.name}]` : s.name
-    );
+    const STATIONS = [
+      'Problem Statement', 'Decisions', 'Truncated Decisions', 
+      'Requirements', 'Objectives', 'Solution Objectives'
+    ];
+    const names = STATIONS.map(s => s === station ? `[${s}]` : s);
     return `Semantic Valley: ${names.join(' → ')}`;
-  }, [valleyData, stationData]);
+  }, [station]);
 
   // Parse stage history from traces
   const stageHistory = React.useMemo(() => {
@@ -127,7 +149,7 @@ const CellInspector: React.FC<CellInspectorProps> = ({ station, matrix, row, col
     }
   };
 
-  const handleProposeUFO = async () => {
+  const handleOpenUFOModal = () => {
     // Default UFO mappings from CLI
     const UFO_DEFAULTS: Record<string, any> = {
       'Requirements_C': { curie: 'UFO:Requirement', relation: 'CLOSE_MATCH', confidence: 0.75 },
@@ -141,24 +163,41 @@ const CellInspector: React.FC<CellInspectorProps> = ({ station, matrix, row, col
       return;
     }
 
+    // Prefill the form with default values and cell context
+    ufoForm.setFieldsValue({
+      subjectId: `cell:${station}:${matrix}:${row}:${col}`,
+      ufoCurie: config.curie,
+      relation: config.relation,
+      confidence: config.confidence,
+      note: `Proposed via admin UI for ${station}/${matrix}[${row},${col}]\n\nCell Value: ${cell?.value || '(empty)'}`,
+      evidenceKind: 'ADMIN_UI',
+      evidenceSource: 'Manual proposal from Cell Inspector',
+    });
+    
+    setShowUFOModal(true);
+  };
+
+  const handleSubmitUFO = async (values: any) => {
     try {
       await proposeUFO({
         variables: {
           input: {
-            subjectId: `cell:${station}:${matrix}:${row}:${col}`,
-            ufoCurie: config.curie,
-            relation: config.relation,
-            confidence: config.confidence,
+            subjectId: values.subjectId,
+            ufoCurie: values.ufoCurie,
+            relation: values.relation,
+            confidence: values.confidence,
             evidence: [{
-              kind: 'ADMIN_UI',
-              source: 'Manual proposal from Cell Inspector',
+              kind: values.evidenceKind,
+              source: values.evidenceSource,
               payload: { value: cell?.value },
             }],
-            note: `Proposed via admin UI for ${station}/${matrix}[${row},${col}]`,
+            note: values.note,
           },
         },
       });
-      message.success('UFO claim proposed');
+      message.success('UFO claim proposed successfully');
+      setShowUFOModal(false);
+      ufoForm.resetFields();
     } catch (error) {
       message.error('Failed to propose UFO claim');
     }
@@ -189,7 +228,7 @@ const CellInspector: React.FC<CellInspectorProps> = ({ station, matrix, row, col
         <Button key="rebuild" icon={<ThunderboltOutlined />} onClick={handleRebuildCell}>
           Rebuild Cell
         </Button>,
-        <Button key="ufo" icon={<RocketOutlined />} onClick={handleProposeUFO}>
+        <Button key="ufo" icon={<RocketOutlined />} onClick={handleOpenUFOModal}>
           Propose UFO
         </Button>,
         <Button key="close" onClick={onClose}>
@@ -211,12 +250,12 @@ const CellInspector: React.FC<CellInspectorProps> = ({ station, matrix, row, col
             {stageHistory.map((stage) => (
               <Timeline.Item 
                 key={stage.name}
-                color={stage.name === 'error' ? 'red' : stage.name === 'final_resolved' ? 'green' : 'blue'}
+                color={STAGE_COLORS[stage.name] || '#1890ff'}
               >
                 <Card size="small" style={{ marginBottom: 8 }}>
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Space>
-                      <Tag color={stage.name === 'error' ? 'red' : 'blue'}>{stage.name}</Tag>
+                      <Tag color={STAGE_COLORS[stage.name] || 'default'}>{stage.name}</Tag>
                       <Button size="small" onClick={() => handleRetryStage(stage.name)}>
                         Retry
                       </Button>
@@ -344,14 +383,149 @@ const CellInspector: React.FC<CellInspectorProps> = ({ station, matrix, row, col
           {cell?.anchors && cell.anchors.length > 0 && (
             <Card title="Anchors" size="small" style={{ marginTop: 16 }}>
               {cell.anchors.map((anchor: any) => (
-                <div key={anchor.id}>
-                  <Tag>{anchor.kind}</Tag>: {anchor.text}
-                </div>
+                <Card key={anchor.id} size="small" style={{ marginBottom: 8 }}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <Tag color="orange">{anchor.kind}</Tag>
+                      <Button 
+                        size="small" 
+                        type="link"
+                        onClick={() => copyToClipboard(anchor.text, 'Anchor text')}
+                        icon={<CopyOutlined />}
+                      >
+                        Copy
+                      </Button>
+                      <Button 
+                        size="small" 
+                        type="link"
+                        onClick={() => message.info('View in context feature coming soon')}
+                      >
+                        View in Context
+                      </Button>
+                    </Space>
+                    <div style={{ fontSize: 13, color: '#666' }}>
+                      {anchor.text}
+                    </div>
+                  </Space>
+                </Card>
               ))}
             </Card>
           )}
         </Tabs.TabPane>
       </Tabs>
+
+      {/* UFO Proposal Modal */}
+      <Modal
+        title="Propose UFO Claim"
+        open={showUFOModal}
+        onCancel={() => {
+          setShowUFOModal(false);
+          ufoForm.resetFields();
+        }}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={ufoForm}
+          layout="vertical"
+          onFinish={handleSubmitUFO}
+        >
+          <Form.Item
+            name="subjectId"
+            label="Subject ID"
+            rules={[{ required: true, message: 'Subject ID is required' }]}
+          >
+            <Input placeholder="cell:station:matrix:row:col" />
+          </Form.Item>
+
+          <Form.Item
+            name="ufoCurie"
+            label="UFO CURIE"
+            rules={[{ required: true, message: 'UFO CURIE is required' }]}
+          >
+            <Select placeholder="Select UFO entity">
+              <Select.Option value="UFO:Requirement">UFO:Requirement</Select.Option>
+              <Select.Option value="UFO:Objective">UFO:Objective</Select.Option>
+              <Select.Option value="UFO:Recommendation">UFO:Recommendation</Select.Option>
+              <Select.Option value="UFO:Constraint">UFO:Constraint</Select.Option>
+              <Select.Option value="UFO:Process">UFO:Process</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="relation"
+            label="Relation Type"
+            rules={[{ required: true, message: 'Relation type is required' }]}
+          >
+            <Select placeholder="Select relation type">
+              <Select.Option value="EXACT_MATCH">Exact Match</Select.Option>
+              <Select.Option value="CLOSE_MATCH">Close Match</Select.Option>
+              <Select.Option value="BROAD_MATCH">Broad Match</Select.Option>
+              <Select.Option value="NARROW_MATCH">Narrow Match</Select.Option>
+              <Select.Option value="RELATED_MATCH">Related Match</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="confidence"
+            label="Confidence"
+            rules={[{ required: true, message: 'Confidence is required' }]}
+          >
+            <InputNumber
+              min={0}
+              max={1}
+              step={0.05}
+              style={{ width: '100%' }}
+              placeholder="0.75"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="evidenceKind"
+            label="Evidence Kind"
+            rules={[{ required: true, message: 'Evidence kind is required' }]}
+          >
+            <Select placeholder="Select evidence kind">
+              <Select.Option value="ADMIN_UI">Admin UI</Select.Option>
+              <Select.Option value="AUTOMATED">Automated</Select.Option>
+              <Select.Option value="MANUAL_REVIEW">Manual Review</Select.Option>
+              <Select.Option value="EXPERT_JUDGMENT">Expert Judgment</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="evidenceSource"
+            label="Evidence Source"
+            rules={[{ required: true, message: 'Evidence source is required' }]}
+          >
+            <Input placeholder="Manual proposal from Cell Inspector" />
+          </Form.Item>
+
+          <Form.Item
+            name="note"
+            label="Note"
+          >
+            <Input.TextArea 
+              rows={4} 
+              placeholder="Additional notes about this UFO claim..."
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" icon={<RocketOutlined />}>
+                Submit UFO Claim
+              </Button>
+              <Button onClick={() => {
+                setShowUFOModal(false);
+                ufoForm.resetFields();
+              }}>
+                Cancel
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </Modal>
   );
 };

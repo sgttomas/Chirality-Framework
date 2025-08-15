@@ -1,10 +1,35 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Card, Form, Select, Button, Space, Switch, InputNumber, Alert, List, Tag, Row, Col } from 'antd';
-import { PlayCircleOutlined, StopOutlined, ClearOutlined } from '@ant-design/icons';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Card, Form, Select, Button, Space, Switch, InputNumber, Alert, List, Tag, Row, Col, Checkbox, Progress } from 'antd';
+import { PlayCircleOutlined, StopOutlined, ClearOutlined, FilterOutlined } from '@ant-design/icons';
 
 const { Option } = Select;
+
+// Stage colors consistent with MatrixExplorer and CellInspector
+const STAGE_COLORS: Record<string, string> = {
+  axiom: '#52c41a',
+  axiomatic_truncation: '#52c41a',
+  context_loaded: '#1890ff',
+  'product:k=0': '#722ed1',
+  'product:k=1': '#722ed1',
+  'product:k=2': '#722ed1',
+  'product:k=3': '#722ed1',
+  sum: '#fa8c16',
+  element_wise: '#fa8c16',
+  interpretation: '#13c2c2',
+  final_resolved: '#52c41a',
+  error: '#f5222d',
+};
+
+// Command presets for common workflows
+const COMMAND_PRESETS = {
+  'Test Single Cell': { rows: [0], cols: [0] },
+  'Test Row 0': { rows: [0], cols: [0, 1, 2, 3] },
+  'Test Requirements': { rows: [0, 1, 2], cols: [0, 1, 2, 3] },
+  'Single Column': { rows: [0, 1, 2], cols: [0] },
+  'Quick Test': { rows: [0, 1], cols: [0, 1] },
+};
 
 interface LogEntry {
   id: string;
@@ -27,6 +52,8 @@ const PipelineConsole: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logFilters, setLogFilters] = useState<string[]>(['stage_write', 'ufo_proposed', 'verify', 'job_error', 'job_complete']);
+  const [showFilters, setShowFilters] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -111,16 +138,30 @@ const PipelineConsole: React.FC = () => {
   };
 
   const getLogColor = (event: string, stage?: string) => {
-    if (event === 'stage_write') {
-      if (stage === 'error') return 'red';
-      if (stage === 'final_resolved') return 'green';
-      return 'blue';
+    if (event === 'stage_write' && stage) {
+      return STAGE_COLORS[stage] || '#1890ff';
     }
-    if (event === 'ufo_proposed') return 'purple';
-    if (event === 'verify') return 'orange';
-    if (event === 'job_error') return 'red';
+    if (event === 'ufo_proposed') return '#722ed1';
+    if (event === 'verify') return '#fa8c16';
+    if (event === 'job_error') return '#f5222d';
+    if (event === 'job_complete') return '#52c41a';
     return 'default';
   };
+
+  const applyPreset = (presetName: string) => {
+    const preset = COMMAND_PRESETS[presetName];
+    if (preset) {
+      form.setFieldsValue({
+        rows: preset.rows,
+        cols: preset.cols,
+      });
+    }
+  };
+
+  // Filtered logs based on selected filters
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => logFilters.includes(log.event));
+  }, [logs, logFilters]);
 
   const formatLogEntry = (log: LogEntry) => {
     if (log.event === 'stage_write') {
@@ -137,24 +178,33 @@ const PipelineConsole: React.FC = () => {
     return JSON.stringify(log);
   };
 
-  // Calculate stats from logs
+  // Calculate stats and progress from logs
   const stats = React.useMemo(() => {
     const stageWrites = logs.filter(l => l.event === 'stage_write');
     const errors = stageWrites.filter(l => l.stage === 'error');
     const deduped = stageWrites.filter(l => l.deduped);
+    const completed = stageWrites.filter(l => l.stage === 'final_resolved');
     const totalLatency = stageWrites.reduce((sum, l) => sum + (l.latencyMs || 0), 0);
     const avgLatency = stageWrites.length > 0 ? Math.round(totalLatency / stageWrites.length) : 0;
+    
+    // Calculate expected cells based on current form values
+    const formValues = form.getFieldsValue();
+    const expectedCells = (formValues.rows?.length || 0) * (formValues.cols?.length || 0);
+    const progressPercent = expectedCells > 0 ? Math.round((completed.length / expectedCells) * 100) : 0;
     
     return {
       total: stageWrites.length,
       errors: errors.length,
       deduped: deduped.length,
+      completed: completed.length,
+      expectedCells,
+      progressPercent,
       avgLatency,
       successRate: stageWrites.length > 0 
         ? Math.round(((stageWrites.length - errors.length) / stageWrites.length) * 100)
         : 0,
     };
-  }, [logs]);
+  }, [logs, form]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -200,6 +250,20 @@ const PipelineConsole: React.FC = () => {
                     </Form.Item>
                   ) : null
                 }
+              </Form.Item>
+
+              {/* Slice Presets */}
+              <Form.Item label="Quick Presets">
+                <Select 
+                  placeholder="Select a preset..."
+                  disabled={running}
+                  onChange={applyPreset}
+                  value={undefined}
+                >
+                  {Object.keys(COMMAND_PRESETS).map(preset => (
+                    <Option key={preset} value={preset}>{preset}</Option>
+                  ))}
+                </Select>
               </Form.Item>
 
               <Form.Item name="rows" label="Rows">
@@ -272,7 +336,18 @@ const PipelineConsole: React.FC = () => {
             {/* Stats */}
             <Card size="small" title="Statistics" style={{ marginTop: 16 }}>
               <Space direction="vertical" style={{ width: '100%' }}>
+                {running && stats.expectedCells > 0 && (
+                  <>
+                    <div>Progress: {stats.completed}/{stats.expectedCells} cells</div>
+                    <Progress 
+                      percent={stats.progressPercent} 
+                      size="small" 
+                      status={stats.errors > 0 ? 'exception' : 'active'}
+                    />
+                  </>
+                )}
                 <div>Total Writes: {stats.total}</div>
+                <div>Completed: <Tag color="green">{stats.completed}</Tag></div>
                 <div>Errors: <Tag color="red">{stats.errors}</Tag></div>
                 <div>Deduped: <Tag color="orange">{stats.deduped}</Tag></div>
                 <div>Success Rate: <Tag color="green">{stats.successRate}%</Tag></div>
@@ -290,30 +365,86 @@ const PipelineConsole: React.FC = () => {
                 <span>Log Stream</span>
                 {jobId && <Tag>Job: {jobId.substring(0, 8)}...</Tag>}
                 {running && <Tag color="green">LIVE</Tag>}
+                <Button 
+                  type="text" 
+                  size="small" 
+                  icon={<FilterOutlined />}
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  Filters ({logFilters.length})
+                </Button>
               </Space>
             }
-            bodyStyle={{ height: 600, overflow: 'auto', padding: 8 }}
+            extra={
+              <Space>
+                <Tag>Showing: {filteredLogs.length}/{logs.length}</Tag>
+              </Space>
+            }
           >
-            <List
-              size="small"
-              dataSource={logs}
-              renderItem={(log) => (
-                <List.Item key={log.id} style={{ padding: '4px 0' }}>
-                  <Space>
-                    <span style={{ fontSize: 11, color: '#666' }}>
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </span>
-                    <Tag color={getLogColor(log.event, log.stage)}>
-                      {log.event}
-                    </Tag>
-                    <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                      {formatLogEntry(log)}
-                    </span>
-                  </Space>
-                </List.Item>
-              )}
-            />
-            <div ref={logsEndRef} />
+            {/* Log Filters */}
+            {showFilters && (
+              <Card size="small" style={{ marginBottom: 8, background: '#fafafa' }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <span style={{ fontWeight: 500 }}>Filter Events:</span>
+                  <Checkbox.Group
+                    value={logFilters}
+                    onChange={setLogFilters}
+                    style={{ width: '100%' }}
+                  >
+                    <Row>
+                      <Col span={8}>
+                        <Checkbox value="stage_write">Stage Writes</Checkbox>
+                      </Col>
+                      <Col span={8}>
+                        <Checkbox value="ufo_proposed">UFO Proposals</Checkbox>
+                      </Col>
+                      <Col span={8}>
+                        <Checkbox value="verify">Verifications</Checkbox>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col span={8}>
+                        <Checkbox value="job_error">Job Errors</Checkbox>
+                      </Col>
+                      <Col span={8}>
+                        <Checkbox value="job_complete">Job Complete</Checkbox>
+                      </Col>
+                      <Col span={8}>
+                        <Checkbox value="debug">Debug Info</Checkbox>
+                      </Col>
+                    </Row>
+                  </Checkbox.Group>
+                </Space>
+              </Card>
+            )}
+
+            <div style={{ height: showFilters ? 520 : 600, overflow: 'auto', padding: 8 }}>
+              <List
+                size="small"
+                dataSource={filteredLogs}
+                renderItem={(log) => (
+                  <List.Item key={log.id} style={{ padding: '4px 0' }}>
+                    <Space>
+                      <span style={{ fontSize: 11, color: '#666' }}>
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                      <Tag color={getLogColor(log.event, log.stage)}>
+                        {log.event}
+                      </Tag>
+                      {log.event === 'stage_write' && log.stage && (
+                        <Tag color={STAGE_COLORS[log.stage] || 'default'} style={{ fontSize: 10 }}>
+                          {log.stage}
+                        </Tag>
+                      )}
+                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {formatLogEntry(log)}
+                      </span>
+                    </Space>
+                  </List.Item>
+                )}
+              />
+              <div ref={logsEndRef} />
+            </div>
           </Card>
         </Col>
       </Row>

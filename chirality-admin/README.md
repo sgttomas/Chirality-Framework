@@ -1,178 +1,113 @@
-# Chirality Admin — Phase 1 Workbench
+Here’s a rewritten README.md for chirality-admin that blends human-centered framing, technical clarity, and explicit polyrepo integration points — while directly referencing the four critical backend files so contributors can see how the admin UI talks to the backend.
 
-A clean, focused backend UI for managing **Phase 1** (structural canonization) of the Chirality Framework. This application maintains strict separation between structural choices and semantic operations.
+⸻
 
-## 🎯 Purpose
+Chirality Admin
 
-This workbench enables developers to:
-- **Boot canonical seeds**: Generate domain-agnostic structural configurations via CLI
-- **Review & approve**: Preview Canon JSON before persistence 
-- **Canonize to Neo4j**: Store approved structural configurations for Phase 2 use
-- **Maintain boundaries**: No human semantic injection—only structural choices and promotion
+Polyrepo Node: chirality-admin
+Role: Backend UI & orchestration interface for the Chirality Semantic Framework.
 
-## 🏗️ Architecture
+⸻
 
-```
-Phase 1 (Structure Only)          Phase 2 (Semantics in Context Window)
-┌─────────────────────┐          ┌─────────────────────┐
-│ chirality-admin     │          │ Chirality-chat      │
-│ (localhost:4000)    │          │ (localhost:3000)    │
-│                     │          │                     │
-│ • CLI Integration   │          │ • User Questions    │
-│ • Canon Review      │    ───▶  │ • IV Generation     │
-│ • Approval/Persist  │          │ • Cell-by-cell LLM │
-│ • Structural Only   │          │ • Semantic Memory   │
-└─────────────────────┘          └─────────────────────┘
-         │                                │
-         └─────────── Neo4j ─────────────┘
-              (Canonical Seeds)
-```
+🌱 Purpose & Context
 
-## 🚀 Quick Start
+The Chirality Framework is a meta-operating system for meaning — an ontology-preserving scaffold for high-level knowledge work.
+This Admin UI is the operational control center: it’s where you can push axioms, generate semantic matrices cell-by-cell, and inspect, iterate, and trace reasoning in real time.
 
-### Prerequisites
-- Node.js 20+
-- Python 3.8+ with your `chirality_cli.py` available
-- Neo4j database access
-- OpenAI API key (for CLI operations)
+The repo is one of several in the Chirality polyrepo:
+	•	chirality-semantic-framework → Python backend + Neo4j graph store
+	•	chirality-chat → Phase 2 instantiation for domain/problem context
+	•	chirality-admin (this repo) → Orchestration & inspection interface
 
-### Setup
+⸻
 
-1. **Environment Configuration**
-   ```bash
-   cp .env.local.example .env.local
-   # Edit .env.local with your paths and credentials
-   ```
+🧩 How This Fits the Polyrepo
 
-2. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+This admin interface directly drives the Phase 1 canonical build of the Chirality Framework using the backend’s CLI and GraphQL API.
 
-3. **Start Development Server**
-   ```bash
-   npm run dev  # Runs on http://localhost:4000
-   ```
+Key backend integration points:
+	•	chirality_prompts.py — Prompt construction logic for each semantic stage
+	•	chirality_graphql.py — GraphQL interface for pushing/pulling cells, stations, valleys
+	•	semmul_cf14.py — Semantic multiplier utilities (cell-by-cell ops)
+	•	chirality_cli.py — CLI pipeline that wraps all Phase 1 generation steps
 
-4. **Access Workbench**
-   - Visit: `http://localhost:4000/admin/phase1`
-   - Provide path to your CF14 pack file
-   - Run initialization to generate Canon
-   - Review and canonize to Neo4j
+The Admin UI calls the backend’s CLI commands (push-axioms, generate-c, generate-f, generate-d, verify-stages) via API routes like /api/orchestrate/run.
 
-## 📋 Core Features
+⸻
 
-### Canon Initialization
-- Calls your existing `chirality_cli.py semantic-init` command
-- Dry-run mode for safe preview
-- No duplication of kernel logic
+🖥️ What You Can Do Here
 
-### Review & Approval
-- JSON preview of generated Canon
-- Diff comparison capabilities
-- Manual approval before persistence
+From the Admin UI, you can:
+	•	Push Axioms — Load matrices A, B, and J from the NORMATIVE spec file
+	•	Generate Semantic Matrices — Cell-by-cell production of C, F, and D matrices
+	•	Inspect Cells — See row/column labels, semantic stage history, and context from the semantic valley
+	•	Trace Reasoning — View intermediate stages for each cell, not just final output
+	•	Monitor Pipelines — Real-time progress via the Pipeline Console
 
-### Canon Management
-- List stored Canons in Neo4j
-- Detail view for individual Canons
-- Metadata tracking (model, version, timestamp)
+⸻
 
-## 🔧 API Endpoints
+⚙️ Setup
 
-- `POST /api/phase1/init` - Run CLI semantic-init (dry-run)
-- `POST /api/phase1/canonize` - Persist Canon to Neo4j
-- `GET /api/phase1/list` - List stored Canons
-- `GET /api/phase1/get?id=<id>` - Get specific Canon
+1. Install Dependencies
 
-## 🛡️ Design Principles
+npm install
 
-### Strict Separation of Concerns
-- **Phase 1**: Structure, configuration, developer approval
-- **Phase 2**: Semantics, user questions, LLM context window work
+2. Environment Variables
 
-### No Semantic Injection
-- UI provides structural choices only
-- No human editing of semantic content
-- Canonical seed generation via CLI
+In admin-ui/.env.local:
 
-### CLI Delegation
-- Leverages existing Python kernel
-- No duplication of semantic logic
-- Consistent with existing workflows
+NEXT_PUBLIC_GRAPHQL_URL=http://localhost:8080/graphql  # Backend GraphQL endpoint
+OPENAI_API_KEY=sk-...                                   # Your OpenAI API key
+OPENAI_MODEL=gpt-4.1-nano                               # Or any supported model
+# ORCHESTRATOR_TOKEN=optional-secret
 
-## 🔗 Integration
+Make sure the backend (chirality-semantic-framework) is running and listening on the GraphQL endpoint above.
 
-### With Existing Stack
-- Uses your current `chirality_cli.py` commands
-- Stores Canons in same Neo4j instance
-- Compatible with Chirality-chat Phase 2 operations
+⸻
 
-### Data Flow
-1. Developer selects pack and matrix in UI
-2. System calls `chirality_cli.py semantic-init --dry-run`
-3. CLI returns candidate Canon JSON
-4. Developer reviews and approves
-5. System persists Canon to Neo4j with metadata
-6. Chirality-chat can read active Canon for Phase 2
+🚀 Running the Admin UI
 
-## 📊 Canon Schema
+npm run dev
 
-```typescript
-type Canon = {
-  cf_version: string;           // CF14 version
-  model: string;                // LLM model used
-  station_default: StationRef;  // Default station config
-  matrix_default: string;       // Default matrix (e.g., "A")
-  principles: string[];         // Core principles
-  row_family: Lens[];          // Row ontology family
-  col_family: Lens[];          // Column ontology family
-  createdAt?: string;          // Timestamp
-  id?: string;                 // Neo4j ID
-};
-```
+Visit: http://localhost:3001
 
-## 🚧 Future Enhancements
+⸻
 
-### Planned Features
-- **Active Canon Toggle**: Mark one Canon as currently active
-- **Version Comparison**: Diff between Canon versions
-- **Background Jobs**: Auto-regeneration on model/pack changes
-- **MCP Integration**: Expose operations for coding agents
+📡 Command Reference (CLI → UI)
 
-### Possible Extensions
-- Authentication (GitHub OAuth)
-- Canon validation pipeline
-- Export/import capabilities
-- Audit trails for canonization decisions
+CLI Command	Purpose	Triggered From
+push-axioms	Load A, B, J matrices from NORMATIVE spec	Pipeline Console
+generate-c	Build Requirements matrix C cell-by-cell	Pipeline Console
+generate-f	Build Objectives matrix F cell-by-cell	Pipeline Console
+generate-d	Build Solution Objectives matrix D cell-by-cell	Pipeline Console
+verify-stages	Check intermediate stage persistence & integrity	Status/Verification UI
 
-## 🤝 Development
 
-### File Structure
-```
-├── app/admin/phase1/          # Main workbench pages
-├── components/                # Reusable UI components
-├── lib/                       # Core logic (CLI, Neo4j, types)
-├── pages/api/phase1/          # API routes
-└── public/packs/              # Optional pack storage
-```
+⸻
 
-### Key Components
-- **CanonInitForm**: Pack selection and CLI execution
-- **CanonPreview**: JSON display with formatting
-- **DiffView**: Side-by-side comparison (future)
+🔍 Inspection Tools
+	•	Matrix Explorer — Grid view of any matrix with clickable cells
+	•	Cell Inspector — Full semantic lineage for a given cell
+	•	Pipeline Console — Start, stop, and monitor pipeline jobs
+	•	Status API — /api/orchestrate/status returns active job info
 
-### Adding Features
-1. Follow existing patterns in `lib/` and `components/`
-2. Maintain separation between structure and semantics
-3. Use defensive programming for CLI and database operations
-4. Test with your existing pack files
+⸻
 
-## 📄 License
+🗺️ Development Flow
+	1.	Start backend (chirality-semantic-framework) with Neo4j running.
+	2.	Start admin UI from this repo.
+	3.	Use Pipeline Console to:
+	•	Push axioms from the normative spec (NORMATIVE_Chirality_Framework_14.2.1.1.txt)
+	•	Generate semantic matrices
+	•	Verify results via inspection tools
+	4.	Iterate and refine prompts/backend logic as needed.
 
-MIT License - Same as parent Chirality Framework project.
+⸻
 
----
+📖 Learn More
+	•	Chirality Framework overview: See main README.md in chirality-semantic-framework
+	•	Polyrepo architecture: See docs/polyrepo-architecture.md (in progress)
+	•	Prompt templates: Inspect chirality_prompts.py in backend repo
+	•	GraphQL schema: Inspect chirality_graphql.py in backend repo
 
-**Ready to manage Phase 1 canonical seeds with confidence!** 🚀
-
-This workbench respects the fundamental boundary: structure lives in the developer's domain, semantics live in the LLM's context window.
+⸻

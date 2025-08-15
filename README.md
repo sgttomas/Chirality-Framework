@@ -35,6 +35,13 @@ This separation enables:
 - **⚡ CLI Automation**: Enhanced Python CLI with v2.1.1 features for batch operations and pipeline automation
 - **🔍 Array P/H Analysis**: Advanced validity parameters and consistency dialectic extraction
 
+### 📐 Two-Phase Framework Flow
+
+The Chirality Framework operates in two distinct phases:
+
+- **Phase 1 (Initialization)**: At system boot-up, the framework constructs a canonical, model-agnostic, and abstract version of the Chirality Framework. This phase is entirely independent of any specific problem or user context, and serves as the normative reference implementation for all subsequent instantiations.
+- **Phase 2 (Instantiation)**: When a concrete problem is presented, the canonical abstract framework is instantiated in the context of that specific problem. This involves semantic transformation of the framework’s components, one cell at a time, to reflect the meaning and requirements of the problem domain.
+
 ## 🏗️ Core Features
 
 ### CF14 v2.1.1 Normative Specification
@@ -67,6 +74,8 @@ This separation enables:
 - **OpenAI API** key with sufficient credits
 - **4GB RAM** minimum (8GB recommended for large matrices)
 - **Broadband connection** for Neo4j Aura and OpenAI API access
+
+⚠️ The framework requires a valid `OPENAI_API_KEY` for all semantic operations; if the key is missing, the process will exit rather than fallback to join-only.
 
 ### Environment Setup
 
@@ -151,6 +160,15 @@ This separation enables:
 
 ### CLI Operations
 
+#### Phase 1 / Phase 2 Commands
+```bash
+# Phase 1 – Canonical initialization (abstract form)
+python chirality_cli.py semantic-init --model gpt-5 --out cf14_abstract.json
+
+# Phase 2 – Context-specific instantiation
+python chirality_cli.py semantic-iv --problem-statement "..." --domain-pack ontology/domains/software_engineering/cf14.domain.software_eng.v1.0.json --out cf14_instance.json
+```
+
 #### CF14 v2.1.1 Enhanced Commands
 ```bash
 # Generate matrices with domain packs
@@ -224,6 +242,8 @@ python neo4j_admin.py delete-station --station Requirements
 │  "Semmul"  Ops │
 └─────────────────┘
 ```
+
+> **Phase 1 is now supported via an Admin Workbench UI (backend only) for developers to run and review the canonical abstract framework before instantiation. No semantics are provided by humans in Phase 1 — all operations follow the normative CF14 construction rules.**
 
 ### Key Architectural Patterns
 - **📁 Semantic Memory**: Neo4j stores instantiated knowledge with full provenance
