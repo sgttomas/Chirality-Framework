@@ -23,6 +23,13 @@ export const CELL_PREVIEW = gql`
           rowLabel
           colLabel
         }
+        traces {
+          phase
+          promptHash
+          modelId
+          latencyMs
+          createdAt
+        }
       }
     }
   }

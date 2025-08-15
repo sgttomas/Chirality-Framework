@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@apollo/client';
-import { Table, Select, Space, Tag, Button, Tooltip, Badge, Card, Row, Col } from 'antd';
-import { ReloadOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Table, Select, Space, Tag, Button, Tooltip, Card, Row, Col, message } from 'antd';
+import { ReloadOutlined, WarningOutlined, CheckCircleOutlined, ClockCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { useApolloClient } from '@apollo/client';
 import { CELL_PREVIEW } from '../lib/queries';
 import CellInspector from './CellInspector';
 
@@ -40,9 +40,12 @@ interface CellData {
   value: string;
   rowLabel: string;
   colLabel: string;
+  createdAt?: string;
+  modelId?: string;
 }
 
 const MatrixExplorer: React.FC = () => {
+  const client = useApolloClient();
   const [station, setStation] = useState('Requirements');
   const [matrix, setMatrix] = useState('C');
   const [rows, setRows] = useState([0, 1, 2]);
@@ -50,69 +53,123 @@ const MatrixExplorer: React.FC = () => {
   const [cellData, setCellData] = useState<Record<string, CellData>>({});
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [valleySummary, setValleySummary] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Generate valley summary with current station bracketed
-  const generateValleySummary = (stations: any[], currentIndex: number) => {
-    const names = stations.map((s, i) => 
-      i === currentIndex ? `[${s.name}]` : s.name
-    );
+  const generateValleySummary = (stationId: string) => {
+    const names = STATIONS.map(s => s.name);
+    const idx = STATIONS.findIndex(s => s.id === stationId);
+    if (idx >= 0) names[idx] = `[${names[idx]}]`;
     return `Semantic Valley: ${names.join(' → ')}`;
   };
 
   // Fetch all cells in the range
-  useEffect(() => {
-    const fetchCells = async () => {
-      const newCellData: Record<string, CellData> = {};
-      
-      for (const i of rows) {
-        for (const j of cols) {
+  const fetchCells = async () => {
+    setLoading(true);
+    try {
+      const results: Record<string, CellData> = {};
+      await Promise.all(
+        rows.flatMap(i => cols.map(async j => {
           try {
-            const { data } = await apolloClient.query({
+            const { data } = await client.query({
               query: CELL_PREVIEW,
               variables: { station, matrix, row: i, col: j },
               fetchPolicy: 'network-only',
             });
             
             const cell = data?.matrix?.cell;
-            if (cell) {
-              newCellData[`${i},${j}`] = {
-                row: i,
-                col: j,
-                stage: cell.stage || 'pending',
-                value: cell.value || '',
-                rowLabel: cell.labels?.rowLabel || `Row ${i}`,
-                colLabel: cell.labels?.colLabel || `Col ${j}`,
-              };
-            }
+            const matrixData = data?.matrix;
+            const rowLabels = matrixData?.rowLabels ?? [];
+            const colLabels = matrixData?.colLabels ?? [];
             
-            // Update valley summary from first successful query
-            if (data?.valley && Object.keys(newCellData).length === 1) {
-              const currentStation = STATIONS.findIndex(s => s.id === station);
-              setValleySummary(generateValleySummary(data.valley.stations || STATIONS, currentStation));
-            }
+            const rowLabel = cell?.labels?.rowLabel ?? rowLabels[i] ?? '(unlabeled)';
+            const colLabel = cell?.labels?.colLabel ?? colLabels[j] ?? '(unlabeled)';
+            const stage = cell?.stage ?? '(none)';
+            const value = cell?.value ?? '';
+            
+            // Extract trace metadata if available
+            const createdAt = cell?.traces?.[0]?.createdAt;
+            const modelId = cell?.traces?.[0]?.modelId;
+            
+            results[`${i},${j}`] = {
+              row: i,
+              col: j,
+              rowLabel: String(rowLabel),
+              colLabel: String(colLabel),
+              stage,
+              value,
+              createdAt,
+              modelId
+            };
           } catch (error) {
             console.error(`Failed to fetch cell [${i},${j}]:`, error);
           }
-        }
-      }
-      
-      setCellData(newCellData);
-    };
-
-    fetchCells();
-    
-    if (autoRefresh) {
-      const interval = setInterval(fetchCells, 5000);
-      return () => clearInterval(interval);
+        }))
+      );
+      setCellData(results);
+    } catch (e: any) {
+      console.error(e);
+      message.error(e?.message || 'Failed to load cells');
+    } finally {
+      setLoading(false);
     }
-  }, [station, matrix, rows, cols, autoRefresh]);
+  };
 
-  const getStageIcon = (stage: string) => {
-    if (stage === 'final_resolved') return <CheckCircleOutlined style={{ color: STAGE_COLORS[stage] }} />;
-    if (stage === 'error') return <WarningOutlined style={{ color: STAGE_COLORS[stage] }} />;
+  useEffect(() => { fetchCells(); }, [station, matrix, JSON.stringify(rows), JSON.stringify(cols)]);
+  
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(fetchCells, 3000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, station, matrix, JSON.stringify(rows), JSON.stringify(cols)]);
+
+  const getStageIcon = (stage?: string | null) => {
+    if (stage === 'final_resolved') return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+    if (stage === 'error') return <WarningOutlined style={{ color: '#ff4d4f' }} />;
     if (stage?.startsWith('product:')) return <ClockCircleOutlined style={{ color: '#722ed1' }} />;
-    return <ClockCircleOutlined style={{ color: STAGE_COLORS[stage] || '#666' }} />;
+    return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />;
+  };
+
+  const createStageTag = (stage: string, modelId?: string, createdAt?: string) => (
+    <Tooltip title={
+      <div>
+        <div>Stage: {stage}</div>
+        {modelId && <div>Model: {modelId}</div>}
+        {createdAt && <div>At: {createdAt}</div>}
+      </div>
+    }>
+      <Tag color={STAGE_COLORS[stage] || 'default'}>{stage}</Tag>
+    </Tooltip>
+  );
+
+  const handleRetry = async (row: number, col: number) => {
+    // Wire to orchestrator: POST /api/orchestrate/run
+    message.loading({ content: `Rebuilding ${station}/${matrix}[${row},${col}]…`, key: 'rebuild' });
+    setSelectedCell({ row, col });
+    
+    try {
+      const response = await fetch('/api/orchestrate/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: 'generate-c', // This would be dynamic based on matrix
+          station,
+          matrix,
+          row,
+          col
+        })
+      });
+      
+      if (response.ok) {
+        message.success({ content: 'Cell rebuild initiated', key: 'rebuild' });
+        // Refresh this specific cell after a delay
+        setTimeout(fetchCells, 1000);
+      } else {
+        message.error({ content: 'Failed to start rebuild', key: 'rebuild' });
+      }
+    } catch (error) {
+      message.error({ content: 'Network error during rebuild', key: 'rebuild' });
+    }
   };
 
   const columns = [
@@ -132,10 +189,10 @@ const MatrixExplorer: React.FC = () => {
       dataIndex: 'labels',
       key: 'labels',
       render: (_: any, record: CellData) => (
-        <Space direction="vertical" size="small">
-          <Tag color="blue">{record.rowLabel}</Tag>
+        <Space size="small">
+          <Tag color="blue">{record.rowLabel || '(unlabeled)'}</Tag>
           <span>×</span>
-          <Tag color="green">{record.colLabel}</Tag>
+          <Tag color="green">{record.colLabel || '(unlabeled)'}</Tag>
         </Space>
       ),
     },
@@ -144,10 +201,10 @@ const MatrixExplorer: React.FC = () => {
       dataIndex: 'stage',
       key: 'stage',
       width: 180,
-      render: (stage: string) => (
+      render: (_: any, record: CellData) => (
         <Space>
-          {getStageIcon(stage)}
-          <Tag color={STAGE_COLORS[stage] || 'default'}>{stage}</Tag>
+          {getStageIcon(record.stage)}
+          {createStageTag(record.stage, record.modelId, record.createdAt)}
         </Space>
       ),
     },
@@ -157,8 +214,8 @@ const MatrixExplorer: React.FC = () => {
       key: 'value',
       ellipsis: true,
       render: (value: string) => (
-        <Tooltip title={value}>
-          <span>{value ? value.substring(0, 100) + '...' : '(empty)'}</span>
+        <Tooltip title={value || '(empty)'}>
+          <span>{value ? `${value.slice(0, 100)}…` : '(empty)'}</span>
         </Tooltip>
       ),
     },
@@ -175,19 +232,27 @@ const MatrixExplorer: React.FC = () => {
           >
             Inspect
           </Button>
+          <Button 
+            type="link" 
+            size="small" 
+            icon={<ThunderboltOutlined />} 
+            onClick={() => handleRetry(record.row, record.col)}
+          >
+            Rebuild
+          </Button>
         </Space>
       ),
     },
   ];
 
-  const dataSource = Object.values(cellData);
+  const dataSource = useMemo(() => Object.values(cellData), [cellData]);
 
   return (
     <div style={{ padding: 24 }}>
       {/* Valley Summary Banner */}
       <Card style={{ marginBottom: 16, background: '#f0f2f5' }}>
         <div style={{ fontSize: 16, fontWeight: 500, textAlign: 'center' }}>
-          {valleySummary || 'Semantic Valley: Problem Statement → Requirements → Objectives → Solution Objectives'}
+          {generateValleySummary(station)}
         </div>
       </Card>
 
@@ -224,7 +289,7 @@ const MatrixExplorer: React.FC = () => {
             </Select>
           </Col>
 
-          <Col span={4}>
+          <Col span={5}>
             <Select
               mode="multiple"
               value={rows}
@@ -238,7 +303,7 @@ const MatrixExplorer: React.FC = () => {
             </Select>
           </Col>
 
-          <Col span={4}>
+          <Col span={5}>
             <Select
               mode="multiple"
               value={cols}
@@ -271,16 +336,19 @@ const MatrixExplorer: React.FC = () => {
           {Object.entries(STAGE_COLORS).map(([stage, color]) => (
             <Tag key={stage} color={color}>{stage}</Tag>
           ))}
+          <Tag color="#722ed1">product:k</Tag>
         </Space>
       </Card>
 
       {/* Matrix Grid */}
       <Table
+        loading={loading}
         dataSource={dataSource}
-        columns={columns}
+        columns={columns as any}
         rowKey={(record) => `${record.row},${record.col}`}
         pagination={false}
         size="middle"
+        scroll={{ y: 560 }}
       />
 
       {/* Cell Inspector Modal */}
