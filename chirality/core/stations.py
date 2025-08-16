@@ -11,7 +11,7 @@ from datetime import datetime
 
 from .types import Matrix, MatrixType, Cell, Station, StationType
 from .ids import generate_matrix_id, generate_cell_id
-from .ops import Resolver, semantic_multiply
+from .ops import Resolver, EchoResolver, op_multiply, op_interpret, op_elementwise, op_add
 from .validate import validate_matrix, validate_matrix_dimensions
 from .provenance import create_cell_provenance, ProvenanceTracker
 
@@ -150,8 +150,9 @@ class S2Runner(StationRunner):
             if not self._confirm_hitl("Proceed with semantic multiplication?"):
                 raise RuntimeError("S2 cancelled by user")
         
-        # Perform semantic multiplication
-        matrix_c = semantic_multiply(self.resolver, matrix_a, matrix_b, context)
+        # Perform semantic multiplication using new ops
+        thread_id = context.get("thread_id", "default")
+        matrix_c, operation_c = op_multiply(thread_id, matrix_a, matrix_b, self.resolver)
         
         # Track provenance
         self.provenance.track_operation(
@@ -210,11 +211,15 @@ class S3Runner(StationRunner):
         # Generate J (Judgment) - Interpret C cells for human understanding
         matrix_j = self._generate_judgment_matrix(matrix_c, thread_id, context)
         
-        # Generate F (Function) - Extract functional requirements
-        matrix_f = self._generate_function_matrix(matrix_c, thread_id, context)
+        # Generate F (Function) - Element-wise multiplication: F = J ⊙ C
+        matrix_f, operation_f = op_elementwise(thread_id, matrix_j, matrix_c, self.resolver)
         
-        # Generate D (Domain) - Map to domain concepts
-        matrix_d = self._generate_domain_matrix(matrix_c, thread_id, context)
+        # Generate D (Domain) - Addition: D = A + F (if A available)
+        if "A" in inputs:
+            matrix_d, operation_d = op_add(thread_id, inputs["A"], matrix_f, self.resolver)
+        else:
+            # Fallback: create simplified domain matrix
+            matrix_d = self._generate_domain_matrix(matrix_c, thread_id, context)
         
         # Track provenance
         self.provenance.track_operation(
@@ -242,43 +247,9 @@ class S3Runner(StationRunner):
         return result
     
     def _generate_judgment_matrix(self, matrix_c: Matrix, thread_id: str, context: Dict[str, Any]) -> Matrix:
-        """Generate judgment matrix from C."""
-        matrix_id = generate_matrix_id("J", thread_id, 0)
-        cells = []
-        
-        for c_cell in matrix_c.cells:
-            # Interpret cell for human understanding
-            result = self.resolver.resolve(
-                "interpret",
-                {
-                    "text": c_cell.content.get("text", ""),
-                    "row_label": f"Row_{c_cell.row}",
-                    "col_label": f"Col_{c_cell.col}"
-                },
-                context
-            )
-            
-            cell_content = {
-                "text": result["text"],
-                "interpretation": "judgment",
-                "provenance": create_cell_provenance("interpret", [c_cell.id])
-            }
-            
-            cell_id = generate_cell_id(matrix_id, c_cell.row, c_cell.col, cell_content)
-            cells.append(Cell(
-                id=cell_id,
-                row=c_cell.row,
-                col=c_cell.col,
-                content=cell_content
-            ))
-        
-        return Matrix(
-            id=matrix_id,
-            type=MatrixType.J,
-            cells=cells,
-            dimensions=matrix_c.dimensions,
-            metadata={"source": matrix_c.id, "operation": "interpret"}
-        )
+        """Generate judgment matrix from C using new ops."""
+        matrix_j, _ = op_interpret(thread_id, matrix_c, self.resolver)
+        return matrix_j
     
     def _generate_function_matrix(self, matrix_c: Matrix, thread_id: str, context: Dict[str, Any]) -> Matrix:
         """Generate function matrix from C."""

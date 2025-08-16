@@ -1,0 +1,54 @@
+{
+  "id": "matrix_C_c137f3cc843f",
+  "type": "C",
+  "cells": [
+    {
+      "id": "cell_f92343665c17",
+      "row": 0,
+      "col": 0,
+      "content": {
+        "text": "*:A[0,:]B[:,0]"
+      },
+      "modality": "unknown",
+      "provenance": {}
+    },
+    {
+      "id": "cell_446726823efd",
+      "row": 0,
+      "col": 1,
+      "content": {
+        "text": "*:A[0,:]B[:,1]"
+      },
+      "modality": "unknown",
+      "provenance": {}
+    },
+    {
+      "id": "cell_28a7f3c405e3",
+      "row": 1,
+      "col": 0,
+      "content": {
+        "text": "*:A[1,:]B[:,0]"
+      },
+      "modality": "unknown",
+      "provenance": {}
+    },
+    {
+      "id": "cell_5ed667a6334a",
+      "row": 1,
+      "col": 1,
+      "content": {
+        "text": "*:A[1,:]B[:,1]"
+      },
+      "modality": "unknown",
+      "provenance": {}
+    }
+  ],
+  "dimensions": [
+    2,
+    2
+  ],
+  "metadata": {
+    "station": "requirements",
+    "timestamp": "2025-08-16T23:12:31.715636"
+  }
+}
