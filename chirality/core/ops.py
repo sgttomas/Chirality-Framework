@@ -255,12 +255,10 @@ def _op_record(kind: Literal["*", "+", "×", "interpret", "⊙"],
 
 def op_multiply(thread: str, A: Matrix, B: Matrix, resolver: Resolver) -> Tuple[Matrix, Operation]:
     """Semantic multiplication: C = A * B."""
-    from .validate import validate_matrix_dimensions
+    from .validate import ensure_dims
     
     # Validate dimensions
-    errors = validate_matrix_dimensions(A, B, "multiply")
-    if errors:
-        raise ValueError(f"Cannot multiply matrices: {errors}")
+    ensure_dims(A, B, "*")
     
     sys, usr = _prompt_multiply(A, B)
     context = {"station": "requirements", "thread": thread, "rag_chunks": {}}
@@ -284,12 +282,10 @@ def op_interpret(thread: str, B: Matrix, resolver: Resolver) -> Tuple[Matrix, Op
 
 def op_elementwise(thread: str, J: Matrix, C: Matrix, resolver: Resolver) -> Tuple[Matrix, Operation]:
     """Element-wise multiplication: F = J ⊙ C."""
-    from .validate import validate_matrix_dimensions
+    from .validate import ensure_dims
     
     # Validate same dimensions
-    errors = validate_matrix_dimensions(J, C, "add")  # Same validation as add
-    if errors:
-        raise ValueError(f"Cannot perform element-wise operation: {errors}")
+    ensure_dims(J, C, "⊙")
     
     sys, usr = _prompt_elementwise(J, C)
     context = {"station": "objectives", "thread": thread, "rag_chunks": {}}
@@ -302,12 +298,10 @@ def op_elementwise(thread: str, J: Matrix, C: Matrix, resolver: Resolver) -> Tup
 
 def op_add(thread: str, A: Matrix, F: Matrix, resolver: Resolver) -> Tuple[Matrix, Operation]:
     """Semantic addition: D = A + F."""
-    from .validate import validate_matrix_dimensions
+    from .validate import ensure_dims
     
     # Validate same dimensions
-    errors = validate_matrix_dimensions(A, F, "add")
-    if errors:
-        raise ValueError(f"Cannot add matrices: {errors}")
+    ensure_dims(A, F, "+")
     
     sys, usr = _prompt_add(A, F)
     context = {"station": "objectives", "thread": thread, "rag_chunks": {}}

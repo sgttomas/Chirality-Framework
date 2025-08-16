@@ -1,55 +1,36 @@
 {
-  "id": "matrix_B_demo",
-  "type": "B",
-  "dimensions": [2, 2],
+  "id": "cf14:demo:B:v1",
+  "name": "B",
+  "station": "problem",
+  "shape": [2, 2],
   "cells": [
     {
-      "id": "cell_b00",
+      "id": "cf14:demo:B:v1:0:0:data_pipeline",
       "row": 0,
       "col": 0,
-      "content": {
-        "text": "Data Processing Pipeline",
-        "description": "ETL and transformation capabilities"
-      },
-      "modality": "concept",
-      "provenance": {}
+      "value": "Data Processing Pipeline"
     },
     {
-      "id": "cell_b01",
+      "id": "cf14:demo:B:v1:0:1:api_gateway",
       "row": 0,
       "col": 1,
-      "content": {
-        "text": "API Gateway",
-        "description": "Service interface and routing"
-      },
-      "modality": "concept",
-      "provenance": {}
+      "value": "API Gateway"
     },
     {
-      "id": "cell_b10",
+      "id": "cf14:demo:B:v1:1:0:ml_model",
       "row": 1,
       "col": 0,
-      "content": {
-        "text": "Machine Learning Model",
-        "description": "Predictive analytics engine"
-      },
-      "modality": "process",
-      "provenance": {}
+      "value": "Machine Learning Model"
     },
     {
-      "id": "cell_b11",
+      "id": "cf14:demo:B:v1:1:1:monitoring",
       "row": 1,
       "col": 1,
-      "content": {
-        "text": "Monitoring Dashboard",
-        "description": "Real-time system observability"
-      },
-      "modality": "process",
-      "provenance": {}
+      "value": "Monitoring Dashboard"
     }
   ],
+  "hash": "b1c2d3e4",
   "metadata": {
-    "source": "test_fixture",
-    "created": "2024-01-01T00:00:00Z"
+    "source": "test_fixture"
   }
 }

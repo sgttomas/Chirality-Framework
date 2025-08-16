@@ -8,6 +8,53 @@ from typing import List, Dict, Any, Optional
 from .types import Cell, Matrix, MatrixType, Modality
 
 
+class CF14ValidationError(ValueError):
+    """Raised when CF14 validation rules are violated."""
+    pass
+
+
+def ensure_dims(A: Matrix, B: Matrix, op: str) -> None:
+    """
+    Ensure matrix dimensions are compatible for operation.
+    
+    Args:
+        A: First matrix
+        B: Second matrix 
+        op: Operation type
+    
+    Raises:
+        CF14ValidationError: If dimensions incompatible
+    """
+    if op == "*":
+        if A.shape[1] != B.shape[0]:
+            raise CF14ValidationError(
+                f"Matrix multiplication requires A.cols == B.rows, got {A.shape} × {B.shape}"
+            )
+    elif op in ["+", "⊙"]:
+        if A.shape != B.shape:
+            raise CF14ValidationError(
+                f"Operation {op} requires same dimensions, got {A.shape} vs {B.shape}"
+            )
+
+
+def ensure_same_rows_cols(A: Matrix, B: Matrix, op: str) -> None:
+    """
+    Ensure matrices have same dimensions.
+    
+    Args:
+        A: First matrix
+        B: Second matrix
+        op: Operation type
+    
+    Raises:
+        CF14ValidationError: If dimensions don't match
+    """
+    if A.shape != B.shape:
+        raise CF14ValidationError(
+            f"Operation {op} requires identical dimensions, got {A.shape} vs {B.shape}"
+        )
+
+
 def validate_cell(cell: Cell) -> List[str]:
     """
     Validate a cell structure.

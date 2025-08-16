@@ -1,7 +1,9 @@
-# Core dependencies
-openai>=1.0.0
+# Core dependencies  
 neo4j>=5.0.0
 python-dotenv>=1.0.0
+
+# Optional dependencies
+# openai>=1.0.0  # Only needed for OpenAIResolver
 
 # Development dependencies (optional)
 # pytest>=7.0.0

@@ -1,55 +1,36 @@
 {
-  "id": "matrix_A_demo",
-  "type": "A",
-  "dimensions": [2, 2],
+  "id": "cf14:demo:A:v1",
+  "name": "A",
+  "station": "problem",
+  "shape": [2, 2],
   "cells": [
     {
-      "id": "cell_a00",
+      "id": "cf14:demo:A:v1:0:0:user_reqs",
       "row": 0,
       "col": 0,
-      "content": {
-        "text": "User Requirements",
-        "description": "Core user needs and expectations"
-      },
-      "modality": "axiom",
-      "provenance": {}
+      "value": "User Requirements"
     },
     {
-      "id": "cell_a01",
+      "id": "cf14:demo:A:v1:0:1:sys_constraints",
       "row": 0,
       "col": 1,
-      "content": {
-        "text": "System Constraints",
-        "description": "Technical and business limitations"
-      },
-      "modality": "axiom",
-      "provenance": {}
+      "value": "System Constraints"
     },
     {
-      "id": "cell_a10",
+      "id": "cf14:demo:A:v1:1:0:perf_goals",
       "row": 1,
       "col": 0,
-      "content": {
-        "text": "Performance Goals",
-        "description": "Speed and efficiency targets"
-      },
-      "modality": "theory",
-      "provenance": {}
+      "value": "Performance Goals"
     },
     {
-      "id": "cell_a11",
+      "id": "cf14:demo:A:v1:1:1:quality_std",
       "row": 1,
       "col": 1,
-      "content": {
-        "text": "Quality Standards",
-        "description": "Reliability and maintainability requirements"
-      },
-      "modality": "theory",
-      "provenance": {}
+      "value": "Quality Standards"
     }
   ],
+  "hash": "a1b2c3d4",
   "metadata": {
-    "source": "test_fixture",
-    "created": "2024-01-01T00:00:00Z"
+    "source": "test_fixture"
   }
 }
