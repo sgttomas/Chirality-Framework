@@ -1,0 +1,332 @@
+# Chirality Framework GraphQL Schema (v0.2)
+# Goal: read-first migration for chat UI, normalized cells for matrices, explicit labels
+
+scalar JSON
+
+"CF14 station pipeline"
+enum Station {
+  PROBLEM_STATEMENT
+  REQUIREMENTS
+  OBJECTIVES
+  VERIFICATION
+  VALIDATION
+  EVALUATION
+  ASSESSMENT
+  IMPLEMENTATION
+  REFLECTION
+  RESOLUTION
+}
+
+"Component kind"
+enum ComponentKind {
+  ARRAY
+  MATRIX
+  TENSOR
+}
+
+"UFO alignment (renamed RELATOR to avoid 'RELATION')"
+enum UFOType {
+  ENDURANT
+  PERDURANT
+  QUALITY
+  MODE
+  RELATOR
+}
+
+"Semantic operation tags for auditability"
+enum OperationType {
+  MULTIPLY
+  ADD
+  CROSS_PRODUCT
+  ELEMENT_WISE
+  TRUNCATION
+  EXTRACTION
+  # Helpful for CF14 interpretation trace
+  INTERPRET_COLUMN
+  INTERPRET_ROW
+  SYNTHESIZE
+}
+
+"""
+A semantic cell (normalized node) with coordinates.
+Use (component)-[:HAS_CELL]->(Cell {row, col}) to represent a matrix.
+"""
+type Cell @node(labels: ["Cell"]) {
+  id: ID!
+  row: Int!
+  col: Int!
+
+  # Semantic integrity fields
+  resolved: String!            # final narrative/content
+  rawTerms: [String!]!         # original input terms
+  intermediate: [String!]!     # ordered trace (multiply -> add -> interpret)
+  operation: OperationType!    # op that produced this version
+
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+A semantic component (matrix/array/tensor).
+For matrices we expose row/col labels directly (keeps the UI simple & avoids transpose bugs).
+"""
+type Component @node(labels: ["Component"]) {
+  id: ID!
+  kind: ComponentKind!
+  name: String
+  station: Station
+
+  # For matrices (3x4 etc.)
+  shape: [Int!]!               # e.g., [rows, cols]
+  rowLabels: [String!]!        # required for MATRIX
+  colLabels: [String!]!        # required for MATRIX
+
+  # Domain & ontology
+  ontology: JSON!              # e.g., framework version, domain, ontology_id
+  ufoType: UFOType
+
+  # Cells (normalized)
+  cells: [Cell!]!
+    @relationship(type: "HAS_CELL", direction: OUT)
+
+  # Derivation links & document containment
+  derivedFrom: [Component!]!
+    @relationship(type: "DERIVED_FROM", direction: OUT)
+  derivedInto: [Component!]!
+    @relationship(type: "DERIVED_FROM", direction: IN)
+  document: ChiralityDocument
+    @relationship(type: "CONTAINS", direction: IN)
+
+  # Audit
+  version: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"Optional container for grouping related components (a generation run, topic, etc.)"
+type ChiralityDocument @node(labels: ["Document"]) {
+  id: ID!
+  version: String!
+  topic: String!
+  meta: JSON!
+
+  containedComponents: [Component!]!
+    @relationship(type: "CONTAINS", direction: OUT)
+
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"Lightweight chat types (optional for v0.2; keep minimal)"
+enum MessageRole { USER ASSISTANT SYSTEM }
+
+type ChatSession @node(labels: ["ChatSession"]) {
+  id: ID!
+  name: String
+  messages: [ChatMessage!]!
+    @relationship(type: "IN_SESSION", direction: IN)
+  meta: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ChatMessage @node(labels: ["ChatMessage"]) {
+  id: ID!
+  content: String!
+  role: MessageRole!
+  session: ChatSession!
+    @relationship(type: "IN_SESSION", direction: OUT)
+  references: [Component!]!
+    @relationship(type: "REFERENCES", direction: OUT)
+  meta: JSON
+  createdAt: DateTime!
+}
+
+# ---------- Inputs ----------
+
+input Pagination {
+  skip: Int = 0
+  take: Int = 50
+}
+
+input ComponentFilter {
+  id: ID
+  ids: [ID!]
+  kind: ComponentKind
+  station: Station
+  name: String
+  nameContains: String
+  ufoType: UFOType
+  createdAfter: DateTime
+  createdBefore: DateTime
+}
+
+enum ComponentSortField { CREATED_AT UPDATED_AT NAME STATION }
+
+input ComponentSort {
+  field: ComponentSortField!
+  direction: SortDirection!
+}
+
+input CellInput {
+  row: Int!
+  col: Int!
+  resolved: String!
+  rawTerms: [String!]!
+  intermediate: [String!]!
+  operation: OperationType!
+  notes: String
+}
+
+input ComponentInput {
+  id: ID!
+  kind: ComponentKind!
+  name: String
+  station: Station
+  shape: [Int!]!
+  rowLabels: [String!]!  # for MATRIX
+  colLabels: [String!]!  # for MATRIX
+  ontology: JSON!
+  ufoType: UFOType
+  version: String!
+  # normalized cells
+  cells: [CellInput!]
+}
+
+input DocumentInput {
+  id: ID
+  version: String!
+  topic: String!
+  meta: JSON!
+}
+
+input ChatSessionInput { name: String, meta: JSON }
+input ChatMessageInput {
+  sessionId: ID!
+  content: String!
+  role: MessageRole!
+  referencedComponentIds: [ID!]
+  meta: JSON
+}
+
+
+# ---------- Queries ----------
+
+type Query {
+  # V1 Compatibility - simplified top-level queries
+  valley: JSON
+  station(id: String!): JSON
+  matrix(id: String!, station: String!): JSON
+  ontologies: JSON
+  pullCell(station: String!, matrix: String!, row: Int!, col: Int!, includeOntologies: Boolean): PullCellResult!
+  
+  components(
+    filter: ComponentFilter
+    sort: ComponentSort
+    pagination: Pagination
+  ): [Component!]!
+
+  component(id: ID!): Component
+
+  # Station navigation
+  componentsByStation(station: Station!): [Component!]!
+  latestComponentByStation(station: Station!): Component
+    @cypher(statement: """
+      MATCH (c:Component {station: $station})
+      RETURN c ORDER BY c.createdAt DESC LIMIT 1
+    """, columnName: "c")
+
+  # Matrix helpers (use normalized cells; order by row/col)
+  matrixCell(componentId: ID!, row: Int!, col: Int!): Cell
+    @cypher(statement: """
+      MATCH (c:Component {id: $componentId})-[:HAS_CELL]->(cell:Cell {row:$row, col:$col})
+      RETURN cell
+    """, columnName: "cell")
+  matrixRow(componentId: ID!, row: Int!): [Cell!]
+    @cypher(statement: """
+      MATCH (c:Component {id: $componentId})-[:HAS_CELL]->(cell:Cell {row:$row})
+      RETURN cell ORDER BY cell.col ASC
+    """, columnName: "cell")
+  matrixColumn(componentId: ID!, col: Int!): [Cell!]
+    @cypher(statement: """
+      MATCH (c:Component {id: $componentId})-[:HAS_CELL]->(cell:Cell {col:$col})
+      RETURN cell ORDER BY cell.row ASC
+    """, columnName: "cell")
+
+  # Documents
+  documents(pagination: Pagination): [ChiralityDocument!]!
+  document(id: ID!): ChiralityDocument
+
+  # Chat
+  chatSessions(pagination: Pagination): [ChatSession!]!
+  chatSession(id: ID!): ChatSession
+  chatMessages(sessionId: ID!, pagination: Pagination): [ChatMessage!]!
+}
+
+# ---------- V1 Compatibility Layer ----------
+input CellStageInput {
+  station: String!
+  matrix: String!
+  row: Int!
+  col: Int!
+  stage: String!
+  value: String!         # JSON as string
+  model_id: String
+  prompt_hash: String
+  labels: JSON
+  meta: JSON
+}
+
+type UpsertResult { 
+  ok: Boolean!
+  id: ID!
+  version: Int!
+  contentHash: String!
+  deduped: Boolean!
+}
+
+input PullCellContext {
+  matrix: JSON
+  ontologies: [JSON!]
+}
+
+type PullCellResult {
+  valley: JSON!
+  station: JSON!
+  matrix: JSON!
+  cell: JSON
+  ontologies: JSON
+}
+
+# ---------- Mutations (read-first friendly) ----------
+
+type Mutation {
+  # V1 Compatibility
+  upsertCellStage(input: CellStageInput!): UpsertResult!
+  # Upsert a component and (optionally) its cells in one call
+  createComponent(input: ComponentInput!): Component!
+  updateComponent(id: ID!, input: ComponentInput!): Component!
+  deleteComponent(id: ID!): Boolean!
+
+  # Bulk insert for CLI efficiency (optional use now; great later)
+  createComponents(inputs: [ComponentInput!]!): [Component!]!
+
+  # Documents
+  createDocument(input: DocumentInput!): ChiralityDocument!
+  addComponentToDocument(documentId: ID!, componentId: ID!): ChiralityDocument!
+
+  # Chat
+  createChatSession(input: ChatSessionInput!): ChatSession!
+  addChatMessage(input: ChatMessageInput!): ChatMessage!
+  deleteChatSession(id: ID!): Boolean!
+}
+
+# ---------- Subscriptions (wire up later if you want) ----------
+
+type Subscription {
+  componentCreated(filter: ComponentFilter): Component!
+  componentUpdated(id: ID): Component!
+  messageAdded(sessionId: ID!): ChatMessage!
+  stationCompleted(station: Station!): [Component!]!
+}

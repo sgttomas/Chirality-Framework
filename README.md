@@ -12,7 +12,7 @@
 [![Changelog](https://img.shields.io/badge/changelog-latest-orange)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-A complete, production-ready implementation of the **Chirality Framework 14 (CF14) v2.1.1** normative specification. This repository contains the core semantic engine, GraphQL service, and framework APIs. The chat interface is now available as a separate application at [Chirality-chat](https://github.com/sgttomas/Chirality-chat).
+A complete, production-ready implementation of the **Chirality Framework 14 (CF14) v2.1.1** normative specification. This repository contains the core semantic engine, multiple deployment options, and framework APIs. The chat interface is available as a separate application at [Chirality-chat](https://github.com/sgttomas/Chirality-chat).
 
 > **New in v2.1.1**: Domain pack system, Array P/H operations, enhanced UFO ontology integration, and complete backward compatibility with v1.x implementations.
 
@@ -238,7 +238,7 @@ python neo4j_admin.py delete-station --station Requirements
 | [API_REFERENCE.md](docs/API_REFERENCE.md) | Complete API documentation and examples. |
 | [DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) | Development process, standards, and visuals. |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Problem-solving guide. |
-| [001-polyrepo-architecture.md](docs/adr/001-polyrepo-architecture.md) | Architecture Decision Record. |
+| [001-split-apps-architecture.md](docs/adr/001-split-apps-architecture.md) | Architecture Decision Record. |
 | [002-graphql-service-layer.md](docs/adr/002-graphql-service-layer.md) | Architecture Decision Record. |
 | [003-cli-integration-pattern.md](docs/adr/003-cli-integration-pattern.md) | Architecture Decision Record. |
 | [004-semantic-operation-boundary.md](docs/adr/004-semantic-operation-boundary.md) | Architecture Decision Record. |
@@ -246,7 +246,9 @@ python neo4j_admin.py delete-station --station Requirements
 | [006-structured-cli-output.md](docs/adr/006-structured-cli-output.md) | Architecture Decision Record. |
 | [007-health-check-standardization.md](docs/adr/007-health-check-standardization.md) | Architecture Decision Record. |
 | [README.md](docs/adr/README.md) | Documentation overview. |
+| [README.md](graphql/README.md) | Documentation overview. |
 | [README.md](graphql-service/README.md) | GraphQL service documentation. |
+| [README.md](orchestration-service/README.md) | Documentation overview. |
 
 ## 🏛️ System Architecture
 
@@ -542,3 +544,72 @@ The split-apps architecture is now fully operational and ready for continued dev
 - CF14: *C, F, D interpretation steps* and D construction formula.
 
 (This section summarizes: A×B=C, the order-of-ops, and the interpretation steps. See CF14: A×B=C; order of ops; and the C/F/D interpretation passages.)
+
+## 🏗️ Deployment Options
+
+This repository now provides multiple deployment patterns:
+
+### Development Mode (Full Framework)
+- Complete CF14 implementation with all components
+- Python CLI tools for semantic operations
+- Multiple admin interfaces for different use cases
+
+### Production Mode (Containerized Services)
+- **GraphQL Service** (`/graphql`): Standalone API service (port 8080)
+- **Admin Service** (`/admin`): Express.js orchestration service (port 3001)
+- **Docker-ready**: Full containerization support
+
+### Service Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                Frontend Applications                     │
+│  ┌─────────────────┐    ┌─────────────────┐           │
+│  │ chirality-ai-app│    │  chirality-chat │           │
+│  └─────────────────┘    └─────────────────┘           │
+└─────────────┬───────────────────┬───────────────────────┘
+              │                   │
+              ▼                   ▼
+┌─────────────────────────────────────────────────────────┐
+│           Backend Services (Multiple Options)           │
+│  ┌─────────────────┐    ┌─────────────────┐           │
+│  │  GraphQL API    │    │  Admin Service  │           │
+│  │  (port 8080)    │    │  (port 3001)    │           │
+│  └─────────────────┘    └─────────────────┘           │
+└─────────────┬───────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────────────────────┐
+│                    Neo4j Database                       │
+│        Semantic Matrix Storage & Graph Operations       │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 🚀 Quick Start (Production Services)
+
+### Prerequisites
+- Docker and Docker Compose  
+- Node.js 18+ and npm
+- Neo4j Aura account or local instance
+
+### Start Backend Services
+
+```bash
+# Start GraphQL service
+cd graphql
+npm install
+npm run dev
+
+# Start Admin service (separate terminal)
+cd admin  
+npm install
+npm run dev
+
+# Services available at:
+# - GraphQL: http://localhost:8080/graphql
+# - Admin: http://localhost:3001
+```
+
+See individual service READMEs for detailed configuration:
+- [GraphQL Service](./graphql/README.md)
+- [Admin Service](./admin/README.md)
