@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The Chirality Framework is built on the principle of "chirality of knowledge" - maintaining strict separation between constructive (deterministic) and generative (LLM-based) operations. This separation is crucial for:
+The Chirality Framework is built on the principle of "chirality of knowledge" - maintaining strict separation between constructive (deterministic) and generative (LLM-based) operations. The framework is a **meta-ontological methodology** designed by humans, while LLMs serve as **semantic interpolation engines** that resolve abstract word pairings into coherent concepts. This separation is crucial for:
 
 1. **Semantic Integrity**: Ensuring that framework operations remain auditable and reproducible
 2. **Fail-fast Semantics**: Explicit errors rather than silent fallbacks or arbitrary string conversions

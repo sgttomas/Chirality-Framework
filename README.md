@@ -250,7 +250,7 @@ python neo4j_admin.py delete-station --station Requirements
 
 ## 🏛️ System Architecture
 
-### CF14 v2.1.1 Polyrepo Architecture
+### CF14 v2.1.1 Split-Apps Architecture
 ```
 ┌──────────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │  Chirality-chat     │────│  GraphQL Service│────│  Neo4j Graph   │

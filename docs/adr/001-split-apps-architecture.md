@@ -1,4 +1,4 @@
-# ADR-001: Polyrepo Architecture for Frontend/Backend Separation
+# ADR-001: Split-Apps Architecture for Framework/Interface Separation
 
 ## Status
 
@@ -16,12 +16,12 @@ The original Chirality Framework was implemented as a monolithic repository cont
 
 The team needed to decide between:
 - Keeping the monolithic structure with better tooling
-- Moving to a polyrepo architecture with clear separation
+- Moving to a split-apps architecture with clear separation
 - Adopting a monorepo approach with workspace separation
 
 ## Decision
 
-We chose to implement a **polyrepo architecture** with the following separation:
+We chose to implement a **split-apps architecture** with the following separation:
 
 ### Primary Repository (Chirality-Framework)
 - **Purpose**: Core semantic engine and backend services
@@ -89,7 +89,7 @@ chirality-framework/
 ├── graphql/           # GraphQL service
 └── shared/            # Shared utilities
 
-After (Polyrepo):
+After (Split-Apps):
 chirality-framework/   # This repository
 ├── graphql-service/   # Standalone GraphQL service
 ├── chirality-admin/   # Backend admin UI
@@ -102,8 +102,11 @@ chirality-chat/        # Separate repository
 └── lib/               # Frontend utilities
 ```
 
-### API Contract Management
-- GraphQL schema serves as the primary contract
+### Framework Boundary Management
+- **Chirality Framework**: Meta-ontological methodology (human-designed)
+- **LLM Role**: Semantic interpolation engine only
+- **API Contracts**: GraphQL schema serves as the primary contract
+- **Constructive vs Generative**: Clear separation maintained across repositories
 - Schema changes are versioned and documented
 - Breaking changes require coordination between repositories
 - Health check endpoints ensure service compatibility

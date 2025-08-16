@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository contains the core Chirality Framework implementation, including the semantic engine, GraphQL service, and Python CLI tools. The chat interface has been separated into its own repository at [Chirality-chat](https://github.com/sgttomas/Chirality-chat).
+This repository contains the **core normative implementation** of the Chirality Framework - a meta-ontological methodology for generating reliable knowledge about generating reliable knowledge. This is the canonical framework implementation featuring the semantic engine, GraphQL service, and Python CLI tools for systematic 12-station semantic valley operations. LLMs serve as **semantic interpolation engines** within this framework's constructive architecture.
 
-### Polyrepo Architecture
+### Split-Apps Architecture
 
 **Chirality-Framework (this repo)**
 - GraphQL service at `graphql-service/` for Neo4j graph operations
@@ -89,8 +89,9 @@ python neo4j_admin.py delete-station --station <name>  # Delete all at station
 - See `schema.graphql` for complete type definitions
 
 **OpenAI API Usage**
-- Python semantic operations use standard chat completions
+- Python semantic operations use standard chat completions for **semantic interpolation only**
 - Requires OPENAI_API_KEY environment variable
+- **Critical**: LLM provides semantic resolution of word pairings, NOT framework architecture
 - Chat interface (in Chirality-chat repo) uses Responses API with streaming
 
 ## UFO Ontology Alignment

@@ -15,7 +15,7 @@ We follow the format popularized by Michael Nygard with the following sections:
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| [001](001-polyrepo-architecture.md) | Polyrepo Architecture for Frontend/Backend Separation | Accepted | 2025-01-15 |
+| [001](001-split-apps-architecture.md) | Split-Apps Architecture for Frontend/Backend Separation | Accepted | 2025-01-15 |
 | [002](002-graphql-service-layer.md) | GraphQL as Primary Data Layer | Accepted | 2025-01-15 |
 | [003](003-cli-integration-pattern.md) | CLI Integration Pattern for Admin UI | Accepted | 2025-01-15 |
 | [004](004-semantic-operation-boundary.md) | Chirality Boundary for Semantic Operations | Accepted | 2025-01-15 |
