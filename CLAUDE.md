@@ -218,5 +218,5 @@ python neo4j_admin.py list
 ### Before Making Changes
 - Review the current git status for ongoing work
 - Check `BACKEND_DEVELOPMENT.md` for detailed development roadmap
-- Understand the polyrepo architecture and service interactions
+- Understand the split-apps architecture and service interactions
 - Ensure all environment variables are properly configured

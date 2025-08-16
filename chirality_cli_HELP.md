@@ -25,18 +25,19 @@
 
 ---
 
-## Quick Start Guide
+## Quick Start Guide (CF14 v2.1.1 Backend)
 
 ### 30-Second Setup
 
-1. **Clone and install**:
+1. **Clone and install dependencies**:
    ```bash
    git clone <repository-url>
    cd chirality-semantic-framework
    npm install
+   pip install click openai requests pydantic neo4j python-dotenv
    ```
 
-2. **Configure environment** (create `.env.local`):
+2. **Configure environment** (create `.env`):
    ```env
    NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
    NEO4J_USER=neo4j
@@ -44,32 +45,43 @@
    OPENAI_API_KEY=sk-proj-your-key
    ```
 
-3. **Start and instantiate**:
+3. **Start backend services**:
    ```bash
-   npm run dev
-   # Visit http://localhost:3000/instantiate
-   # Enter problem statement → Click "Start Instantiation"
+   # Start GraphQL service
+   cd graphql-service && npm run dev &
+   
+   # Start Admin UI (optional)
+   cd ../chirality-admin && npm run dev &
+   
+   # Or use automated script
+   ./scripts/dev-start.sh
    ```
 
-4. **Chat with your knowledge**:
+4. **Initialize and operate**:
    ```bash
-   # Visit http://localhost:3000/chat
-   # Ask: "What requirements do we have?"
+   # Health check
+   python chirality_cli.py health-check
+   
+   # Initialize framework
+   python chirality_cli.py push-axioms
+   
+   # Generate matrices
+   python chirality_cli.py generate-c
    ```
 
-### First-Time User Workflow
+### First-Time User Workflow (Backend-Focused)
 
-**Step 1**: Database Setup → **Step 2**: Problem Instantiation → **Step 3**: Knowledge Querying → **Step 4**: Matrix Analysis
+**Step 1**: Service Setup → **Step 2**: Health Verification → **Step 3**: Matrix Generation → **Step 4**: GraphQL Querying → **Step 5**: Admin UI Operations
 
 ---
 
 ## System Requirements
 
 ### Minimum Requirements
-- **Node.js**: 18.0+ (for Next.js frontend)
-- **Python**: 3.8+ (for CF14 semantic operations)
-- **RAM**: 4GB minimum, 8GB recommended
-- **Storage**: 2GB free space for dependencies and database cache
+- **Node.js**: 18.0+ (for GraphQL service and Admin UI)
+- **Python**: 3.8+ (for CF14 semantic operations and CLI tools)
+- **RAM**: 8GB minimum, 16GB recommended (for concurrent services)
+- **Storage**: 3GB free space for dependencies and service data
 - **Network**: Broadband connection for Neo4j Aura and OpenAI API
 
 ### Recommended Setup
@@ -84,6 +96,12 @@
 - **Storage**: 100MB minimum for framework data
 - **Connections**: 10+ concurrent for multi-user scenarios
 - **Memory**: 1GB heap for large matrix operations
+
+### Backend Services
+- **GraphQL Service**: localhost:8080 (Primary data API)
+- **Admin UI**: localhost:3001 (Backend operations interface)
+- **Python CLI**: Command-line semantic operations
+- **Health Monitoring**: Built-in health checks and validation
 
 ---
 
@@ -378,23 +396,31 @@ python chirality_cli.py full-pipeline \
 # Enhanced semantic matrix operations with domain packs
 python chirality_cli.py semantic-matrix-c --out matrix_c.json
 python chirality_cli.py semantic-matrix-c \
-  --domain-pack ontology/domains/software_engineering/cf14.domain.software_eng.v1.0.json \
+  --ontology-pack ontology/cf14.core.v2.1.1.json \
   --problem "How do we ensure data quality in distributed systems?" \
   --out domain_matrix_c.json
 
-# Domain pack validation
-python chirality_cli.py validate-domain \
-  --domain-pack ontology/domains/software_engineering/cf14.domain.software_eng.v1.0.json
+# Domain pack validation and health checking
+python chirality_cli.py health-check --verbose
+python chirality_cli.py health-check --json-output
 
-# Enhanced array operations (CF14 v2.1.1)
-python chirality_cli.py extract-array-p --matrix-z-id matrix_Z_validation_123
-python chirality_cli.py extract-array-h --array-p-id array_P_validity_456
+# JSON output for all operations (backend integration)
+python chirality_cli.py semantic-matrix-c --json-output --out matrix_c.json
+python chirality_cli.py semantic-matrix-f --json-output --out matrix_f.json
+python chirality_cli.py semantic-matrix-d --json-output --out matrix_d.json
 
-# Complete pipeline with domain customization
-python chirality_cli.py full-pipeline \
-  --domain-pack ontology/domains/business_strategy/cf14.domain.business.v1.0.json \
-  --problem "How do we optimize customer retention strategies?" \
-  --out business_pipeline_results.json
+# Enhanced operations with interpretations (CF14 v2.1.1)
+python chirality_cli.py semantic-matrix-c \
+  --ontology-pack ontology/cf14.core.v2.1.1.json \
+  --run-interpretations \
+  --include-station-context \
+  --out enhanced_matrix_c.json
+
+# Complete pipeline with backend integration
+python chirality_cli.py push-axioms --ontology-pack ontology/cf14.core.v2.1.1.json
+python chirality_cli.py generate-c --json-output
+python chirality_cli.py generate-f --json-output
+python chirality_cli.py generate-d --json-output
 ```
 
 #### Legacy Matrix Generation (Still Supported)

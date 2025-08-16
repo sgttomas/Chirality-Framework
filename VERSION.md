@@ -1,35 +1,71 @@
 # Chirality Framework Implementation Versions
 
 ## CF14 v2.1.1 (Current Development Branch)
-**Branch**: `cf14-v2.1.1-implementation`  
-**Status**: In Development  
-**Date**: 2025-08-13
+**Branch**: `main` (split-apps architecture)  
+**Status**: Active Backend Development  
+**Date**: 2025-08-15
+**Backend Pipeline**: Extensive overhaul completed
 
 ### Key Features
-- **Reconciled Normative Specification**: Combined comprehensive v2.0 structure with practical graph schema
-- **Enhanced Components**: Added Array P (Validity Parameters) and Array H (Consistency Dialectic)
-- **Neo4j Integration**: Optimized graph schema with UFO annotations
-- **Domain Pack System**: Runtime composition and validation of domain-specific extensions
-- **Full Pipeline Support**: 10-station progression with semantic operations
-- **Enhanced Provenance**: Complete model metadata tracking
+- **Split-Apps Architecture**: Chat interface separated to [Chirality-chat](https://github.com/sgttomas/Chirality-chat), unified backend services via Docker Compose
+- **GraphQL Service**: Standalone service with Neo4j integration (localhost:8080)
+- **Enhanced CLI Integration**: Real CLI process spawning in Admin UI
+- **Domain Pack System**: Runtime composition with CF14.core.v2.1.1.json ontology packs
+- **UFO Ontology Alignment**: Complete modal constraints with Systematic/Process/Epistemic/Alethic
+- **Semantic Operation Boundary**: Strict constructive vs generative operation separation
+- **Health Check Infrastructure**: Comprehensive monitoring and diagnostics
 
-### Components Added
-- `CF14_Normative_Spec_Reconciled_v2.1.1.txt` - Unified normative specification
-- `CF14_Implementation_Guide_Reconciled_v2.1.1.txt` - Complete implementation guide
+### Backend Components Status
+- [x] **GraphQL Service**: Standalone service with Neo4j integration
+- [x] **Python CLI Tools**: Full CF14 v2.1.1 implementation with domain packs
+- [x] **Admin UI**: Phase 1 backend operations interface (localhost:3001)
+- [x] **Neo4j Integration**: Optimized graph schema with UFO annotations
+- [x] **CLI Integration**: Real process spawning with output streaming
+- [x] **Health Monitoring**: System-wide health checks and validation
+- [x] **Documentation Suite**: Complete backend development documentation
 
-### Implementation Status
-- [x] Reconciled specifications completed
-- [ ] Python CLI updated to v2.1.1
-- [ ] Next.js API routes updated
-- [ ] Ontology files created
-- [ ] Frontend components updated
-- [ ] Testing suite updated
+### Current Implementation Status
+- [x] Backend pipeline extensively overhauled
+- [x] GraphQL service as primary data layer
+- [x] CLI integration pattern with Admin UI
+- [x] Semantic operation boundary implementation
+- [x] Neo4j as persistent working memory
+- [x] Structured JSON output design (CLI)
+- [x] Health check standardization
+- [x] Complete documentation suite
 
 ---
 
-## CF14 v1.x (Legacy - Main Branch)
-**Branch**: `main`  
-**Status**: Stable Legacy  
+## Development Roadmap
+
+### Phase 1: Canonical Framework (Current - 2025 Q1)
+**Priority**: Backend infrastructure completion
+- [x] GraphQL service health endpoints
+- [x] CLI integration in Admin UI  
+- [x] Structured JSON output for CLI tools
+- [ ] Enhanced error handling and recovery
+- [ ] Performance monitoring implementation
+- [ ] Production deployment preparation
+
+### Phase 2: Production Readiness (2025 Q2)
+**Priority**: Scalability and reliability
+- [ ] Advanced monitoring and alerting
+- [ ] Scalability improvements  
+- [ ] Security hardening
+- [ ] Enterprise features
+- [ ] Multi-tenancy support
+
+### Phase 3: Advanced Features (2025 Q3-Q4)
+**Priority**: Enhanced semantic capabilities
+- [ ] Multi-domain pack support
+- [ ] Advanced semantic operations
+- [ ] Real-time collaboration
+- [ ] Integration ecosystem
+
+---
+
+## CF14 v1.x (Legacy Implementation)
+**Status**: Deprecated (monolithic architecture)  
 
 ### Key Features
 - Basic semantic matrix operations (A×B=C, J⊙C=F, A+F=D)

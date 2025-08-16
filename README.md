@@ -8,13 +8,17 @@
 ![OpenAI API](https://img.shields.io/badge/Powered_by-OpenAI_API-orange)
 ![Production Ready](https://img.shields.io/badge/Status-Production_Ready-success)
 
+[![Docs](https://img.shields.io/badge/docs-index-blue)](#-documentation-index)
+[![Changelog](https://img.shields.io/badge/changelog-latest-orange)](./CHANGELOG.md)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+
 A complete, production-ready implementation of the **Chirality Framework 14 (CF14) v2.1.1** normative specification. This repository contains the core semantic engine, GraphQL service, and framework APIs. The chat interface is now available as a separate application at [Chirality-chat](https://github.com/sgttomas/Chirality-chat).
 
 > **New in v2.1.1**: Domain pack system, Array P/H operations, enhanced UFO ontology integration, and complete backward compatibility with v1.x implementations.
 
 ## 📦 Repository Organization
 
-This project is now organized as a **polyrepo architecture**:
+This project is now organized as a **split-apps architecture**:
 
 - **[Chirality-Framework](https://github.com/sgttomas/Chirality-Framework)** (this repo): Core semantic engine, GraphQL service, Python CLI tools
 - **[Chirality-chat](https://github.com/sgttomas/Chirality-chat)**: Modern chat interface with streaming AI responses, matrix visualization, and MCP integration
@@ -206,19 +210,43 @@ python neo4j_admin.py delete-station --station Requirements
 
 **UFO alignment note**: In this project, "modality" means analysis lens (Systematic, Process, Epistemic, Alethic). This is not UFO's "Mode." We align as follows: Systematic ↔ UFO-C Normative Descriptions; Process ↔ UFO-B Perdurants; Epistemic ↔ UFO-C Information Objects & UFO-A Modes (beliefs/skills); Alethic ↔ logical constraints on Descriptions/Processes. We do not introduce new UFO categories; we annotate UFO-typed elements with modal constraints when needed.
 
-## 📚 Documentation
+## 📚 Documentation Index
 
-### Core Documentation
-- **[🔧 Operational Help Guide](chirality_cli_HELP.md)** - Comprehensive usage instructions, troubleshooting, and best practices
-- **[📋 CF14 v2.1.1 Implementation](README.md)** - The meaning and significance of the Chirality Framework in human-ai knowledge generation
-
-### Technical Specifications
-- **[📊 Version Tracking](VERSION.md)** - Release history and version information
-
-### Quick References
-- **Domain Pack Examples**: `ontology/domains/` - Pre-built domain customizations
-- **API Documentation**: Embedded in help guide with curl examples
-- **Troubleshooting**: Common issues and solutions in operational guide
+| Document | Description |
+|----------|-------------|
+| [PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) | Pull request template. |
+| [BACKEND_DEVELOPMENT.md](BACKEND_DEVELOPMENT.md) | Backend development status and priorities. |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes. |
+| [CLAUDE.md](CLAUDE.md) | Claude Code project instructions. |
+| [CLAUDE_BACKEND.md](CLAUDE_BACKEND.md) | Backend development guidance for Claude Code. |
+| [CLAUDE_CLI.md](CLAUDE_CLI.md) | CLI development patterns for Claude Code. |
+| [CLAUDE_GRAPHQL.md](CLAUDE_GRAPHQL.md) | GraphQL service development for Claude Code. |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community interaction guidelines. |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, workflow, and coding guidelines. |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | Quick setup for backend services. |
+| [README.md](README.md) | Main project overview. |
+| [README_CLI.md](README_CLI.md) | CLI development documentation. |
+| [RELEASE.md](RELEASE.md) | High-level release checklist. |
+| [RELEASING.md](RELEASING.md) | Full release process and versioning policy. |
+| [SECURITY.md](SECURITY.md) | Security policies and vulnerability reporting. |
+| [VERSION.md](VERSION.md) | Current version info and roadmap. |
+| [README.md](admin-ui/README.md) | Documentation overview. |
+| [ORCHESTRATOR_API.md](admin-ui/docs/ORCHESTRATOR_API.md) | Documentation file. |
+| [README.md](chirality-admin/README.md) | Documentation overview. |
+| [CLI-to-UI.md](chirality-admin/docs/CLI-to-UI.md) | Documentation file. |
+| [chirality_cli_HELP.md](chirality_cli_HELP.md) | Complete CLI usage guide. |
+| [API_REFERENCE.md](docs/API_REFERENCE.md) | Complete API documentation and examples. |
+| [DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) | Development process, standards, and visuals. |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Problem-solving guide. |
+| [001-polyrepo-architecture.md](docs/adr/001-polyrepo-architecture.md) | Architecture Decision Record. |
+| [002-graphql-service-layer.md](docs/adr/002-graphql-service-layer.md) | Architecture Decision Record. |
+| [003-cli-integration-pattern.md](docs/adr/003-cli-integration-pattern.md) | Architecture Decision Record. |
+| [004-semantic-operation-boundary.md](docs/adr/004-semantic-operation-boundary.md) | Architecture Decision Record. |
+| [005-neo4j-as-working-memory.md](docs/adr/005-neo4j-as-working-memory.md) | Architecture Decision Record. |
+| [006-structured-cli-output.md](docs/adr/006-structured-cli-output.md) | Architecture Decision Record. |
+| [007-health-check-standardization.md](docs/adr/007-health-check-standardization.md) | Architecture Decision Record. |
+| [README.md](docs/adr/README.md) | Documentation overview. |
+| [README.md](graphql-service/README.md) | GraphQL service documentation. |
 
 ## 🏛️ System Architecture
 
@@ -411,6 +439,80 @@ This implementation is **complete and production-ready** with:
 - **💡 Discussions**: Share ideas and use cases
 
 **Built with semantic reasoning in mind. Transforming problem statements into structured knowledge since 2024.**
+
+---
+
+# Split-Apps Architecture Implementation
+
+## Overview
+
+Successfully implemented the split-apps structure that preserves all working functionality while organizing the codebase for future unified deployment via Electron.
+
+## Final Directory Structure
+
+```
+/Users/ryan/Desktop/ai-env
+├── chirality-ai/                    # Orchestrator repo (compose, desktop, docs)
+│   ├── compose/
+│   │   ├── docker-compose.yml       # Backend services (Neo4j, GraphQL, Admin)
+│   │   └── .env                     # Environment configuration
+│   ├── desktop/                     # Future Electron wrapper
+│   └── .env                         # Shared environment configuration
+├── chirality-ai-app/               # Product frontend (Next.js)
+├── chirality-ai-backend/            # Product backend (GraphQL + Admin)
+├── chirality-semantic-framework/   # Independent full app
+└── chirality-chat/                 # Independent sandbox app
+```
+
+## Services & Ports
+
+### Backend Services (via Docker Compose)
+- **Neo4j**: `localhost:7474` (HTTP), `localhost:7687` (Bolt)
+- **GraphQL**: `localhost:8080`
+- **Admin**: `localhost:3001`
+
+### Frontend Applications
+- **Product App** (`chirality-ai-app`): `localhost:3000`
+- **Semantic Framework**: Independent ports
+- **Chat Sandbox**: Independent ports
+
+## Application Coexistence
+
+### Product App Usage
+```bash
+# Start backend services
+cd /Users/ryan/Desktop/ai-env/chirality-ai/compose
+docker compose up -d
+
+# Start frontend
+cd /Users/ryan/Desktop/ai-env/chirality-ai-app
+npx next dev  # Available at http://localhost:3000
+```
+
+### Framework App Usage
+The `chirality-semantic-framework` remains completely independent:
+```bash
+cd /Users/ryan/Desktop/ai-env/chirality-semantic-framework
+npm run dev  # Runs on its own port
+```
+
+### Chat Sandbox Usage
+The `chirality-chat` can point to the same backend via environment:
+```bash
+cd /Users/ryan/Desktop/ai-env/chirality-chat
+echo "NEXT_PUBLIC_GRAPHQL_URL=http://localhost:8080/graphql" >> .env.local
+npm run dev  # Experimental sandbox using shared backend
+```
+
+## Benefits Achieved
+
+1. **Zero Downtime**: Preserved all working functionality
+2. **Clear Organization**: Distinct boundaries between product, framework, and sandbox
+3. **Unified Backend**: Single set of services serving multiple frontends
+4. **Electron Ready**: Structure prepared for desktop app packaging
+5. **Independent Evolution**: Framework and chat can iterate without affecting product
+
+The split-apps architecture is now fully operational and ready for continued development or Electron packaging.
 
 ## Semantic Integrity Contract (CF14)
 

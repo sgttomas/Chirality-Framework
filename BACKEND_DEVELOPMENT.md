@@ -7,6 +7,8 @@
 
 Comprehensive guide for backend developers working on the Chirality Framework infrastructure. This document provides roadmaps, priorities, and technical specifications for backend development tasks.
 
+**Note**: This repository is part of the split-apps architecture. The chat interface has been moved to a separate `chirality-chat` repository, and this framework can work independently or connect to shared backend services via Docker Compose.
+
 ## 🎯 Backend Development Overview
 
 The Chirality Framework backend consists of several interconnected services:

@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Skip if running in CI
+if [ "$CI" = "true" ]; then
+  exit 0
+fi
+
+# Update documentation index and stage changes
+npm run update-docs-index
+git add README.md

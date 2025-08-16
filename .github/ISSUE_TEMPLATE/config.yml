@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🚀 Chirality Chat Interface
+    url: https://github.com/sgttomas/Chirality-chat
+    about: For issues with the chat interface, use the Chirality-chat repository
+  - name: 📚 Documentation and Guides
+    url: https://github.com/chirality-framework/docs
+    about: Comprehensive documentation, tutorials, and guides
+  - name: 💬 Discussions
+    url: https://github.com/chirality-framework/semantic-framework/discussions
+    about: Ask questions, share ideas, and discuss the framework with the community
+  - name: 🛡️ Security Vulnerabilities
+    url: https://github.com/chirality-framework/semantic-framework/security/advisories/new
+    about: Report security vulnerabilities privately through GitHub Security Advisories

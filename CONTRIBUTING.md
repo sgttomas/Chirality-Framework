@@ -6,6 +6,8 @@
 
 Welcome to the Chirality Framework! This guide will help you get started contributing to this production-ready implementation of the CF14 v2.1.1 normative specification.
 
+**Architecture Note**: This repository is part of a split-apps architecture. The chat interface is now in a separate `chirality-chat` repository, allowing this framework to focus on core semantic operations and backend services.
+
 ## 🎯 Quick Start for New Contributors
 
 ### 1. Choose Your Contribution Path
