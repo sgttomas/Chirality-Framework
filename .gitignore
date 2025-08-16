@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+*.log
+
+# Output
+output/
+temp_*.json
+*.bundle
+
+# Neo4j
+neo4j/
+
+# Node (from old structure)
+node_modules/
+.next/
+next-env.d.ts
+package-lock.json
+
+# Old files
+chirality_*.py
+semmul*.py
+NORMATIVE_Chriality_Framework_14.2.1.1.txt
+cf14.core.v2.1.1.json

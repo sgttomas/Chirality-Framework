@@ -1,0 +1,55 @@
+{
+  "id": "matrix_B_demo",
+  "type": "B",
+  "dimensions": [2, 2],
+  "cells": [
+    {
+      "id": "cell_b00",
+      "row": 0,
+      "col": 0,
+      "content": {
+        "text": "Data Processing Pipeline",
+        "description": "ETL and transformation capabilities"
+      },
+      "modality": "concept",
+      "provenance": {}
+    },
+    {
+      "id": "cell_b01",
+      "row": 0,
+      "col": 1,
+      "content": {
+        "text": "API Gateway",
+        "description": "Service interface and routing"
+      },
+      "modality": "concept",
+      "provenance": {}
+    },
+    {
+      "id": "cell_b10",
+      "row": 1,
+      "col": 0,
+      "content": {
+        "text": "Machine Learning Model",
+        "description": "Predictive analytics engine"
+      },
+      "modality": "process",
+      "provenance": {}
+    },
+    {
+      "id": "cell_b11",
+      "row": 1,
+      "col": 1,
+      "content": {
+        "text": "Monitoring Dashboard",
+        "description": "Real-time system observability"
+      },
+      "modality": "process",
+      "provenance": {}
+    }
+  ],
+  "metadata": {
+    "source": "test_fixture",
+    "created": "2024-01-01T00:00:00Z"
+  }
+}
