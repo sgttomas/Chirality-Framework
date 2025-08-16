@@ -6,8 +6,80 @@ Maintains audit trail and lineage for all semantic transformations.
 
 import hashlib
 import json
+import unicodedata
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+
+
+def canonical_value(value: Any) -> str:
+    """
+    Convert any value to canonical string representation for consistent hashing.
+    
+    Args:
+        value: Value to canonicalize
+    
+    Returns:
+        Canonical string representation
+    """
+    if isinstance(value, str):
+        return _normalize(value)
+    elif isinstance(value, (dict, list)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    elif value is None:
+        return ""
+    else:
+        return str(value)
+
+
+def _normalize(s: str) -> str:
+    """Normalize string for consistent hashing (from semmul_cf14.py)."""
+    if s is None:
+        return ""
+    s = unicodedata.normalize("NFKC", str(s))
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def prompt_hash(system: str, user: str, context: Dict[str, Any]) -> str:
+    """
+    Generate deterministic hash for prompt + context.
+    
+    Args:
+        system: System prompt
+        user: User prompt
+        context: Context dictionary
+    
+    Returns:
+        SHA256 hash
+    """
+    h = hashlib.sha256()
+    h.update(canonical_value(system).encode("utf-8"))
+    h.update(b"\n\n")
+    h.update(canonical_value(user).encode("utf-8"))
+    h.update(b"\n\n")
+    h.update(json.dumps(context, sort_keys=True).encode("utf-8"))
+    return h.hexdigest()
+
+
+def content_hash(data: Any) -> str:
+    """
+    Generate hash for content (cells, matrices, etc.).
+    
+    Args:
+        data: Data to hash
+    
+    Returns:
+        SHA256 hash (16 chars)
+    """
+    if isinstance(data, list):
+        # For cells list, sort by position for determinism
+        sorted_data = sorted(data, key=lambda x: (getattr(x, 'row', 0), getattr(x, 'col', 0)))
+        content = json.dumps([canonical_value(getattr(x, 'value', getattr(x, 'content', {}).get('text', str(x)))) for x in sorted_data], sort_keys=True)
+    else:
+        content = canonical_value(data)
+    
+    return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 
 class ProvenanceTracker:

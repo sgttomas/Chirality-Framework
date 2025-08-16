@@ -23,37 +23,8 @@ from .types import Cell, Matrix, MatrixType, Operation
 from .ids import generate_cell_id, generate_operation_id, generate_matrix_id
 
 
-# ---------- Canonical Value Handling ----------
-
-def canonical_value(value: Any) -> str:
-    """Convert any value to canonical string representation for consistent hashing."""
-    if isinstance(value, str):
-        return _normalize(value)
-    elif isinstance(value, dict):
-        # Sort keys for deterministic output
-        return json.dumps(value, sort_keys=True, ensure_ascii=False)
-    elif isinstance(value, list):
-        return json.dumps(value, ensure_ascii=False)
-    else:
-        return str(value)
-
-def _normalize(s: str) -> str:
-    """Normalize string for consistent hashing (from semmul_cf14.py)."""
-    if s is None:
-        return ""
-    s = unicodedata.normalize("NFKC", str(s))
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
-
-def prompt_hash(system: str, user: str, context: Dict[str, Any]) -> str:
-    """Generate deterministic hash for prompt + context."""
-    h = hashlib.sha256()
-    h.update(_normalize(system).encode("utf-8"))
-    h.update(b"\n\n")
-    h.update(_normalize(user).encode("utf-8"))
-    h.update(b"\n\n")
-    h.update(json.dumps(context, sort_keys=True).encode("utf-8"))
-    return h.hexdigest()
+# Import provenance helpers
+from .provenance import canonical_value, prompt_hash, content_hash
 
 # ---------- Resolver Protocol ----------
 
@@ -226,29 +197,36 @@ def _prompt_cross(A: Matrix, B: Matrix) -> Tuple[str, str]:
 
 # ---------- Output Matrix Builder ----------
 
-def _build_output_matrix(thread: str, matrix_type: MatrixType, station: str, values: List[List[str]]) -> Matrix:
+def _build_output_matrix(thread: str, name: str, station: str, values: List[List[str]]) -> Matrix:
     """Build output matrix from 2D value array."""
+    from .ids import matrix_id, cell_id
+    
     rows, cols = len(values), len(values[0]) if values else 0
-    matrix_id = generate_matrix_id(matrix_type.value, thread, 1)
+    mid = matrix_id(thread, name, 1)
     cells = []
     
     for r in range(rows):
         for c in range(cols):
-            cell_content = {"text": canonical_value(values[r][c])}
-            cell_id = generate_cell_id(matrix_id, r, c, cell_content)
+            value = canonical_value(values[r][c])
+            cid = cell_id(mid, r, c, value)
             cells.append(Cell(
-                id=cell_id,
+                id=cid,
                 row=r,
                 col=c,
-                content=cell_content
+                value=value
             ))
     
+    # Calculate matrix hash
+    matrix_hash = content_hash(cells)
+    
     return Matrix(
-        id=matrix_id,
-        type=matrix_type,
+        id=mid,
+        name=name,
+        station=station,
+        shape=(rows, cols),
         cells=cells,
-        dimensions=(rows, cols),
-        metadata={"station": station, "timestamp": datetime.utcnow().isoformat()}
+        hash=matrix_hash,
+        metadata={"timestamp": datetime.utcnow().isoformat()}
     )
 
 def _op_record(kind: Literal["*", "+", "×", "interpret", "⊙"], 
@@ -256,19 +234,21 @@ def _op_record(kind: Literal["*", "+", "×", "interpret", "⊙"],
                system_prompt: str, user_prompt: str, 
                model: Optional[Dict[str, Any]] = None) -> Operation:
     """Create operation record."""
+    from .ids import operation_id
+    
     timestamp = datetime.utcnow().isoformat()
     prompt_hash_val = prompt_hash(system_prompt, user_prompt, {"inputs": [m.id for m in inputs]})
+    op_id = operation_id(kind, [m.id for m in inputs], output.hash, prompt_hash_val)
     
     return Operation(
-        id=generate_operation_id(kind, [m.id for m in inputs], timestamp),
-        type=kind,
+        id=op_id,
+        kind=kind,
         inputs=[m.id for m in inputs],
-        outputs=[output.id],
+        output=output.id,
+        model=model or {"vendor": "dev", "name": "echo", "version": "0"},
+        prompt_hash=prompt_hash_val,
         timestamp=timestamp,
-        metadata={
-            "prompt_hash": prompt_hash_val,
-            "model": model or {"vendor": "dev", "name": "echo", "version": "0"}
-        }
+        output_hash=output.hash
     )
 
 # ---------- Public Op Functions ----------
@@ -286,7 +266,7 @@ def op_multiply(thread: str, A: Matrix, B: Matrix, resolver: Resolver) -> Tuple[
     context = {"station": "requirements", "thread": thread, "rag_chunks": {}}
     vals = resolver.resolve(op="*", inputs=[A, B], system_prompt=sys, user_prompt=usr, context=context)
     
-    C = _build_output_matrix(thread=thread, matrix_type=MatrixType.C, station="requirements", values=vals)
+    C = _build_output_matrix(thread=thread, name="C", station="requirements", values=vals)
     op = _op_record(kind="*", inputs=[A, B], output=C, system_prompt=sys, user_prompt=usr)
     
     return C, op
@@ -297,7 +277,7 @@ def op_interpret(thread: str, B: Matrix, resolver: Resolver) -> Tuple[Matrix, Op
     context = {"station": "objectives", "thread": thread, "rag_chunks": {}}
     vals = resolver.resolve(op="interpret", inputs=[B], system_prompt=sys, user_prompt=usr, context=context)
     
-    J = _build_output_matrix(thread=thread, matrix_type=MatrixType.J, station="objectives", values=vals)
+    J = _build_output_matrix(thread=thread, name="J", station="objectives", values=vals)
     op = _op_record(kind="interpret", inputs=[B], output=J, system_prompt=sys, user_prompt=usr)
     
     return J, op
@@ -315,7 +295,7 @@ def op_elementwise(thread: str, J: Matrix, C: Matrix, resolver: Resolver) -> Tup
     context = {"station": "objectives", "thread": thread, "rag_chunks": {}}
     vals = resolver.resolve(op="⊙", inputs=[J, C], system_prompt=sys, user_prompt=usr, context=context)
     
-    F = _build_output_matrix(thread=thread, matrix_type=MatrixType.F, station="objectives", values=vals)
+    F = _build_output_matrix(thread=thread, name="F", station="objectives", values=vals)
     op = _op_record(kind="⊙", inputs=[J, C], output=F, system_prompt=sys, user_prompt=usr)
     
     return F, op
@@ -333,7 +313,7 @@ def op_add(thread: str, A: Matrix, F: Matrix, resolver: Resolver) -> Tuple[Matri
     context = {"station": "objectives", "thread": thread, "rag_chunks": {}}
     vals = resolver.resolve(op="+", inputs=[A, F], system_prompt=sys, user_prompt=usr, context=context)
     
-    D = _build_output_matrix(thread=thread, matrix_type=MatrixType.D, station="objectives", values=vals)
+    D = _build_output_matrix(thread=thread, name="D", station="objectives", values=vals)
     op = _op_record(kind="+", inputs=[A, F], output=D, system_prompt=sys, user_prompt=usr)
     
     return D, op
@@ -344,9 +324,8 @@ def op_cross(thread: str, A: Matrix, B: Matrix, resolver: Resolver) -> Tuple[Mat
     context = {"station": "assessment", "thread": thread, "rag_chunks": {}}
     vals = resolver.resolve(op="×", inputs=[A, B], system_prompt=sys, user_prompt=usr, context=context)
     
-    # Cross product creates expanded matrix
-    from .types import MatrixType
-    W = _build_output_matrix(thread=thread, matrix_type=MatrixType.D, station="assessment", values=vals)
+    # Cross product creates expanded matrix  
+    W = _build_output_matrix(thread=thread, name="W", station="assessment", values=vals)
     op = _op_record(kind="×", inputs=[A, B], output=W, system_prompt=sys, user_prompt=usr)
     
     return W, op
@@ -356,6 +335,7 @@ def op_cross(thread: str, A: Matrix, B: Matrix, resolver: Resolver) -> Tuple[Mat
 def semantic_multiply(resolver: Resolver, matrix_a: Matrix, matrix_b: Matrix, 
                      context: Optional[Dict[str, Any]] = None) -> Matrix:
     """Legacy compatibility wrapper for op_multiply."""
-    thread = context.get("thread_id", "default") if context else "default"
+    from .ids import thread_id
+    thread = thread_id(context.get("thread_id", "default")) if context else thread_id("default")
     result, _ = op_multiply(thread, matrix_a, matrix_b, resolver)
     return result

@@ -47,16 +47,21 @@ class Cell:
         id: Deterministic cell ID
         row: Row position in matrix
         col: Column position in matrix
-        content: Semantic content dictionary
+        value: Canonical string value
         modality: Content modality type
         provenance: Tracking metadata
     """
     id: str
     row: int
     col: int
-    content: Dict[str, Any]
+    value: str
     modality: Modality = Modality.UNKNOWN
     provenance: Dict[str, Any] = field(default_factory=dict)
+    
+    @property
+    def content(self) -> Dict[str, Any]:
+        """Legacy property for compatibility."""
+        return {"text": self.value}
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert cell to dictionary for serialization."""
@@ -64,19 +69,33 @@ class Cell:
             "id": self.id,
             "row": self.row,
             "col": self.col,
-            "content": self.content,
+            "value": self.value,
             "modality": self.modality.value,
-            "provenance": self.provenance
+            "provenance": self.provenance,
+            # Legacy compatibility
+            "content": {"text": self.value}
         }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Cell":
         """Create cell from dictionary."""
+        # Handle both new and legacy formats
+        if "value" in data:
+            value = data["value"]
+        elif "content" in data:
+            content = data["content"]
+            if isinstance(content, dict):
+                value = content.get("text", str(content))
+            else:
+                value = str(content)
+        else:
+            value = ""
+        
         return cls(
             id=data["id"],
             row=data["row"],
             col=data["col"],
-            content=data["content"],
+            value=value,
             modality=Modality(data.get("modality", "unknown")),
             provenance=data.get("provenance", {})
         )
@@ -89,16 +108,30 @@ class Matrix:
     
     Attributes:
         id: Deterministic matrix ID
-        type: Matrix type (A, B, C, D, F, J)
+        name: Matrix name (A, B, C, D, F, J)
+        station: Station where matrix was created
+        shape: (rows, cols) tuple
         cells: List of cells in matrix
-        dimensions: (rows, cols) tuple
+        hash: Content hash for integrity
         metadata: Additional matrix metadata
     """
     id: str
-    type: MatrixType
+    name: str
+    station: str
+    shape: tuple[int, int]
     cells: List[Cell]
-    dimensions: tuple[int, int]
+    hash: str
     metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    @property
+    def type(self) -> MatrixType:
+        """Get matrix type from name for compatibility."""
+        return MatrixType(self.name)
+    
+    @property
+    def dimensions(self) -> tuple[int, int]:
+        """Legacy property for compatibility."""
+        return self.shape
     
     def get_cell(self, row: int, col: int) -> Optional[Cell]:
         """Get cell at specific position."""
@@ -111,20 +144,33 @@ class Matrix:
         """Convert matrix to dictionary for serialization."""
         return {
             "id": self.id,
-            "type": self.type.value,
+            "name": self.name,
+            "station": self.station,
+            "shape": list(self.shape),
             "cells": [cell.to_dict() for cell in self.cells],
-            "dimensions": list(self.dimensions),
-            "metadata": self.metadata
+            "hash": self.hash,
+            "metadata": self.metadata,
+            # Legacy compatibility
+            "type": self.name,
+            "dimensions": list(self.shape)
         }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Matrix":
         """Create matrix from dictionary."""
+        # Handle both new and legacy formats
+        shape = tuple(data.get("shape") or data.get("dimensions", [0, 0]))
+        name = data.get("name") or data.get("type", "X")
+        station = data.get("station", "unknown")
+        hash_val = data.get("hash", "unknown")
+        
         return cls(
             id=data["id"],
-            type=MatrixType(data["type"]),
+            name=name,
+            station=station,
+            shape=shape,
             cells=[Cell.from_dict(c) for c in data["cells"]],
-            dimensions=tuple(data["dimensions"]),
+            hash=hash_val,
             metadata=data.get("metadata", {})
         )
 
@@ -158,29 +204,48 @@ class Operation:
     Semantic operation record.
     
     Attributes:
-        id: Operation ID
-        type: Operation type (multiply, add, interpret, etc.)
-        inputs: Input matrix/cell IDs
-        outputs: Output matrix/cell IDs
+        id: Deterministic operation ID
+        kind: Operation kind (*, +, ×, interpret, ⊙)
+        inputs: Input matrix IDs
+        output: Output matrix ID
+        model: Model information used
+        prompt_hash: Hash of prompts used
         timestamp: When operation occurred
-        metadata: Additional operation data
+        output_hash: Hash of output for integrity
     """
     id: str
-    type: str
+    kind: Literal["*", "+", "×", "interpret", "⊙"]
     inputs: List[str]
-    outputs: List[str]
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    output: str
+    model: Dict[str, Any]
+    prompt_hash: str
+    timestamp: str
+    output_hash: str
+    
+    @property
+    def type(self) -> str:
+        """Legacy property for compatibility."""
+        return self.kind
+    
+    @property
+    def outputs(self) -> List[str]:
+        """Legacy property for compatibility."""
+        return [self.output]
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert operation to dictionary."""
         return {
             "id": self.id,
-            "type": self.type,
+            "kind": self.kind,
             "inputs": self.inputs,
-            "outputs": self.outputs,
+            "output": self.output,
+            "model": self.model,
+            "prompt_hash": self.prompt_hash,
             "timestamp": self.timestamp,
-            "metadata": self.metadata
+            "output_hash": self.output_hash,
+            # Legacy compatibility
+            "type": self.kind,
+            "outputs": [self.output]
         }
 
 
