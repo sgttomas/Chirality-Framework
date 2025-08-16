@@ -1,0 +1,28 @@
+{
+  "name": "chirality-graph-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "db:apply": "cypher-shell -a \"$NEO4J_URI\" -u \"$NEO4J_USER\" -p \"$NEO4J_PASSWORD\" -f neo4j/schema.cql"
+  },
+  "dependencies": {
+    "@neo4j/graphql": "^4.4.6",
+    "graphql": "^16.9.0",
+    "graphql-yoga": "^5.3.1",
+    "neo4j-driver": "^5.28.1",
+    "zod": "^3.23.8",
+    "@envelop/depth-limit": "^4.0.0",
+    "@envelop/disable-introspection": "^6.0.0",
+    "uuid": "^9.0.1",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "@types/node": "^20.16.10",
+    "@types/uuid": "^9.0.8"
+  }
+}
