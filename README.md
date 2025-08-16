@@ -22,12 +22,37 @@ This project is now organized as a **split-apps architecture**:
 
 - **[Chirality-Framework](https://github.com/sgttomas/Chirality-Framework)** (this repo): Core semantic engine, GraphQL service, Python CLI tools
 - **[Chirality-chat](https://github.com/sgttomas/Chirality-chat)**: Modern chat interface with streaming AI responses, matrix visualization, and MCP integration
+- **[Chirality-AI](https://github.com/[org]/chirality-ai)**: Production orchestration and desktop packaging
 
 This separation enables:
 - Independent deployment and scaling of frontend and backend
 - Cleaner separation of concerns
 - Easier contribution and maintenance
 - Multiple frontend implementations using the same core framework
+
+## 🚀 Quick Setup
+
+> **⚡ Complete Development Environment**: For full multi-service setup including desktop app and both frontend interfaces, see **[Chirality AI - Complete Developer Setup Guide](https://github.com/[org]/chirality-ai#-complete-developer-setup-guide)**.
+
+## 🏃‍♂️ Standalone Development (This Repository Only)
+
+### GraphQL Service (Port 8080)
+```bash
+cd graphql-service
+npm install
+npm run dev
+```
+
+### Semantic Framework UI (Port 3002) 
+```bash
+npm install
+PORT=3002 npm run dev
+```
+
+**Available Services:**
+- **GraphQL API**: http://localhost:8080/graphql
+- **Framework Interface**: http://localhost:3002
+- **Health Check**: `curl http://localhost:8080/health`
 
 ## 🎯 What This System Does
 
@@ -545,19 +570,48 @@ The split-apps architecture is now fully operational and ready for continued dev
 
 (This section summarizes: A×B=C, the order-of-ops, and the interpretation steps. See CF14: A×B=C; order of ops; and the C/F/D interpretation passages.)
 
-## 🏗️ Deployment Options
+## 🏗️ Service Architecture & Deployment Options
 
-This repository now provides multiple deployment patterns:
+This repository provides multiple service deployment patterns to support different use cases:
 
-### Development Mode (Full Framework)
-- Complete CF14 implementation with all components
-- Python CLI tools for semantic operations
-- Multiple admin interfaces for different use cases
+### Development Services (Framework-Integrated)
+- **`graphql-service/`**: Framework-integrated GraphQL service with Neo4j
+- **`admin-ui/`**: Next.js admin interface for Phase 1 operations  
+- **`chirality-admin/`**: Admin interface with CLI integration
+- Use for: Framework development, testing, full-featured local development
 
-### Production Mode (Containerized Services)
-- **GraphQL Service** (`/graphql`): Standalone API service (port 8080)
-- **Admin Service** (`/admin`): Express.js orchestration service (port 3001)
-- **Docker-ready**: Full containerization support
+### Production Services (Docker-Ready)
+- **`admin/`**: Express.js orchestration service (port 3001)
+- **`graphql/`**: Standalone GraphQL service (port 8080)
+- **`orchestration-service/`**: Salvaged orchestration service
+- Use for: Production deployment, containerized environments, microservices
+
+### Core Framework Components
+- **Python CLI Tools**: `chirality_cli.py`, `neo4j_admin.py`
+- **CF14 Implementation**: Complete semantic matrix operations (A×B=C, J⊙C=F, A+F=D)
+- **Domain Pack System**: Extensible ontology customization
+- **Neo4j Integration**: Persistent semantic working memory
+
+### Service Selection Guide
+
+**For Local Development**: Use `graphql-service/` + `admin-ui/`
+```bash
+cd graphql-service && npm run dev  # GraphQL at :8080
+cd admin-ui && npm run dev         # Admin UI at :3001
+```
+
+**For Production Deployment**: Use `admin/` + `graphql/`
+```bash
+cd graphql && npm run dev          # Standalone GraphQL
+cd admin && npm run dev            # Production orchestrator
+```
+
+**For Docker Deployment**: All production services are containerization-ready
+```bash
+# Each service includes Dockerfile and docker-compose support
+docker build ./admin
+docker build ./graphql
+```
 
 ### Service Architecture
 
@@ -571,11 +625,20 @@ This repository now provides multiple deployment patterns:
               │                   │
               ▼                   ▼
 ┌─────────────────────────────────────────────────────────┐
-│           Backend Services (Multiple Options)           │
-│  ┌─────────────────┐    ┌─────────────────┐           │
-│  │  GraphQL API    │    │  Admin Service  │           │
-│  │  (port 8080)    │    │  (port 3001)    │           │
-│  └─────────────────┘    └─────────────────┘           │
+│     Chirality Framework (Multiple Service Options)      │
+│                                                         │
+│  Production Services (Docker-ready):                    │
+│  ├── admin/ (Express.js orchestration)                  │
+│  ├── graphql/ (Standalone GraphQL)                      │
+│  └── orchestration-service/ (Salvaged service)          │
+│                                                         │
+│  Development Services (Framework-integrated):           │
+│  ├── graphql-service/ (Framework GraphQL)               │
+│  ├── admin-ui/ (Next.js admin)                          │
+│  └── chirality-admin/ (Admin interface)                 │
+│                                                         │
+│  Core Framework:                                        │
+│  └── Python CLI + CF14 implementation                   │
 └─────────────┬───────────────────────────────────────────┘
               │
               ▼
