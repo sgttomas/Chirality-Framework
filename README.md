@@ -14,10 +14,15 @@ CF14 implements a **symmetric monoidal category** with:
 - **Functors**: Station transformations (S1→S2→S3) mapping problem spaces to solution spaces
 - **Natural Transformations**: Resolver strategies (OpenAI, Echo) preserving semantic equivalence
 
-For complete mathematical details, see:
-- [Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md) - Formal categorical statement
-- [Categorical Implementation](CATEGORICAL_IMPLEMENTATION.md) - Code-to-theory mapping  
-- [Theoretical Significance](THEORETICAL_SIGNIFICANCE.md) - Research implications and practical impact
+For implementation details, see:
+- [Architecture](ARCHITECTURE.md) - System design and technical implementation
+- [API Documentation](API.md) - Interface specifications and usage patterns  
+- [Speculative Claims](SPECULATIVE_CLAIMS.md) - Honest assessment of capabilities and potential
+
+**Deprecated Documentation** (preserved for historical context):
+- ~~[Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md)~~ - Superseded by ARCHITECTURE.md
+- ~~[Categorical Implementation](CATEGORICAL_IMPLEMENTATION.md)~~ - Superseded by ARCHITECTURE.md
+- ~~[Theoretical Significance](THEORETICAL_SIGNIFICANCE.md)~~ - Superseded by SPECULATIVE_CLAIMS.md
 
 ### Core Concepts
 

@@ -1,8 +1,15 @@
-# Practical Innovations and Engineering Insights from CF14
+# ⚠️ DEPRECATED: Practical Innovations and Engineering Insights from CF14
 
-## Executive Summary
+> **DEPRECATION NOTICE**: This document is deprecated as of CF14.3.0.0 (January 2025). The practical insights have been integrated into more focused documentation that avoids overstated claims about significance.
+> 
+> **See instead**: 
+> - `SPECULATIVE_CLAIMS.md` for honest assessment of capabilities and potential
+> - `ROADMAP.md` for planned developments and research directions
+> - `CURRENT_STATUS.md` for validated accomplishments and ongoing work
 
-The Chirality Framework demonstrates that careful software engineering and structured approaches to semantic processing can create robust, maintainable systems for complex reasoning tasks. This document examines CF14's practical innovations, engineering insights, and implications for building better semantic processing systems, LLM integration architectures, and knowledge management tools.
+## Historical Context
+
+This document originally attempted to position CF14's engineering innovations within broader technological significance. The practical insights have been preserved in other documentation with more measured claims about impact and potential.
 
 ## 1. Engineering Solutions to Semantic Processing Challenges
 

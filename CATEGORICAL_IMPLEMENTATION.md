@@ -1,8 +1,15 @@
-# Software Architecture and Design Patterns in CF14
+# ⚠️ DEPRECATED: Software Architecture and Design Patterns in CF14
 
-## Overview
+> **DEPRECATION NOTICE**: This document is deprecated as of CF14.3.0.0 (January 2025). The content has been superseded by more focused documentation that separates implementation details from theoretical frameworks.
+> 
+> **See instead**: 
+> - `ARCHITECTURE.md` for current system design and implementation
+> - `API.md` for interface specifications and usage patterns
+> - `CONTRIBUTING.md` for development guidelines and patterns
 
-This document examines how CF14's practical software architecture implements structured semantic processing through well-established design patterns, data structures, and engineering principles. Rather than abstract mathematical theory, the focus is on how concrete implementation choices support robust, maintainable semantic computation.
+## Historical Context
+
+This document originally attempted to bridge theoretical concepts with practical implementation. The architectural insights have been moved to `ARCHITECTURE.md` with a focus on practical system design rather than theoretical frameworks.
 
 ## 1. Core Data Structures
 

@@ -1,8 +1,15 @@
-# Mathematical Foundations of the Chirality Framework
+# ⚠️ DEPRECATED: Mathematical Foundations of the Chirality Framework
 
-## Abstract
+> **DEPRECATION NOTICE**: This document is deprecated as of CF14.3.0.0 (January 2025). The mathematical framing, while interesting, was determined to be more descriptive than foundational to the framework's actual capabilities. 
+> 
+> **See instead**: 
+> - `ARCHITECTURE.md` for technical implementation details
+> - `SPECULATIVE_CLAIMS.md` for honest assessment of capabilities
+> - `API.md` for practical usage patterns
 
-The Chirality Framework (CF14) implements a structured approach to semantic computation using matrix-based operations and pipeline processing. While inspired by mathematical concepts from category theory, the framework's primary value lies in its practical methodology for decomposing complex reasoning tasks into manageable, reproducible operations. This document examines the mathematical patterns present in CF14 and explores how standard computational structures support robust semantic processing.
+## Historical Context
+
+This document originally attempted to provide mathematical foundations for CF14's semantic operations. After implementation and testing, we determined that the framework's value lies in practical engineering patterns rather than mathematical theory.
 
 ## 1. Core Mathematical Patterns
 

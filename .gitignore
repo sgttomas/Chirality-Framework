@@ -4,10 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-.venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -20,51 +16,138 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+cf14-env/
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
-# Environment
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.tox/
+.nox/
+.coverage
+.pytest_cache/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+
+# Documentation
+docs/_build/
+.readthedocs.yml
+
+# Environment variables
 .env
 .env.local
-*.log
+.env.development
+.env.test
+.env.production
 
-# Output
-output/
-temp_*.json
-*.bundle
-
-# Development history (may contain sensitive data)
-devhistory/
+# API Keys (never commit these)
+*.key
+*.pem
+*.p12
+config/secrets/
 
 # Neo4j
-neo4j/
+neo4j-data/
+neo4j-logs/
+neo4j-plugins/
 
-# Node (from old structure)
+# Output directories
+output/
+results/
+artifacts/
+dumps/
+
+# Temporary files
+*.tmp
+*.temp
+.temporary/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Node.js (for any JS tooling)
 node_modules/
-.next/
-next-env.d.ts
-package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
 
-# Old files
-chirality_*.py
-semmul*.py
-NORMATIVE_Chriality_Framework_14.2.1.1.txt
-cf14.core.v2.1.1.json
+# Next.js
+.next/
+out/
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Matrix operation artifacts
+matrix_*.json
+reasoning_trace_*.json
+semantic_valley_*.json
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Profiling
+*.prof
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
