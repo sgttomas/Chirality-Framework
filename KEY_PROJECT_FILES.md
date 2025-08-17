@@ -26,7 +26,7 @@ Essential files for understanding, using, and contributing to the Chirality Fram
 ## 🚀 Getting Started
 
 ### For Users
-- **[README.md](README.md)** - Project overview, installation, and basic usage | ✅ **CURRENT** (Updated Aug 17 - Phase 2)
+- **[README.md](README.md)** - Project overview, installation, and basic usage | 🆕 **UPDATED** (Aug 17 - CF14 Neo4j integration)
 - **[API.md](API.md)** - Complete interface documentation (CLI, Python SDK, GraphQL) | ✅ **CURRENT** (Updated Aug 17 - Phase 2)
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions | ✅ **CURRENT**
 
@@ -59,6 +59,7 @@ Essential files for understanding, using, and contributing to the Chirality Fram
 ### Key Components
 - **[chirality/core/cell_resolver.py](chirality/core/cell_resolver.py)** - LLM integration and resolver strategies
 - **[chirality/adapters/neo4j_adapter.py](chirality/adapters/neo4j_adapter.py)** - Graph database persistence
+- **[chirality/exporters/neo4j_cf14_exporter.py](chirality/exporters/neo4j_cf14_exporter.py)** - CF14 semantic matrix export to Neo4j | ✅ **CURRENT** (Created Aug 17)
 - **[chirality/cli.py](chirality/cli.py)** - Command-line interface
 
 ### Configuration
@@ -68,7 +69,7 @@ Essential files for understanding, using, and contributing to the Chirality Fram
 ## 🎯 Specialized Documentation
 
 ### For AI Integration
-- **[CLAUDE.md](CLAUDE.md)** - LLM role guidance and semantic interpolation focus | ✅ **CURRENT** (Updated Aug 17)
+- **[CLAUDE.md](CLAUDE.md)** - LLM role guidance and semantic interpolation focus | 🆕 **UPDATED** (Aug 17 - CF14 export workflow)
 - **[PROJECT_DIRECTORY.md](PROJECT_DIRECTORY.md)** - Machine-readable project structure | ✅ **CURRENT**
 
 ### Process Documents
