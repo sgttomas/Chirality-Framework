@@ -1,495 +1,459 @@
-# Backend Production Architecture
+# Integration Architecture - Graph Mirror with Selected Components
+
+*System architecture for integrating document generation with metadata-only graph mirroring and read-only GraphQL access*
 
 ## Overview
 
-This document defines the architecture for how the chirality-semantic-framework produces, transforms, and persists semantic component data to Neo4j. The backend is the authoritative source for all CF14 semantic operations and maintains complete audit trails of all transformations.
+This document defines the architecture for the hybrid approach where files remain the source of truth for complete document bodies, while Neo4j serves as a metadata-rich mirror for selected components with relationship tracking. The integration provides enhanced discoverability and relationship analysis without duplicating full content.
 
-## What We Produce
+## Architecture Principles
 
-### Core Production Responsibilities
+### Files as Source of Truth
+- **Complete Document Bodies**: Full DS/SP/X/M documents stored in `store/state.json`
+- **Atomic Operations**: File writes use atomic operations ensuring consistency
+- **Primary Workflows**: All document generation, editing, and core functionality operates on files
+- **Backup and Recovery**: Files provide simple, portable backup and migration
+- **Zero Dependencies**: Core functionality requires no external services
 
-1. **Semantic Component Generation**: Create components from CF14 matrix operations
-2. **State Evolution Tracking**: Monitor and record all state transitions
-3. **Operation Audit Creation**: Generate complete audit trails for every operation
-4. **Relationship Establishment**: Create and maintain component dependencies
-5. **Performance Monitoring**: Track and report production metrics
-6. **Data Validation**: Ensure data quality before persistence
+### Graph as Metadata Mirror
+- **Selected Components Only**: Rule-based algorithm selects high-value sections for mirroring
+- **Relationship Mapping**: Cross-references, document lineage, and dependencies tracked
+- **Enhanced Discovery**: Search and exploration capabilities beyond file-based access
+- **Read-Only Access**: Graph provides query interface, never modifies source documents
+- **Async Non-Blocking**: Graph updates happen after file writes, never blocking core operations
 
-## Production Architecture Layers
+## System Components
 
-### Layer 1: Semantic Operation Engine
-
-**What We Execute**:
-```python
-class SemanticOperationEngine:
-    """
-    Core engine that produces semantic transformations.
-    """
-    def execute_multiplication(self, matrix_a: Matrix, matrix_b: Matrix) -> Matrix:
-        """Produces matrix C from A * B semantic multiplication."""
-        
-    def execute_addition(self, component_a: Component, component_b: Component) -> Component:
-        """Produces combined component from semantic addition."""
-        
-    def execute_truncation(self, matrix: Matrix, dimensions: Tuple) -> Matrix:
-        """Produces truncated matrix with specified dimensions."""
-        
-    def execute_synthesis(self, components: List[Component]) -> Component:
-        """Produces final synthesized component."""
+### Document Generation Layer
+```
+┌─────────────────────────┐
+│  Two-Pass Generation    │
+│                         │
+│  DS → SP → X → M        │ ← Pass 1: Sequential
+│  ↓                      │
+│  DS' → SP' → X' → M'    │ ← Pass 2: Cross-referential 
+│  ↓                      │
+│  X'' (final resolution) │ ← Final: Integrated solution
+└─────────────────────────┘
+           ↓
+     File Write to
+   store/state.json
+           ↓
+    mirrorAfterWrite()
+           ↓ (async, non-blocking)
+┌─────────────────────────┐
+│  Component Selection    │
+│                         │
+│  • Score sections       │
+│  • Apply thresholds     │
+│  • Enforce caps         │
+│  • Generate stable IDs  │
+└─────────────────────────┘
+           ↓
+┌─────────────────────────┐
+│  Neo4j Mirror Sync     │
+│                         │
+│  • Idempotent upserts   │
+│  • Stale cleanup        │
+│  • Relationship updates │
+│  • Constraint handling  │
+└─────────────────────────┘
 ```
 
-**Production Output**:
-- New semantic components with initial states
-- Operation metadata for audit trails
-- Performance metrics for each operation
-- Dependency mappings between components
+### Integration Flow
 
-### Layer 2: Component State Manager
+#### 1. Document Generation (Source of Truth)
+```typescript
+// Main generation endpoint: /api/core/orchestrate
+async function twoPassGeneration() {
+  // Pass 1: Sequential generation
+  const pass1 = await generateSequentially(problem);
+  
+  // Pass 2: Cross-referential refinement  
+  const pass2 = await refineWithCrossRefs(pass1);
+  
+  // Final resolution
+  const finalX = await resolveWithAll(pass2);
+  
+  // Atomic file write (source of truth)
+  writeState({ finals: pass2 });
+  
+  // Async graph mirror (non-blocking)
+  mirrorAfterWrite(pass2);
+  
+  return { pass1, pass2, logs };
+}
+```
 
-**State Transitions We Track**:
-```python
-class ComponentStateManager:
-    """
-    Manages and produces component state transitions.
-    """
+#### 2. Component Selection Algorithm
+```typescript
+// Rule-based selection: lib/graph/selector.ts
+export function selectForMirror(bundle: Bundle, cfg: SelCfg) {
+  const out = {
+    docs: [],
+    components: [],
+    references: [],
+    derived: [],
+    keepByDoc: {}
+  };
+
+  for (const doc of bundle.docs) {
+    // Parse document sections
+    const sections = parseSections(doc.raw);
     
-    VALID_TRANSITIONS = {
-        "initial": ["interpreted"],
-        "interpreted": ["combined"],
-        "combined": ["resolved"],
-        "resolved": []  # Terminal state
+    // Score each section
+    const scored = sections
+      .map(s => ({ s, score: scoreSection(doc, s, cfg) }))
+      .filter(x => x.score >= cfg.threshold)  // Threshold: 3
+      .sort((a,b) => b.score - a.score)
+      .slice(0, cfg.topKPerDoc);              // Cap: 12 per doc
+    
+    // Generate stable component IDs
+    for (const { s, score } of scored) {
+      const id = stableComponentId(doc.id, s.anchor);
+      out.components.push({
+        id, 
+        props: { type: s.heading.split(/\s+/)[0], title: s.heading, anchor: s.anchor, order: s.order, score },
+        docId: doc.id
+      });
     }
-    
-    def produce_state_transition(self, component_id: str, 
-                                from_state: str, to_state: str, 
-                                content: str, operation: Dict) -> Dict:
-        """
-        Produces a state transition record.
-        """
-        if to_state not in self.VALID_TRANSITIONS[from_state]:
-            raise ValueError(f"Invalid transition: {from_state} -> {to_state}")
-        
-        return {
-            "component_id": component_id,
-            "from_state": from_state,
-            "to_state": to_state,
-            "content": content,
-            "operation": operation,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+  }
+  
+  // Enforce global cap: 50 total nodes
+  if (out.docs.length + out.components.length > cfg.maxNodesPerRun) {
+    out.components.splice(cfg.maxNodesPerRun - out.docs.length);
+  }
+  
+  return out;
+}
+
+// Scoring algorithm
+function scoreSection(doc: Doc, section: Section, cfg: SelCfg): number {
+  let score = 0;
+  
+  // Cross-references: +3 points for 2+ refs to other documents
+  const refs = extractDocRefs(section.content).filter(r => r !== doc.id);
+  if (refs.length >= 2) score += 3;
+  
+  // Keywords: +2 points for headings starting with high-value indicators
+  const kwRe = new RegExp(`^(${cfg.keywords.join("|")})`, "i");
+  if (kwRe.test(section.heading)) score += 2;
+  
+  // Size penalty: -2 points for large sections with few references
+  if (section.content.length > cfg.largeSectionCharLimit && refs.length < 3) score -= 2;
+  
+  return score;
+}
 ```
 
-**State Production Pipeline**:
-1. Validate transition is allowed
-2. Generate state snapshot
-3. Record operation context
-4. Update component current state
-5. Create audit record
+#### 3. Mirror Synchronization
+```typescript
+// Idempotent mirror operations: lib/graph/mirror.ts
+export async function mirrorGraph(payload: MirrorPayload) {
+  if (process.env.FEATURE_GRAPH_ENABLED !== "true") return;
+  
+  const session = driver.session();
+  
+  await session.executeWrite(async tx => {
+    // Upsert documents and components
+    await tx.run(`
+      UNWIND $docs AS d
+        MERGE (doc:Document {id:d.id})
+        SET doc += d.props, doc.selection_v = $selection_v;
+      
+      UNWIND $components AS c
+        MERGE (k:Component {id:c.id})
+        SET k += c.props;
+      
+      UNWIND $components AS c
+        MATCH (d:Document {id:c.docId}), (k:Component {id:c.id})
+        MERGE (d)-[:CONTAINS]->(k);
+    `, { docs: payload.docs, components: payload.components, selection_v: payload.selection_v });
 
-### Layer 3: Operation Audit Producer
+    // Remove stale components using set difference
+    await tx.run(`
+      UNWIND keys($keepByDoc) AS did
+      WITH did, $keepByDoc[did] AS keep
+      MATCH (d:Document {id:did})-[r:CONTAINS]->(k:Component)
+      WHERE NOT k.id IN keep
+      DELETE r
+      WITH k
+      WHERE size( (k)<-[:CONTAINS]-() ) = 0
+      DETACH DELETE k
+    `, { keepByDoc: payload.keepByDoc });
 
-**Audit Records We Generate**:
-```python
-class OperationAuditProducer:
-    """
-    Produces comprehensive audit trails for all operations.
-    """
-    
-    def produce_audit_record(self, operation: SemanticOperation) -> Dict:
-        """
-        Produces complete audit record for Neo4j.
-        """
-        return {
-            "id": str(uuid.uuid4()),
-            "operation_type": operation.type,
-            "started_at": operation.start_time,
-            "completed_at": operation.end_time,
-            "duration_ms": operation.duration_ms,
-            "input_components": [c.id for c in operation.inputs],
-            "output_component": operation.output.id,
-            "resolver": {
-                "type": operation.resolver_type,
-                "model": operation.model,
-                "temperature": operation.temperature,
-                "tokens_used": operation.tokens_used
-            },
-            "success": operation.success,
-            "error": operation.error if not operation.success else None
-        }
+    // Update document references
+    await tx.run(`
+      UNWIND $refs AS r
+      MATCH (s:Document {id:r.src})
+      MERGE (t:Document {id:r.dst})
+      MERGE (s)-[:REFERENCES]->(t)
+    `, { refs: payload.references });
+
+    // Update lineage with cycle protection
+    await tx.run(`
+      UNWIND $derived AS e
+      MATCH (s:Document {id:e.src}), (t:Document {id:e.dst})
+      WHERE NOT (t)-[:DERIVED_FROM*1..]->(s)
+      MERGE (s)-[:DERIVED_FROM]->(t)
+    `, { derived: payload.derived });
+  });
+}
 ```
 
-### Layer 4: Neo4j Persistence Layer
+### GraphQL API Layer
 
-**How We Persist to Neo4j**:
-```python
-class Neo4jPersistenceLayer:
-    """
-    Handles all data persistence to Neo4j.
-    """
-    
-    def persist_component(self, component: Dict) -> bool:
-        """
-        Persists component to Neo4j.
-        """
-        query = """
-        MERGE (c:Component {id: $id})
-        SET c += $properties
-        SET c.updated_at = datetime()
-        RETURN c
-        """
-        return self.execute_query(query, id=component["id"], properties=component)
-    
-    def persist_operation(self, operation: Dict) -> bool:
-        """
-        Persists operation audit to Neo4j.
-        """
-        query = """
-        CREATE (o:SemanticOperation)
-        SET o = $properties
-        WITH o
-        UNWIND $inputs as input_id
-        MATCH (i:Component {id: input_id})
-        CREATE (o)-[:CONSUMES]->(i)
-        WITH o
-        MATCH (output:Component {id: $output_id})
-        CREATE (o)-[:PRODUCES]->(output)
-        RETURN o
-        """
-        return self.execute_query(
-            query, 
-            properties=operation,
-            inputs=operation["input_components"],
-            output_id=operation["output_component"]
-        )
-    
-    def persist_batch(self, data: Dict) -> Dict:
-        """
-        Persists batch of components, operations, and relationships.
-        """
-        with self.driver.session() as session:
-            with session.begin_transaction() as tx:
-                results = {
-                    "components": self._persist_components(tx, data["components"]),
-                    "operations": self._persist_operations(tx, data["operations"]),
-                    "relationships": self._persist_relationships(tx, data["relationships"])
-                }
-                tx.commit()
-                return results
+#### Schema Definition
+```graphql
+type Document {
+  id: ID!
+  kind: String!           # DS, SP, X, M
+  slug: String!
+  title: String!
+  updatedAt: String
+  components: [Component!]! @relationship(type: "CONTAINS", direction: OUT)
+  references: [Document!]! @relationship(type: "REFERENCES", direction: OUT)
+  derivedFrom: [Document!]! @relationship(type: "DERIVED_FROM", direction: OUT)
+}
+
+type Component {
+  id: ID!
+  type: String!           # Section type (API, Decision, etc.)
+  title: String!          # Section heading
+  anchor: String          # URL anchor
+  order: Int              # Order within document  
+  score: Int              # Selection score
+  parent: Document! @relationship(type: "CONTAINS", direction: IN)
+}
+
+type Query {
+  document(where: DocumentWhereOne!): Document
+  documents(where: DocumentWhere): [Document!]!
+  searchComponents(q: String!, limit: Int = 20): [Component!]!
+}
 ```
 
-## Production Workflows
+#### API Endpoints
+```typescript
+// GraphQL endpoint: /api/v1/graph/graphql
+export async function POST(req: NextRequest) {
+  if (process.env.FEATURE_GRAPH_ENABLED !== "true") {
+    return NextResponse.json({ error: "Graph disabled" }, { status: 503 });
+  }
+  
+  // Bearer token authentication
+  const auth = req.headers.get("authorization") || "";
+  const ok = auth === `Bearer ${process.env.GRAPHQL_BEARER_TOKEN}`;
+  if (!ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-### Task 1: Matrix Operation Production
+  const { query, variables, operationName } = await req.json();
+  const schema = await getSchema();
 
-**How We Produce Matrix Operations**:
-```python
-class MatrixOperationProducer:
-    def produce_matrix_c(self, matrix_a: Matrix, matrix_b: Matrix) -> Dict:
-        """
-        Produces Matrix C = A * B with all components and audit.
-        """
-        # 1. Create thread context
-        thread_id = f"matrix_operation_{uuid.uuid4()}"
-        
-        # 2. Produce input components
-        a_components = self.produce_matrix_components(matrix_a, thread_id)
-        b_components = self.produce_matrix_components(matrix_b, thread_id)
-        
-        # 3. Execute semantic multiplication
-        result_matrix = self.semantic_engine.multiply(matrix_a, matrix_b)
-        
-        # 4. Produce result components
-        c_components = self.produce_matrix_components(result_matrix, thread_id)
-        
-        # 5. Generate operation audit
-        operation = self.audit_producer.produce_multiplication_audit(
-            inputs=[a_components, b_components],
-            output=c_components,
-            performance=self.get_performance_metrics()
-        )
-        
-        # 6. Package for persistence
-        return {
-            "thread_id": thread_id,
-            "components": a_components + b_components + c_components,
-            "operations": [operation],
-            "relationships": self.produce_relationships(operation)
-        }
+  // Simple depth guard
+  if (typeof query === "string" && (query.match(/\{/g)?.length || 0) > 20) {
+    return NextResponse.json({ error: "Query too deep" }, { status: 400 });
+  }
+
+  const result = await graphql({ schema, source: query, variableValues: variables, operationName });
+  return NextResponse.json(result);
+}
+
+// Health monitoring: /api/v1/graph/health
+export async function GET() {
+  const driver = getDriver();
+  const session = driver.session();
+  
+  const docCount = await session.run('MATCH (d:Document) RETURN count(d) as count');
+  const compCount = await session.run('MATCH (c:Component) RETURN count(c) as count');
+  
+  return NextResponse.json({
+    status: 'healthy',
+    neo4j: {
+      connected: true,
+      documents: docCount.records[0].get('count').toNumber(),
+      components: compCount.records[0].get('count').toNumber()
+    },
+    graph_enabled: process.env.FEATURE_GRAPH_ENABLED === 'true'
+  });
+}
+
+// Validation endpoint: /api/v1/graph/validate
+export async function POST(req: NextRequest) {
+  const { bundle } = await req.json();
+  const sel = selectForMirror(bundle, cfg);
+  return NextResponse.json({
+    docs: sel.docs.map(d => d.id),
+    keepByDoc: sel.keepByDoc,
+    components: sel.components.map(c => ({ id: c.id, docId: c.docId }))
+  });
+}
 ```
 
-### Task 2: Component State Evolution Production
+## Configuration and Deployment
 
-**How We Produce State Evolution**:
-```python
-class StateEvolutionProducer:
-    def produce_component_evolution(self, component_id: str, 
-                                   operations: List[str]) -> Dict:
-        """
-        Produces complete state evolution for a component.
-        """
-        states = []
-        current_state = "initial"
-        
-        for operation in operations:
-            # Determine next state
-            next_state = self.get_next_state(current_state, operation)
-            
-            # Execute operation
-            result = self.execute_operation(component_id, operation)
-            
-            # Produce state record
-            state_record = {
-                "component_id": component_id,
-                "state": next_state,
-                "content": result.content,
-                "operation": operation,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-            states.append(state_record)
-            current_state = next_state
-        
-        return {
-            "component_id": component_id,
-            "states": states,
-            "final_state": current_state
-        }
+### Environment Configuration
+```bash
+# Core configuration
+FEATURE_GRAPH_ENABLED=true
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=your-password
+
+# API security
+GRAPHQL_BEARER_TOKEN=your-secure-token
+GRAPHQL_CORS_ORIGINS=http://localhost:3000
+
+# Selection parameters in config/selection.json
+{
+  "selection_v": "1.0.0",
+  "threshold": 3,                    # Minimum score for inclusion
+  "topKPerDoc": 12,                  # Max components per document
+  "maxNodesPerRun": 50,              # Global cap per mirror operation
+  "keywords": ["API", "Dependency", "Integration", "Decision", "Risk", "Metric"],
+  "largeSectionCharLimit": 10000     # Size penalty threshold
+}
 ```
 
-### Task 3: Batch Production Pipeline
+### Database Setup
+```bash
+# Start Neo4j
+docker compose -f docker-compose.neo4j.yml up -d
 
-**How We Handle Batch Production**:
-```python
-class BatchProductionPipeline:
-    def produce_cf14_execution(self, problem_statement: Dict) -> Dict:
-        """
-        Produces complete CF14 execution from problem statement.
-        """
-        production_batch = {
-            "components": [],
-            "operations": [],
-            "states": [],
-            "relationships": []
-        }
-        
-        # 1. Produce Matrix A (Problem Statement)
-        matrix_a_data = self.produce_matrix_a(problem_statement)
-        production_batch["components"].extend(matrix_a_data["components"])
-        
-        # 2. Produce Matrix B (Decisions)
-        matrix_b_data = self.produce_matrix_b()
-        production_batch["components"].extend(matrix_b_data["components"])
-        
-        # 3. Produce Matrix C (Requirements)
-        matrix_c_data = self.produce_matrix_c(matrix_a_data, matrix_b_data)
-        production_batch["components"].extend(matrix_c_data["components"])
-        production_batch["operations"].extend(matrix_c_data["operations"])
-        
-        # 4. Continue through all CF14 operations...
-        
-        # 5. Validate batch before persistence
-        if self.validator.validate_batch(production_batch):
-            return self.neo4j.persist_batch(production_batch)
-        else:
-            raise ValueError("Batch validation failed")
+# Initialize constraints
+npm run tsx scripts/init-graph-constraints.ts
+
+# Validate environment
+npm run tsx scripts/validate-graph-env.ts
+
+# Backfill existing documents
+npm run tsx scripts/backfill-graph-from-files.ts --root=content
 ```
 
-## Data Quality and Validation
+## Integration Points
 
-### Task 4: Production Validation
+### Single Call Site Integration
+```typescript
+// In document generation endpoints
+async function saveAndMirror(finals: Finals) {
+  // 1. Save to files (source of truth)
+  writeState({ finals });
+  
+  // 2. Mirror to graph (async, non-blocking)
+  mirrorAfterWrite(finals);
+}
 
-**What We Validate Before Persistence**:
-```python
-class ProductionValidator:
-    def validate_component(self, component: Dict) -> bool:
-        """Validates component before production."""
-        validations = [
-            self.validate_id_format(component["id"]),
-            self.validate_state_value(component["current_state"]),
-            self.validate_position_format(component["matrix_position"]),
-            self.validate_content_not_empty(component["initial_content"]),
-            self.validate_timestamps(component)
-        ]
-        return all(validations)
-    
-    def validate_operation(self, operation: Dict) -> bool:
-        """Validates operation audit before production."""
-        validations = [
-            self.validate_operation_type(operation["operation_type"]),
-            self.validate_resolver_format(operation["resolver"]),
-            self.validate_component_references(operation),
-            self.validate_performance_metrics(operation["performance_metrics"])
-        ]
-        return all(validations)
+// Integration function
+export async function mirrorAfterWrite(finals: Finals) {
+  if (process.env.FEATURE_GRAPH_ENABLED !== "true") return;
+  
+  const bundle = finalsToBundle(finals);
+  const sel = selectForMirror(bundle, cfg);
+  
+  // Non-blocking async execution
+  queueMicrotask(() => 
+    mirrorGraph({ selection_v: cfg.selection_v, ...sel })
+      .catch(err => console.warn("mirror deferred failed", err))
+  );
+}
 ```
 
-### Task 5: Data Consistency Enforcement
+### Query Examples
+```bash
+# Get document with components and relationships
+curl -X POST http://localhost:3001/api/v1/graph/graphql \
+  -H "Authorization: Bearer dev-super-secret" \
+  -d '{
+    "query": "query GetDoc($id: ID!) { 
+      document(where: {id: $id}) { 
+        id title kind 
+        components { id title anchor score }
+        references { id title kind }
+        derivedFrom { id title kind }
+      } 
+    }",
+    "variables": {"id": "DS:current"}
+  }'
 
-**How We Ensure Consistency**:
-```python
-class ConsistencyEnforcer:
-    def enforce_state_consistency(self, component_id: str, states: List[Dict]):
-        """Ensures state transitions are consistent."""
-        previous_state = "initial"
-        
-        for state in states:
-            if not self.is_valid_transition(previous_state, state["state"]):
-                raise ConsistencyError(
-                    f"Invalid transition: {previous_state} -> {state['state']}"
-                )
-            previous_state = state["state"]
-    
-    def enforce_operation_consistency(self, operation: Dict):
-        """Ensures operation inputs/outputs are consistent."""
-        # Verify all input components exist
-        for input_id in operation["input_components"]:
-            if not self.component_exists(input_id):
-                raise ConsistencyError(f"Input component {input_id} not found")
-        
-        # Verify output was created after inputs
-        if not self.validate_temporal_ordering(operation):
-            raise ConsistencyError("Output created before inputs")
+# Search components by keyword
+curl -X POST http://localhost:3001/api/v1/graph/graphql \
+  -H "Authorization: Bearer dev-super-secret" \
+  -d '{
+    "query": "query Search($q: String!) {
+      searchComponents(q: $q, limit: 10) {
+        id title type score
+        parent { id title kind }
+      }
+    }",
+    "variables": {"q": "API"}
+  }'
 ```
 
-## Performance and Monitoring
+## Operational Considerations
 
-### Task 6: Production Metrics
+### Performance Characteristics
+- **File Operations**: Sub-second response times with atomic file locking
+- **Graph Mirroring**: 2-5 seconds for component selection and Neo4j sync
+- **GraphQL Queries**: <1 second response time for typical relationship queries
+- **Memory Usage**: Minimal impact - selection algorithm processes one document at a time
 
-**Metrics We Track**:
-```python
-class ProductionMetrics:
-    def record_operation_metrics(self, operation_type: str, duration_ms: int, 
-                                success: bool, component_count: int):
-        """Records metrics for production monitoring."""
-        self.metrics.histogram(
-            "production.operation.duration",
-            duration_ms,
-            tags={"operation": operation_type}
-        )
-        
-        self.metrics.counter(
-            "production.operations.total",
-            1,
-            tags={"operation": operation_type, "success": success}
-        )
-        
-        self.metrics.gauge(
-            "production.components.created",
-            component_count,
-            tags={"operation": operation_type}
-        )
+### Monitoring and Observability
+```typescript
+// Metrics emitted during mirror operations
+{
+  "at": "graph_mirror",
+  "result": "success|failure", 
+  "docs": 4,
+  "comps": 8,
+  "refs": 3,
+  "derived": 2,
+  "ms": 1250,
+  "selection_v": "1.0.0"
+}
 ```
 
-### Task 7: Performance Optimization
+### Error Handling and Recovery
+- **Graph Unavailable**: Core functionality continues unimpacted
+- **Mirror Failures**: Logged but don't block document generation
+- **Stale Data**: Set difference approach ensures consistent cleanup
+- **Schema Evolution**: Version tracking via `selection_v` field
 
-**How We Optimize Production**:
-```python
-class ProductionOptimizer:
-    def optimize_batch_size(self, components: List[Dict]) -> List[List[Dict]]:
-        """Splits components into optimal batch sizes."""
-        optimal_size = 100  # Based on Neo4j performance testing
-        return [components[i:i+optimal_size] 
-                for i in range(0, len(components), optimal_size)]
-    
-    def optimize_query_execution(self, queries: List[str]) -> List[str]:
-        """Optimizes queries for parallel execution."""
-        # Group independent queries for parallel execution
-        independent_groups = self.identify_independent_queries(queries)
-        return self.parallelize_query_groups(independent_groups)
-```
+### Security Model
+- **Authentication**: Bearer token required for all GraphQL operations
+- **Authorization**: Read-only access to mirrored metadata only
+- **CORS**: Configurable allowed origins
+- **Query Limits**: Depth and complexity guards prevent abuse
+- **Feature Flags**: Complete system can be disabled via environment
 
-## Error Recovery
+## Benefits and Trade-offs
 
-### Task 8: Production Recovery
+### Benefits
+- **Zero Impact**: Core workflows never blocked by graph operations
+- **Enhanced Discovery**: Rich relationship querying capabilities
+- **Consistent Data**: Idempotent operations ensure graph accuracy
+- **Operational Simplicity**: Files remain primary, graph is additive
+- **Performance**: Selective mirroring keeps graph size manageable
 
-**How We Handle Production Failures**:
-```python
-class ProductionRecovery:
-    def recover_from_failure(self, failed_batch: Dict, error: Exception):
-        """Recovers from production failure."""
-        # 1. Log detailed failure information
-        self.logger.error("Production failed", extra={
-            "batch_id": failed_batch.get("id"),
-            "component_count": len(failed_batch.get("components", [])),
-            "error": str(error),
-            "stack_trace": traceback.format_exc()
-        })
-        
-        # 2. Store to recovery queue
-        recovery_item = {
-            "batch": failed_batch,
-            "error": str(error),
-            "timestamp": datetime.utcnow().isoformat(),
-            "retry_count": 0,
-            "max_retries": 3
-        }
-        self.recovery_queue.put(recovery_item)
-        
-        # 3. Attempt partial recovery
-        recovered = self.attempt_partial_recovery(failed_batch)
-        
-        # 4. Alert if critical
-        if self.is_critical_failure(error):
-            self.alert_manager.send_critical_alert(
-                "Production failure requires manual intervention",
-                context=recovery_item
-            )
-        
-        return recovered
-```
+### Trade-offs  
+- **Eventual Consistency**: Graph updates are asynchronous
+- **Partial Data**: Only selected components mirrored, not full documents
+- **Additional Complexity**: More moving parts for deployment
+- **Resource Usage**: Neo4j requires additional infrastructure
 
-## Testing Strategy
+## Future Evolution
 
-### Task 9: Production Testing
+### Planned Enhancements
+- **User-Driven Selection**: Chat commands for manual component selection
+- **AI-Assisted Selection**: LLM-guided selection with effectiveness tracking
+- **Frontend Integration**: React components for graph exploration
+- **Advanced Analytics**: Usage patterns and document quality metrics
+- **Vector Integration**: Semantic similarity search combined with graph relationships
 
-**How We Test Production**:
-```python
-class TestProduction:
-    def test_end_to_end_production(self):
-        """Tests complete production pipeline."""
-        # 1. Create test matrices
-        matrix_a = self.create_test_matrix("A", 2, 2)
-        matrix_b = self.create_test_matrix("B", 2, 2)
-        
-        # 2. Execute production
-        result = self.pipeline.produce_cf14_execution({
-            "matrix_a": matrix_a,
-            "matrix_b": matrix_b
-        })
-        
-        # 3. Verify production results
-        assert len(result["components"]) == 8  # 4 from A, 4 from B
-        assert len(result["operations"]) > 0
-        assert all(self.validator.validate_component(c) 
-                  for c in result["components"])
-    
-    def test_production_recovery(self):
-        """Tests recovery from production failure."""
-        # 1. Create failing scenario
-        self.mock_neo4j_failure()
-        
-        # 2. Attempt production
-        failed_batch = self.create_test_batch()
-        recovery = self.recovery_manager.recover_from_failure(
-            failed_batch, 
-            ConnectionError("Neo4j unavailable")
-        )
-        
-        # 3. Verify recovery
-        assert recovery["recovered_count"] > 0
-        assert self.recovery_queue.size() > 0
-```
+### Migration Paths
+- **Scale Up**: Transition to dedicated graph database for large deployments
+- **Multi-User**: Document isolation and sharing via graph relationships
+- **Real-Time**: WebSocket subscriptions for live graph updates
+- **Hybrid Search**: Vector embeddings + graph traversal for enhanced discovery
 
-## Summary
+---
 
-The chirality-semantic-framework backend is responsible for:
-
-1. **Producing** all semantic components and transformations
-2. **Tracking** complete state evolution with audit trails
-3. **Validating** data quality before persistence
-4. **Optimizing** batch operations for performance
-5. **Monitoring** production health and metrics
-6. **Recovering** from failures gracefully
-7. **Persisting** to Neo4j for frontend consumption
-
-All data produced by this backend is available to frontend applications via GraphQL queries, without the frontend needing to understand the production complexity.
+*This architecture provides a foundation for rich semantic discovery while maintaining the simplicity and reliability of file-based document storage.*

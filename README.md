@@ -1,6 +1,51 @@
 # Chirality Semantic Framework
 
-Systematic semantic transformation framework that converts complex problems into structured solutions through matrix operations and LLM-guided reasoning.
+## Current Implementation: Two-Pass Document Generation with Graph Mirror
+
+**chirality-ai-app** implements the Chirality Framework through a streamlined document generation system with optional Neo4j graph mirroring for enhanced discovery.
+
+### Key Features ✅ IMPLEMENTED
+- **Two-Pass Document Generation**: Sequential DS/SP/X/M generation followed by cross-referential refinement
+- **CF14 Semantic Matrix Integration**: Export A,B,C,D,F,J matrices to Neo4j for semantic context
+- **Dual Architecture**: CF14 semantic layer + document generation layer with shared Neo4j storage
+- **Graph-Enhanced UI**: CF14 context injection for semantically-informed document generation
+- **File-based Source of Truth**: Simple, reliable document storage in `store/state.json`
+- **GraphQL API**: Read-only access to CF14 matrices, semantic nodes, and document relationships
+- **RAG-Enhanced Chat**: Document-aware chat interface with automatic context injection
+
+### Quick Start
+```bash
+# Clone and install
+git clone [repository-url]
+cd chirality-ai-app
+npm install
+
+# Set up environment
+cp .env.example .env.local
+# Add your OpenAI API key and optional Neo4j settings
+
+# Start development server
+npm run dev
+# Visit http://localhost:3001
+
+# Optional: Start Neo4j for graph features
+docker compose -f docker-compose.neo4j.yml up -d
+
+# Export CF14 matrices to Neo4j (from semantic framework)
+cd ../chirality-semantic-framework
+python -m chirality.cli run --thread "demo:test" \
+  --A chirality/tests/fixtures/A.json \
+  --B chirality/tests/fixtures/B.json \
+  --resolver echo --write-cf14-neo4j
+```
+
+See **[chirality-ai-app](../chirality-ai-app)** for complete implementation details.
+
+---
+
+## Legacy CF14 Framework: Matrix-Based Semantic Operations
+
+The original Chirality Framework provides systematic semantic transformation through matrix operations and LLM-guided reasoning.
 
 ## What CF14 Does
 
@@ -188,7 +233,31 @@ Matrices are JSON files with the following structure:
 
 ## Neo4j Integration
 
-When using `--write-neo4j`, the framework creates:
+### CF14 Semantic Matrix Export (`--write-cf14-neo4j`)
+
+The framework includes a specialized CF14 exporter that creates semantic matrix nodes optimized for integration with the document generation system:
+
+```bash
+# Export CF14 matrices to Neo4j with semantic labels
+python -m chirality.cli run \
+  --thread "demo:test" \
+  --A chirality/tests/fixtures/A.json \
+  --B chirality/tests/fixtures/B.json \
+  --resolver echo --write-cf14-neo4j
+```
+
+**CF14 Graph Schema:**
+- `(:CFMatrix)` nodes with kind (A,B,C,D,F,J), name, creation timestamp
+- `(:CFNode)` nodes with semantic content, position coordinates, SHA1-based stable IDs
+- `[:CONTAINS]` relationships linking matrices to their semantic nodes
+- Idempotent operations using content-based hashing for consistent node IDs
+
+**GraphQL Integration:**
+The CF14 export integrates seamlessly with the chirality-ai-app GraphQL API for enhanced document generation with semantic context.
+
+### Legacy Neo4j Export (`--write-neo4j`)
+
+The original Neo4j integration creates standard graph representations:
 
 - `(:Matrix)` nodes with type, dimensions
 - `(:Cell)` nodes with content, modality
@@ -196,14 +265,23 @@ When using `--write-neo4j`, the framework creates:
 - `[:HAS_CELL]` relationships
 - `[:DERIVES]` lineage relationships
 
-Query examples:
+**Query Examples:**
 
 ```cypher
-// Find all matrices in a thread
+// Find CF14 matrices by type
+MATCH (m:CFMatrix {kind: "A"})
+RETURN m.name, m.createdAt
+
+// Get semantic nodes for a specific matrix
+MATCH (m:CFMatrix)-[:CONTAINS]->(n:CFNode)
+WHERE m.id = "your-matrix-id"
+RETURN n.content, n.row, n.col
+
+// Legacy: Find all matrices in a thread
 MATCH (t:Thread {id: "demo:test"})-[:HAS_MATRIX]->(m:Matrix)
 RETURN m.type, m.rows, m.cols
 
-// Trace lineage
+// Legacy: Trace lineage
 MATCH path = (source:Matrix)-[:DERIVES*]->(target:Matrix {type: "J"})
 RETURN path
 ```

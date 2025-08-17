@@ -111,12 +111,40 @@ Every CF14 operation I perform generates structured data about semantic reasonin
 
 ### Integration with Project Workflow
 
+#### CF14 Export and Testing Workflow
+I can assist with CF14 semantic matrix export and validation:
+
+**Export Testing Commands:**
+```bash
+# Test CF14 export with echo resolver (safe for testing)
+python -m chirality.cli run \
+  --thread "test:$(date +%s)" \
+  --A chirality/tests/fixtures/A.json \
+  --B chirality/tests/fixtures/B.json \
+  --resolver echo --write-cf14-neo4j
+
+# Production export with OpenAI resolver
+export OPENAI_API_KEY="sk-your-key"
+python -m chirality.cli run \
+  --thread "prod:semantic-analysis" \
+  --A your_matrix_A.json \
+  --B your_matrix_B.json \
+  --resolver openai --write-cf14-neo4j
+```
+
+**Validation Steps:**
+1. Verify CF14 matrices are created with proper `:CFMatrix` labels
+2. Check that semantic nodes use stable SHA1-based IDs
+3. Confirm idempotent operations (re-running doesn't create duplicates)
+4. Test GraphQL integration with chirality-ai-app
+
 #### Documentation Assistance
 I can help maintain CF14 documentation by:
 - Validating code examples against actual implementation
 - Identifying inconsistencies across documents
 - Suggesting improvements based on user interaction patterns
 - Analyzing reasoning traces for capability assessment
+- Testing CF14 export functionality and documenting edge cases
 
 #### Development Support
 I can assist CF14 development by:
@@ -124,6 +152,7 @@ I can assist CF14 development by:
 - Evaluating consistency of results across different resolvers
 - Identifying edge cases where semantic interpolation fails
 - Suggesting validation metrics and quality assessment approaches
+- Verifying Neo4j integration and GraphQL compatibility
 
 #### Research Collaboration
 I can contribute to CF14 research by:
@@ -131,6 +160,7 @@ I can contribute to CF14 research by:
 - Participating in systematic evaluation of semantic operation quality
 - Helping design experiments to test framework capabilities
 - Analyzing my own performance patterns within the structured methodology
+- Testing semantic matrix export and graph integration workflows
 
 ### Practical Usage Guidelines
 

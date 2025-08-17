@@ -2,40 +2,67 @@
 
 ## System Overview
 
-CF14 implements structured semantic computation through a multi-service architecture that separates concerns between data persistence, semantic processing, and user interfaces.
+The Chirality Semantic Framework implements two-pass document generation with optional graph mirroring for enhanced discovery. The architecture maintains files as the source of truth while providing Neo4j-based relationship tracking and GraphQL query capabilities.
 
 ## High-Level Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Desktop App   │    │   Chat Interface │    │  Web Interface  │
-│   (Electron)    │    │   (Next.js)     │    │   (Future)      │
-└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
-          │                      │                      │
-          └──────────────────────┼──────────────────────┘
-                                 │
-                    ┌─────────────┴─────────────┐
-                    │     GraphQL API Service   │
-                    │     (Port 8080)          │
-                    └─────────────┬─────────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    │     CF14 Core Engine      │
-                    │   (Semantic Operations)   │
-                    └─────────────┬─────────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    │      Neo4j Database       │
-                    │   (Graph Persistence)     │
-                    └───────────────────────────┘
+┌─────────────────────────────────────────────┐
+│          Chirality AI App (Next.js)          │
+│                                             │
+│  ┌─────────────────┐    ┌─────────────────┐  │
+│  │   Chat Interface│    │ Document Gen UI │  │
+│  │   (RAG-Enhanced)│    │ (/chirality-core)│  │
+│  └─────────────────┘    └─────────────────┘  │
+│                                             │
+│  ┌─────────────────────────────────────────┐  │
+│  │        API Routes (Next.js)             │  │
+│  │  /api/core/*  /api/chat/*  /api/v1/*   │  │
+│  └─────────────────────────────────────────┘  │
+└─────────────────────┬───────────────────────┘
+                      │
+    ┌─────────────────┴─────────────────┐
+    │      Two-Pass Generation          │
+    │   (DS → SP → X → M) + Refinement  │
+    └─────────────────┬─────────────────┘
+                      │
+    ┌─────────────────┴─────────────────┐
+    │      File Storage (SoT)           │
+    │      store/state.json             │
+    └─────────────────┬─────────────────┘
+                      │ (async mirror)
+    ┌─────────────────┴─────────────────┐
+    │    Component Selection            │
+    │   (Rule-based Algorithm)          │
+    └─────────────────┬─────────────────┘
+                      │
+    ┌─────────────────┴─────────────────┐
+    │      Neo4j Graph Mirror           │
+    │   (Metadata + Relationships)      │
+    │                                   │
+    │  ┌─────────────────────────────┐   │
+    │  │     GraphQL API (v1)        │   │
+    │  │   (Read-only Queries)       │   │
+    │  └─────────────────────────────┘   │
+    └───────────────────────────────────┘
 ```
 
 ## Core Components
 
-### CF14 Semantic Engine
+### Document Generation Engine | ✅ **IMPLEMENTED**
+**Location**: `chirality-ai-app/src/chirality-core/`
+
+Two-pass semantic document generation with cross-referential refinement.
+
+### Graph Mirror Integration | ✅ **IMPLEMENTED**  
+**Location**: `chirality-ai-app/lib/graph/`
+
+Selective component mirroring to Neo4j with relationship tracking.
+
+### CF14 Semantic Engine (Legacy)
 **Location**: `chirality/core/`
 
-The heart of the framework implementing structured semantic operations.
+The original framework implementing structured semantic operations.
 
 #### Key Modules | ✅ **IMPLEMENTED**
 - **[`types.py`](chirality/core/types.py)**: Matrix, Cell, and operation type definitions
