@@ -1,10 +1,23 @@
 # Chirality Semantic Framework
 
-Clean, minimal implementation of the CF14 semantic protocol for traversing the "semantic valley" from problem to solution.
+Clean, minimal implementation of the CF14 semantic protocol for traversing the "semantic valley" from problem to solution, built on rigorous category-theoretic foundations.
 
 ## Overview
 
-The Chirality Framework implements a deterministic semantic pipeline that transforms problems through requirements into objectives and solutions using matrix operations and LLM-guided semantic interpolation.
+The Chirality Framework implements a deterministic semantic pipeline that transforms problems through requirements into objectives and solutions using matrix operations and LLM-guided semantic interpolation. The framework provides the first practical implementation of **semantic computation as category theory**, enabling formal verification, compositional reasoning, and systematic extensibility.
+
+### Mathematical Foundations
+
+CF14 implements a **symmetric monoidal category** with:
+- **Objects**: Semantic matrices (A, B, C, D, F, J) with typed content and dimensional constraints
+- **Morphisms**: Semantic operations (*, +, ⊙, ×, interpret) preserving categorical structure
+- **Functors**: Station transformations (S1→S2→S3) mapping problem spaces to solution spaces
+- **Natural Transformations**: Resolver strategies (OpenAI, Echo) preserving semantic equivalence
+
+For complete mathematical details, see:
+- [Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md) - Formal categorical statement
+- [Categorical Implementation](CATEGORICAL_IMPLEMENTATION.md) - Code-to-theory mapping  
+- [Theoretical Significance](THEORETICAL_SIGNIFICANCE.md) - Research implications and practical impact
 
 ### Core Concepts
 
@@ -216,6 +229,12 @@ MIT License - See LICENSE file for details.
 
 ## References
 
+### CF14 Documentation
 - CF14 Protocol Specification
-- Chirality Framework Documentation
+- Chirality Framework Documentation  
 - Semantic Valley Traversal Theory
+
+### Speculative Theoretical Foundations
+- [Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md) 
+- [Categorical Implementation](CATEGORICAL_IMPLEMENTATION.md) 
+- [Theoretical Significance](THEORETICAL_SIGNIFICANCE.md) 
