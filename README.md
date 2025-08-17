@@ -135,7 +135,7 @@ python -m chirality.cli run \
   --A chirality/tests/fixtures/A.json \
   --B chirality/tests/fixtures/B.json \
   --resolver openai \
-  --output-dir results/
+  --output results/
 ```
 
 **What You'll See**:

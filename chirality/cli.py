@@ -190,7 +190,12 @@ def run_pipeline(args):
                     
                     matrices_dict[name] = matrix_2d
                 
-                exporter = CF14Neo4jExporter()
+                # Use CLI-provided Neo4j connection details
+                exporter = CF14Neo4jExporter(
+                    uri=args.neo4j_uri,
+                    user=args.neo4j_user,
+                    password=args.neo4j_password,
+                )
                 exporter.export(matrices_dict, args.thread)
                 exporter.close()
                 print(f"  ✅ CF14 matrices exported to Neo4j (labels: CFMatrix, CFNode)")
@@ -235,6 +240,7 @@ def convert_matrix(args):
     
     try:
         matrix = load_matrix(args.input)
+        output_path = None
         
         if args.format == "json":
             output_path = Path(args.input).with_suffix(".converted.json")
@@ -248,7 +254,8 @@ def convert_matrix(args):
                     text = cell.content.get("text", "").replace('"', '""')
                     f.write(f'{cell.row},{cell.col},"{text}"\n')
         
-        print(f"  Saved to {output_path}")
+        if output_path is not None:
+            print(f"  Saved to {output_path}")
     except Exception as e:
         print(f"  Conversion failed: {e}")
         sys.exit(1)

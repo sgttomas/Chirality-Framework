@@ -29,11 +29,16 @@ setup(
     ],
     python_requires=">=3.9",
     install_requires=[
-        "openai>=1.0.0",
-        "neo4j>=5.0.0",
+        # Keep core runtime minimal; optional deps via extras
         "python-dotenv>=1.0.0",
     ],
     extras_require={
+        "openai": [
+            "openai>=1.0.0",
+        ],
+        "neo4j": [
+            "neo4j>=5.0.0",
+        ],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",

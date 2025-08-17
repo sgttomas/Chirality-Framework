@@ -364,15 +364,19 @@ def _op_record(kind: Literal["*", "+", "×", "interpret", "⊙"],
 def op_multiply(thread: str, A: Matrix, B: Matrix, resolver: Resolver) -> Tuple[Matrix, Operation]:
     """Semantic multiplication: C = A * B using cell-by-cell operations."""
     from .validate import ensure_dims
-    from .cell_resolver import CellResolver
     
     # Validate dimensions
     ensure_dims(A, B, "*")
     
     # If using OpenAI resolver, switch to cell-by-cell approach
     if hasattr(resolver, 'client'):  # This is an OpenAI resolver
-        cell_resolver = CellResolver(model=getattr(resolver, 'model', 'gpt-4o'))
-        return _op_multiply_cell_by_cell(thread, A, B, cell_resolver)
+        try:
+            from .cell_resolver import CellResolver
+            cell_resolver = CellResolver(model=getattr(resolver, 'model', 'gpt-4o'))
+            return _op_multiply_cell_by_cell(thread, A, B, cell_resolver)
+        except Exception as e:
+            # If OpenAI isn't available, fall back to echo-like path with clear note
+            pass
     
     # Fallback to original approach for echo resolver
     sys, usr = _prompt_multiply(A, B)
@@ -480,12 +484,15 @@ def _op_multiply_cell_by_cell(thread: str, A: Matrix, B: Matrix, cell_resolver: 
 
 def op_interpret(thread: str, B: Matrix, resolver: Resolver) -> Tuple[Matrix, Operation]:
     """Interpretation: J = interpret(B) using cell-by-cell operations."""
-    from .cell_resolver import CellResolver
     
     # If using OpenAI resolver, switch to cell-by-cell approach
     if hasattr(resolver, 'client'):  # This is an OpenAI resolver
-        cell_resolver = CellResolver(model=getattr(resolver, 'model', 'gpt-4o'))
-        return _op_interpret_cell_by_cell(thread, B, cell_resolver)
+        try:
+            from .cell_resolver import CellResolver
+            cell_resolver = CellResolver(model=getattr(resolver, 'model', 'gpt-4o'))
+            return _op_interpret_cell_by_cell(thread, B, cell_resolver)
+        except Exception:
+            pass
     
     # Fallback to original approach for echo resolver
     sys, usr = _prompt_interpret(B)

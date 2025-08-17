@@ -15,9 +15,9 @@ from typing import Dict, Any, List, Optional, Literal
 from datetime import datetime
 
 try:
-    from openai import OpenAI
-except ImportError:
-    raise ImportError("OpenAI package required. Install with: pip install openai")
+    from openai import OpenAI  # type: ignore
+except Exception:
+    OpenAI = None  # Defer hard failure until actually instantiated
 
 from .types import Cell, Matrix
 
@@ -40,6 +40,9 @@ class CellResolver:
     """Handles semantic operations on individual matrix cells."""
     
     def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o"):
+        if OpenAI is None:
+            raise ImportError("OpenAI package required. Install with: pip install openai")
+
         api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OpenAI API key required")
