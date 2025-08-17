@@ -1,0 +1,64 @@
+{
+  "id": "cf14:demo:D:v1",
+  "name": "D",
+  "station": "objectives",
+  "shape": [
+    2,
+    2
+  ],
+  "cells": [
+    {
+      "id": "cf14:demo:D:v1:0:0:17626fa85d3e",
+      "row": 0,
+      "col": 0,
+      "value": "+:A[0,0]⊕F[0,0]",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "+:A[0,0]⊕F[0,0]"
+      }
+    },
+    {
+      "id": "cf14:demo:D:v1:0:1:1cab8d277355",
+      "row": 0,
+      "col": 1,
+      "value": "+:A[0,1]⊕F[0,1]",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "+:A[0,1]⊕F[0,1]"
+      }
+    },
+    {
+      "id": "cf14:demo:D:v1:1:0:5caa0f7a1ddb",
+      "row": 1,
+      "col": 0,
+      "value": "+:A[1,0]⊕F[1,0]",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "+:A[1,0]⊕F[1,0]"
+      }
+    },
+    {
+      "id": "cf14:demo:D:v1:1:1:dfa61682a929",
+      "row": 1,
+      "col": 1,
+      "value": "+:A[1,1]⊕F[1,1]",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "+:A[1,1]⊕F[1,1]"
+      }
+    }
+  ],
+  "hash": "f04ee6a8d722a9df",
+  "metadata": {
+    "timestamp": "2025-08-16T23:50:12.406863"
+  },
+  "type": "D",
+  "dimensions": [
+    2,
+    2
+  ]
+}

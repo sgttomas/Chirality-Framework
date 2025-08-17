@@ -1,0 +1,64 @@
+{
+  "id": "cf14:demo:B:v1",
+  "name": "B",
+  "station": "problem",
+  "shape": [
+    2,
+    2
+  ],
+  "cells": [
+    {
+      "id": "cf14:demo:B:v1:0:0:09200577f596",
+      "row": 0,
+      "col": 0,
+      "value": "customer_feedback",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "customer_feedback"
+      }
+    },
+    {
+      "id": "cf14:demo:B:v1:0:1:aef3b6f606f2",
+      "row": 0,
+      "col": 1,
+      "value": "market_research",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "market_research"
+      }
+    },
+    {
+      "id": "cf14:demo:B:v1:1:0:185006ddb1a3",
+      "row": 1,
+      "col": 0,
+      "value": "competitor_analysis",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "competitor_analysis"
+      }
+    },
+    {
+      "id": "cf14:demo:B:v1:1:1:53ce8d6b1bba",
+      "row": 1,
+      "col": 1,
+      "value": "user_testing",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "user_testing"
+      }
+    }
+  ],
+  "hash": "fe93c86fc34c91ef",
+  "metadata": {
+    "source": "regenerated"
+  },
+  "type": "B",
+  "dimensions": [
+    2,
+    2
+  ]
+}

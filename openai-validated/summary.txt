@@ -1,0 +1,75 @@
+CF14 Pipeline Results
+==================================================
+
+
+C:
+--------------------
+Matrix C (production:validated-openai:C:v1)
+Dimensions: 2×2
+Cells: 4
+Metadata: ['timestamp']
+
+Sample cells:
+  C[0,0]               | C[0,1]              
+  C[1,0]               | C[1,1]              
+
+
+J:
+--------------------
+Matrix J (production:validated-openai:J:v1)
+Dimensions: 2×2
+Cells: 4
+Metadata: ['timestamp']
+
+Sample cells:
+  J11                  | J12                 
+  J21                  | J22                 
+
+
+F:
+--------------------
+Matrix F (production:validated-openai:F:v1)
+Dimensions: 2×2
+Cells: 4
+Metadata: ['timestamp']
+
+Sample cells:
+  F[0,0]               | F[0,1]              
+  F[1,0]               | F[1,1]              
+
+
+D:
+--------------------
+Matrix D (production:validated-openai:D:v1)
+Dimensions: 2×2
+Cells: 4
+Metadata: ['timestamp']
+
+Sample cells:
+  A11 + F11            | A12 + F12           
+  A21 + F21            | A22 + F22           
+
+
+A:
+--------------------
+Matrix A (cf14:demo:A:v1)
+Dimensions: 2×2
+Cells: 4
+Metadata: ['source']
+
+Sample cells:
+  user_reqs            | features            
+  constraints          | perf_targets        
+
+
+B:
+--------------------
+Matrix B (cf14:demo:B:v1)
+Dimensions: 2×2
+Cells: 4
+Metadata: ['source']
+
+Sample cells:
+  customer_feedback    | market_research     
+  competitor_analysis  | user_testing        
+

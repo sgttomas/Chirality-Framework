@@ -1,0 +1,64 @@
+{
+  "id": "production:validated-openai:D:v1",
+  "name": "D",
+  "station": "objectives",
+  "shape": [
+    2,
+    2
+  ],
+  "cells": [
+    {
+      "id": "production:validated-openai:D:v1:0:0:ba26851c323f",
+      "row": 0,
+      "col": 0,
+      "value": "A11 + F11",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "A11 + F11"
+      }
+    },
+    {
+      "id": "production:validated-openai:D:v1:0:1:33558ba63986",
+      "row": 0,
+      "col": 1,
+      "value": "A12 + F12",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "A12 + F12"
+      }
+    },
+    {
+      "id": "production:validated-openai:D:v1:1:0:b4b5afe0ba87",
+      "row": 1,
+      "col": 0,
+      "value": "A21 + F21",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "A21 + F21"
+      }
+    },
+    {
+      "id": "production:validated-openai:D:v1:1:1:7a6fa9adc54d",
+      "row": 1,
+      "col": 1,
+      "value": "A22 + F22",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "A22 + F22"
+      }
+    }
+  ],
+  "hash": "9ea74261a8070008",
+  "metadata": {
+    "timestamp": "2025-08-17T00:01:02.640811"
+  },
+  "type": "D",
+  "dimensions": [
+    2,
+    2
+  ]
+}

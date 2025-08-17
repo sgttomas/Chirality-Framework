@@ -1,0 +1,64 @@
+{
+  "id": "test:echo-validation:F:v1",
+  "name": "F",
+  "station": "objectives",
+  "shape": [
+    2,
+    2
+  ],
+  "cells": [
+    {
+      "id": "test:echo-validation:F:v1:0:0:52a3bbe1fe03",
+      "row": 0,
+      "col": 0,
+      "value": "⊙:J[0,0]×C[0,0]",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "⊙:J[0,0]×C[0,0]"
+      }
+    },
+    {
+      "id": "test:echo-validation:F:v1:0:1:cfdb02ef1ac0",
+      "row": 0,
+      "col": 1,
+      "value": "⊙:J[0,1]×C[0,1]",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "⊙:J[0,1]×C[0,1]"
+      }
+    },
+    {
+      "id": "test:echo-validation:F:v1:1:0:d683bc0b2e37",
+      "row": 1,
+      "col": 0,
+      "value": "⊙:J[1,0]×C[1,0]",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "⊙:J[1,0]×C[1,0]"
+      }
+    },
+    {
+      "id": "test:echo-validation:F:v1:1:1:ae4855851536",
+      "row": 1,
+      "col": 1,
+      "value": "⊙:J[1,1]×C[1,1]",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "⊙:J[1,1]×C[1,1]"
+      }
+    }
+  ],
+  "hash": "90dbb32157020589",
+  "metadata": {
+    "timestamp": "2025-08-16T23:49:42.968214"
+  },
+  "type": "F",
+  "dimensions": [
+    2,
+    2
+  ]
+}

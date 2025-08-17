@@ -1,0 +1,64 @@
+{
+  "id": "cf14:demo:B:v1",
+  "name": "B",
+  "station": "problem",
+  "shape": [
+    2,
+    2
+  ],
+  "cells": [
+    {
+      "id": "cf14:demo:B:v1:0:0:data_pipeline",
+      "row": 0,
+      "col": 0,
+      "value": "Data Processing Pipeline",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "Data Processing Pipeline"
+      }
+    },
+    {
+      "id": "cf14:demo:B:v1:0:1:api_gateway",
+      "row": 0,
+      "col": 1,
+      "value": "API Gateway",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "API Gateway"
+      }
+    },
+    {
+      "id": "cf14:demo:B:v1:1:0:ml_model",
+      "row": 1,
+      "col": 0,
+      "value": "Machine Learning Model",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "Machine Learning Model"
+      }
+    },
+    {
+      "id": "cf14:demo:B:v1:1:1:monitoring",
+      "row": 1,
+      "col": 1,
+      "value": "Monitoring Dashboard",
+      "modality": "unknown",
+      "provenance": {},
+      "content": {
+        "text": "Monitoring Dashboard"
+      }
+    }
+  ],
+  "hash": "b1c2d3e4",
+  "metadata": {
+    "source": "test_fixture"
+  },
+  "type": "B",
+  "dimensions": [
+    2,
+    2
+  ]
+}
