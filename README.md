@@ -227,11 +227,19 @@ class CustomResolver(Resolver):
 
 MIT License - See LICENSE file for details.
 
-## References
+## Key Concepts
 
 ### CF14 Documentation
 - CF14 Protocol Specification
 - Chirality Framework Documentation  
-- Semantic Valley Traversal Theory
+- Semantic Valley Methodology
 
-### Speculative Theoretical Foundations
+### Engineering Patterns
+- Structured data processing with matrix operations
+- Pipeline architecture for complex reasoning tasks
+- Strategy pattern for pluggable AI integration
+
+### AI Integration Practices
+- Structured prompting and schema validation
+- Multi-model orchestration patterns
+- Audit and compliance for AI systems
