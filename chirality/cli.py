@@ -13,6 +13,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from .core.types import Matrix
 from .core.ops import OpenAIResolver, EchoResolver
 from .core.stations import S1Runner, S2Runner, S3Runner
@@ -39,9 +45,9 @@ def main():
                            help="Resolver to use (default: echo)")
     run_parser.add_argument("--hitl", action="store_true", help="Enable Human-In-The-Loop")
     run_parser.add_argument("--write-neo4j", action="store_true", help="Write results to Neo4j")
-    run_parser.add_argument("--neo4j-uri", default="bolt://localhost:7687", help="Neo4j URI")
-    run_parser.add_argument("--neo4j-user", default="neo4j", help="Neo4j username")
-    run_parser.add_argument("--neo4j-password", default="password", help="Neo4j password")
+    run_parser.add_argument("--neo4j-uri", default=os.getenv("NEO4J_URI", "bolt://localhost:7687"), help="Neo4j URI")
+    run_parser.add_argument("--neo4j-user", default=os.getenv("NEO4J_USER", "neo4j"), help="Neo4j username")
+    run_parser.add_argument("--neo4j-password", default=os.getenv("NEO4J_PASSWORD", "password"), help="Neo4j password")
     
     # Validate command
     validate_parser = subparsers.add_parser("validate", help="Validate matrix files")

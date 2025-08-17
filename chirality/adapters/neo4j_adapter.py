@@ -40,6 +40,7 @@ class Neo4jAdapter:
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (m:Matrix) REQUIRE m.id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Cell) REQUIRE c.id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (t:Thread) REQUIRE t.id IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (o:Operation) REQUIRE o.id IS UNIQUE",
             ]
             
             for constraint in constraints:
@@ -84,16 +85,20 @@ class Neo4jAdapter:
             # Create matrix node
             session.run("""
                 MERGE (m:Matrix {id: $id})
-                SET m.type = $type,
+                SET m.name = $name,
+                    m.station = $station,
                     m.rows = $rows,
                     m.cols = $cols,
+                    m.hash = $hash,
                     m.metadata = $metadata,
                     m.updated_at = $timestamp
                 """,
                 id=matrix.id,
-                type=matrix.type.value,
-                rows=matrix.dimensions[0],
-                cols=matrix.dimensions[1],
+                name=matrix.name,
+                station=matrix.station,
+                rows=matrix.shape[0],
+                cols=matrix.shape[1],
+                hash=matrix.hash,
                 metadata=str(matrix.metadata),
                 timestamp=datetime.utcnow().isoformat()
             )
@@ -122,19 +127,13 @@ class Neo4jAdapter:
             MERGE (c:Cell {id: $id})
             SET c.row = $row,
                 c.col = $col,
-                c.text = $text,
-                c.modality = $modality,
-                c.content = $content,
-                c.provenance = $provenance,
+                c.value = $value,
                 c.updated_at = $timestamp
             """,
             id=cell.id,
             row=cell.row,
             col=cell.col,
-            text=cell.content.get("text", ""),
-            modality=cell.modality.value,
-            content=str(cell.content),
-            provenance=str(cell.provenance),
+            value=cell.value,
             timestamp=datetime.utcnow().isoformat()
         )
         
@@ -194,16 +193,16 @@ class Neo4jAdapter:
                     id=c["id"],
                     row=c["row"],
                     col=c["col"],
-                    content=ast.literal_eval(c["content"]) if isinstance(c["content"], str) else c["content"],
-                    modality=Modality(c.get("modality", "unknown")),
-                    provenance=ast.literal_eval(c["provenance"]) if isinstance(c["provenance"], str) else c.get("provenance", {})
+                    value=c.get("value", "")
                 ))
             
             return Matrix(
                 id=m["id"],
-                type=MatrixType(m["type"]),
+                name=m.get("name", "unknown"),
+                station=m.get("station", "unknown"),
+                shape=(m["rows"], m["cols"]),
                 cells=cells,
-                dimensions=(m["rows"], m["cols"]),
+                hash=m.get("hash", ""),
                 metadata=ast.literal_eval(m["metadata"]) if isinstance(m["metadata"], str) else m.get("metadata", {})
             )
     
