@@ -235,6 +235,3 @@ MIT License - See LICENSE file for details.
 - Semantic Valley Traversal Theory
 
 ### Speculative Theoretical Foundations
-- [Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md) 
-- [Categorical Implementation](CATEGORICAL_IMPLEMENTATION.md) 
-- [Theoretical Significance](THEORETICAL_SIGNIFICANCE.md) 

@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The Chirality Framework represents a breakthrough in applied category theory, demonstrating that abstract mathematical structures can provide rigorous foundations for practical semantic computation. This document argues for the theoretical significance of CF14's categorical implementation and its implications for the future of semantic processing, knowledge representation, and AI system architecture.
+The Chirality Framework possibly demonstrates an application of category theory, speculating that abstract mathematical structures can provide rigorous foundations for practical computational semantics. This document argues for the theoretical significance of CF14's categorical implementation and its implications for the future of semantic processing, knowledge representation, and AI system architecture.
 
 ## 1. The Argument for Categorical Semantic Processing
 

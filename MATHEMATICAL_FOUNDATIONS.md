@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The Chirality Framework (CF14) implements a category-theoretic structure for semantic computation, providing a rigorous mathematical foundation for traversing the "semantic valley" from problem statements to solution architectures. This document establishes the formal categorical interpretation of CF14 operations and demonstrates how semantic processing can be understood as functorial mappings between well-defined categories.
+The Chirality Framework (CF14) is speculated to implement a category-theoretic structure for semantic computation, providing a mathematical foundation for traversing the "semantic valley" from problem statements to solution architectures. This document establishes the formal categorical interpretation of CF14 operations and demonstrates how semantic processing may be understood as functorial mappings between well-defined categories, or at least very good analogies.
 
 ## 1. Formal Statement
 
