@@ -1,6 +1,42 @@
 # Chirality Semantic Framework
 
-Systematic semantic transformation framework that converts complex problems into structured solutions through matrix operations and LLM-guided reasoning.
+## Current Implementation: Two-Pass Document Generation with Graph Mirror
+
+**chirality-ai-app** implements the Chirality Framework through a streamlined document generation system with optional Neo4j graph mirroring for enhanced discovery.
+
+### Key Features ✅ IMPLEMENTED
+- **Two-Pass Document Generation**: Sequential DS/SP/X/M generation followed by cross-referential refinement
+- **File-based Source of Truth**: Simple, reliable document storage in `store/state.json`
+- **Graph Mirror Integration**: Selective component mirroring to Neo4j for relationship analysis
+- **GraphQL API**: Read-only access to document relationships and component search
+- **RAG-Enhanced Chat**: Document-aware chat interface with automatic context injection
+
+### Quick Start
+```bash
+# Clone and install
+git clone [repository-url]
+cd chirality-ai-app
+npm install
+
+# Set up environment
+cp .env.example .env.local
+# Add your OpenAI API key and optional Neo4j settings
+
+# Start development server
+npm run dev
+# Visit http://localhost:3001
+
+# Optional: Start Neo4j for graph features
+docker compose -f docker-compose.neo4j.yml up -d
+```
+
+See **[chirality-ai-app](../chirality-ai-app)** for complete implementation details.
+
+---
+
+## Legacy CF14 Framework: Matrix-Based Semantic Operations
+
+The original Chirality Framework provides systematic semantic transformation through matrix operations and LLM-guided reasoning.
 
 ## What CF14 Does
 

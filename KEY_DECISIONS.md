@@ -2,6 +2,50 @@
 
 *Decisions organized by the CF14 dialectical framework*
 
+## Recent Implementation: Graph Mirror Integration
+**Date**: August 17, 2025
+
+### Decision: Metadata-Only Graph Mirror with File-based Source of Truth
+
+**Problem Formulation**: How to enhance document discoverability while maintaining operational simplicity and reliability?
+
+**Options Analyzed**:
+- Full graph migration (replace files with Neo4j as primary storage)
+- Dual source of truth (parallel storage in files and graph)
+- Metadata-only mirror (files primary, graph for discovery)
+
+**Decision**: Metadata-Only Mirror with Component Selection
+
+**Rationale**:
+- **Reliability**: Files remain authoritative, eliminating synchronization complexity
+- **Performance**: Non-blocking async mirroring preserves document generation speed
+- **Simplicity**: Graph layer is additive, not replacement
+- **Value**: Enhanced discovery without operational overhead
+
+**Implementation Details**:
+- Rule-based component selection (+3 cross-refs, +2 keywords, -2 size penalty)
+- Idempotent mirror operations with stale component cleanup
+- GraphQL read-only API with Bearer token authentication
+- Feature flagged system (FEATURE_GRAPH_ENABLED)
+
+**Validation Results**: ✅ Zero impact on core workflows, enhanced relationship querying, operational reliability maintained
+
+### Recent Contract Decisions
+
+| Decision | Status | Owner | Review |
+|----------|--------|-------|--------|
+| Core API auth posture (protected vs dev-only) | **Decided: Protected in prod; dev-only via DEV_MODE** | Backend Lead | 2025-11-17 |
+| GraphQL query safety (depth 6, complexity 1000) | **Decided** | Backend Lead | 2026-02-17 |
+| CORS policy (exact origins in prod, not wildcard) | **Decided** | Security Team | 2026-02-17 |
+| Score type standardization (integer 0-10) | **Decided** | Data/Frontend | 2026-08-17 |
+| Error response format (code + message + details) | **Decided** | API Team | 2026-02-17 |
+
+---
+
+## Legacy CF14 Framework Decisions
+
+*Original matrix-based semantic operation decisions*
+
 ---
 
 ## Decision Entry: Matrix-Based Semantic Operations

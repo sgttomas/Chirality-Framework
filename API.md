@@ -1,697 +1,665 @@
-# API Documentation - Chirality Framework
+# API Documentation - Chirality Semantic Framework
+
+*Complete API reference for the GraphQL Neo4j integration with document generation and graph mirror capabilities*
 
 ## Overview
 
-CF14 provides multiple interfaces for semantic operations. This document covers all programmatic access methods with working examples and troubleshooting guidance.
+The Chirality Semantic Framework provides REST and GraphQL APIs for document generation and graph-based discovery. The implementation includes file-based document storage with optional Neo4j mirroring for enhanced relationship tracking.
 
 **Implementation Status:**
-- ✅ **CLI Interface** - Fully implemented and tested
-- ✅ **Python SDK** - Core functionality available  
-- 📋 **GraphQL API** - Planned for multi-service architecture
+- ✅ **Document Generation REST API** - Two-pass generation with file storage
+- ✅ **GraphQL API** - Read-only access to graph mirror with authentication  
+- ✅ **Graph Mirror Integration** - Selective component mirroring to Neo4j
+- ✅ **Health and Validation Endpoints** - Operational monitoring and testing
 
-**Quick Start**: Most users should begin with the [CLI Interface](#cli-interface) for immediate access to all CF14 capabilities.
+**Base URL**: `http://localhost:3001` (development)
 
-## CLI Interface
+## Document Generation API
 
-### Installation
+### Core Document Generation
+
+#### POST /api/core/orchestrate
+**Two-pass document generation with cross-referential refinement**
+
+Generates all four document types (DS/SP/X/M) using the two-pass methodology: sequential generation followed by cross-referential refinement and final resolution.
+
+**Request**:
 ```bash
-pip install -e .
+POST /api/core/orchestrate
+Content-Type: application/json
+
+{}  # Empty body - uses current problem from state
 ```
 
-### Basic Usage
-```bash
-# Complete semantic valley execution
-python -m chirality.cli run --thread "example" --A matrix_A.json --B matrix_B.json
-
-# Individual operations
-python -m chirality.cli multiply --A matrix_A.json --B matrix_B.json --output matrix_C.json
-python -m chirality.cli interpret --matrix matrix_C.json --output matrix_J.json
-python -m chirality.cli elementwise --J matrix_J.json --C matrix_C.json --output matrix_F.json
-```
-
-### CLI Commands
-
-#### `run` - Complete Pipeline
-Execute full semantic valley progression.
-
-```bash
-python -m chirality.cli run [OPTIONS]
-
-Options:
-  --thread TEXT          Thread ID for operation tracking
-  --A PATH              Matrix A (problem axioms) 
-  --B PATH              Matrix B (decision basis)
-  --resolver TEXT       Resolver type [openai|echo]
-  --hitl                Enable human-in-the-loop validation
-  --write-neo4j         Persist results to Neo4j
-  --output-dir PATH     Directory for result matrices
-```
-
-#### `multiply` - Semantic Multiplication
-Perform A * B semantic operation.
-
-```bash
-python -m chirality.cli multiply [OPTIONS]
-
-Options:
-  --A PATH              First matrix file
-  --B PATH              Second matrix file  
-  --output PATH         Output matrix file
-  --resolver TEXT       Resolver type [openai|echo]
-  --thread TEXT         Operation thread ID
-```
-
-#### `validate` - Matrix Validation
-Validate matrix format and content.
-
-```bash
-python -m chirality.cli validate [OPTIONS]
-
-Options:
-  --matrix PATH         Matrix file to validate
-  --schema PATH         Custom validation schema
-  --strict              Enable strict validation mode
-```
-
-### Matrix File Format
-```json
+**Response**:
+```typescript
 {
-  "id": "cf14:example:A:v1",
-  "name": "A", 
-  "station": "problem",
-  "shape": [3, 4],
-  "cells": [
-    {
-      "id": "cf14:example:A:v1:0:0:hash",
-      "row": 0,
-      "col": 0, 
-      "value": "Values"
+  success: true,
+  pass1: {
+    DS: Triple<DSItem[]>,
+    SP: Triple<SPItem[]>, 
+    X: Triple<XItem[]>,
+    M: Triple<MItem[]>
+  },
+  pass2: {
+    DS: Triple<DSItem[]>,
+    SP: Triple<SPItem[]>,
+    X: Triple<XItem[]>, 
+    M: Triple<MItem[]>
+  },
+  logs: string[],              // Generation progress logs
+  totalTimeSeconds: number     // Total generation time
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:3001/api/core/orchestrate \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Response includes Pass 1, Pass 2, and final resolution logs
+```
+
+#### POST /api/core/run
+**Single document generation**
+
+Generates a specific document type using current context from other documents.
+
+**Request**:
+```bash
+POST /api/core/run
+Content-Type: application/json
+
+{
+  "kind": "DS" | "SP" | "X" | "M"
+}
+```
+
+**Response**:
+```typescript
+{
+  kind: string,
+  triple: Triple<any>,         // Generated document
+  latencyMs: number           // Generation time in milliseconds
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:3001/api/core/run \
+  -H "Content-Type: application/json" \
+  -d '{"kind": "DS"}'
+```
+
+### State Management
+
+#### GET /api/core/state
+**Get current document state**
+
+Returns the current problem definition and generated documents.
+
+**Response**:
+```typescript
+{
+  problem: {
+    title: string,
+    statement: string,
+    initialVector: string[]
+  },
+  finals: {
+    DS?: Triple<DSItem[]>,
+    SP?: Triple<SPItem[]>,
+    X?: Triple<XItem[]>,
+    M?: Triple<MItem[]>
+  },
+  metadata?: {
+    generatedAt: string,
+    twoPassMode: boolean,
+    resolutionStep: boolean
+  }
+}
+```
+
+#### POST /api/core/state
+**Update document state**
+
+Updates the problem definition or document state.
+
+**Request**:
+```typescript
+{
+  problem?: {
+    title?: string,
+    statement?: string,
+    initialVector?: string[]
+  },
+  finals?: {
+    DS?: Triple<DSItem[]>,
+    SP?: Triple<SPItem[]>,
+    X?: Triple<XItem[]>,
+    M?: Triple<MItem[]>
+  }
+}
+```
+
+#### DELETE /api/core/state
+**Clear all state**
+
+Resets the application to initial state, clearing all documents and problem definition.
+
+**Example**:
+```bash
+# Get current state
+curl http://localhost:3001/api/core/state
+
+# Set problem for generation
+curl -X POST http://localhost:3001/api/core/state \
+  -H "Content-Type: application/json" \
+  -d '{
+    "problem": {
+      "statement": "implement user authentication system"
     }
-  ],
-  "hash": "content_hash",
-  "metadata": {"source": "manual"}
+  }'
+
+# Clear all state
+curl -X DELETE http://localhost:3001/api/core/state
+```
+
+### Chat Interface
+
+#### POST /api/chat/stream
+**RAG-enhanced streaming chat**
+
+Provides streaming chat responses with automatic document context injection.
+
+**Request**:
+```typescript
+{
+  message: string,
+  conversationId?: string
 }
 ```
 
-## Python SDK
+**Response**: Server-Sent Events stream
 
-### Installation
-```python
-from chirality import (
-    Matrix, Cell, 
-    OpenAIResolver, EchoResolver,
-    S1Runner, S2Runner, S3Runner,
-    op_multiply, op_interpret, op_elementwise
-)
+**Example**:
+```bash
+curl -X POST http://localhost:3001/api/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "How should I handle password validation?",
+    "conversationId": "auth-discussion"
+  }'
 ```
 
-### Core Types
+## Graph API (v1)
 
-#### Matrix
-```python
-@dataclass
-class Matrix:
-    id: str
-    name: str
-    station: str
-    shape: tuple[int, int]
-    cells: List[Cell]
-    hash: str
-    metadata: Dict[str, Any]
+The Graph API provides read-only access to the Neo4j mirror containing selected document components and relationships.
+
+### Authentication
+All Graph API endpoints require Bearer token authentication:
+```bash
+Authorization: Bearer your-graphql-bearer-token
 ```
 
-#### Cell
-```python
-@dataclass 
-class Cell:
-    id: str
-    row: int
-    col: int
-    value: str
-    modality: Optional[Modality] = None
-    provenance: Optional[Dict[str, Any]] = None
-```
+### GraphQL Endpoint
 
-### Semantic Operations
+#### POST /api/v1/graph/graphql
+**GraphQL query interface**
 
-#### Matrix Multiplication
-```python
-def op_multiply(
-    thread: str,
-    A: Matrix, 
-    B: Matrix,
-    resolver: Resolver
-) -> Tuple[Matrix, Operation]:
-    """
-    Semantic multiplication: A * B = C
-    
-    Args:
-        thread: Operation thread identifier
-        A: First matrix (problem axioms)
-        B: Second matrix (decision basis)  
-        resolver: Semantic interpolation engine
-        
-    Returns:
-        Tuple of result matrix and operation record
-    """
-```
+Provides flexible querying of document relationships and component search.
 
-#### Interpretation
-```python
-def op_interpret(
-    thread: str,
-    matrix: Matrix,
-    resolver: Resolver
-) -> Tuple[Matrix, Operation]:
-    """
-    Stakeholder interpretation: M → J
-    
-    Args:
-        thread: Operation thread identifier
-        matrix: Matrix to interpret
-        resolver: Semantic interpolation engine
-        
-    Returns:
-        Tuple of interpreted matrix and operation record
-    """
-```
+**Authentication**: Bearer token required
+**CORS**: Configurable allowed origins
 
-#### Element-wise Combination
-```python
-def op_elementwise(
-    thread: str,
-    J: Matrix,
-    C: Matrix, 
-    resolver: Resolver
-) -> Tuple[Matrix, Operation]:
-    """
-    Element-wise semantic combination: J ⊙ C = F
-    
-    Args:
-        thread: Operation thread identifier
-        J: Interpreted matrix
-        C: Requirements matrix
-        resolver: Semantic interpolation engine
-        
-    Returns:
-        Tuple of combined matrix and operation record
-    """
-```
-
-### Processing Stations
-
-#### S1Runner - Problem Formulation
-```python
-class S1Runner:
-    def __init__(self, resolver: Resolver):
-        self.resolver = resolver
-        
-    def run(self, 
-            inputs: Dict[str, Matrix], 
-            context: Dict[str, Any]) -> Dict[str, Matrix]:
-        """
-        Validate and normalize input matrices
-        
-        Args:
-            inputs: Dictionary of input matrices {"A": matrix_a, "B": matrix_b}
-            context: Processing context with thread_id
-            
-        Returns:
-            Validated matrices ready for processing
-        """
-```
-
-#### S2Runner - Requirements Analysis  
-```python
-class S2Runner:
-    def __init__(self, resolver: Resolver):
-        self.resolver = resolver
-        
-    def run(self,
-            inputs: Dict[str, Matrix],
-            context: Dict[str, Any]) -> Dict[str, Matrix]:
-        """
-        Generate requirements through semantic multiplication
-        
-        Args:
-            inputs: Matrices from S1 {"A": matrix_a, "B": matrix_b}
-            context: Processing context
-            
-        Returns:
-            Input matrices plus generated C matrix
-        """
-```
-
-#### S3Runner - Objective Synthesis
-```python
-class S3Runner:
-    def __init__(self, resolver: Resolver):
-        self.resolver = resolver
-        
-    def run(self,
-            inputs: Dict[str, Matrix], 
-            context: Dict[str, Any]) -> Dict[str, Matrix]:
-        """
-        Synthesize objectives through interpretation and combination
-        
-        Args:
-            inputs: Matrices from S2 with C matrix
-            context: Processing context
-            
-        Returns:
-            All matrices plus generated J, F, D matrices
-        """
-```
-
-### Resolvers
-
-#### OpenAI Resolver
-```python
-class OpenAIResolver:
-    def __init__(self, 
-                 api_key: str,
-                 model: str = "gpt-4",
-                 temperature: float = 0.3):
-        """
-        LLM-powered semantic interpolation
-        
-        Args:
-            api_key: OpenAI API key
-            model: Model name to use
-            temperature: Sampling temperature
-        """
-        
-    def resolve(self,
-                op: Literal["*", "+", "×", "interpret", "⊙"],
-                inputs: List[Matrix],
-                system_prompt: str,
-                user_prompt: str, 
-                context: Dict[str, Any]) -> List[List[str]]:
-        """
-        Perform semantic interpolation using LLM
-        
-        Returns:
-            Matrix content as list of rows
-        """
-```
-
-#### Echo Resolver
-```python
-class EchoResolver:
-    def resolve(self,
-                op: Literal["*", "+", "×", "interpret", "⊙"],
-                inputs: List[Matrix],
-                system_prompt: str,
-                user_prompt: str,
-                context: Dict[str, Any]) -> List[List[str]]:
-        """
-        Deterministic testing resolver
-        
-        Returns predictable outputs for testing and validation
-        """
-```
-
-### Usage Examples
-
-#### Basic Semantic Multiplication
-```python
-from chirality import Matrix, Cell, OpenAIResolver, op_multiply
-
-# Create matrices
-matrix_a = Matrix(
-    id="example:A:v1",
-    name="A", 
-    station="problem",
-    shape=(2, 2),
-    cells=[
-        Cell("cell1", 0, 0, "Values"),
-        Cell("cell2", 0, 1, "Actions"), 
-        Cell("cell3", 1, 0, "Principles"),
-        Cell("cell4", 1, 1, "Methods")
-    ],
-    hash="hash_a",
-    metadata={}
-)
-
-matrix_b = Matrix(
-    id="example:B:v1", 
-    name="B",
-    station="problem",
-    shape=(2, 2),
-    cells=[
-        Cell("cell5", 0, 0, "Necessary"),
-        Cell("cell6", 0, 1, "Sufficient"),
-        Cell("cell7", 1, 0, "Contingent"), 
-        Cell("cell8", 1, 1, "Insufficient")
-    ],
-    hash="hash_b",
-    metadata={}
-)
-
-# Perform semantic multiplication
-resolver = OpenAIResolver(api_key="your_key")
-result_matrix, operation = op_multiply("thread1", matrix_a, matrix_b, resolver)
-
-print(f"Result matrix: {result_matrix.name}")
-print(f"Operation ID: {operation.id}")
-```
-
-#### Complete Pipeline Execution
-```python
-from chirality import S1Runner, S2Runner, S3Runner, OpenAIResolver
-
-# Initialize components
-resolver = OpenAIResolver(api_key="your_key")
-s1 = S1Runner(resolver)
-s2 = S2Runner(resolver) 
-s3 = S3Runner(resolver)
-
-# Execute pipeline
-context = {"thread_id": "example_thread"}
-inputs = {"A": matrix_a, "B": matrix_b}
-
-# Stage 1: Problem formulation
-stage1_result = s1.run(inputs, context)
-
-# Stage 2: Requirements analysis
-stage2_result = s2.run(stage1_result, context)
-
-# Stage 3: Objective synthesis  
-final_result = s3.run(stage2_result, context)
-
-# Access results
-requirements_matrix = final_result["C"]
-objectives_matrix = final_result["D"]
-interpretation_matrix = final_result["J"]
-```
-
-## GraphQL API | 📋 **PLANNED**
-
-**Status**: Design phase - CLI provides full functionality for current use cases
-
-### Proposed Endpoint
-```
-POST http://localhost:8080/graphql
-```
-
-### Proposed Schema
-
-#### Types
+**Schema**:
 ```graphql
-type Matrix {
-  id: String!
-  name: String!
-  station: String!
-  shape: [Int!]!
-  cells: [Cell!]!
-  hash: String!
-  metadata: JSON
+type Document {
+  id: ID!                    # "DS:current", "SP:current", etc.
+  kind: String!              # "DS", "SP", "X", "M"
+  slug: String!              # Document identifier
+  title: String!             # Human-readable title
+  updatedAt: String          # ISO timestamp
+  components: [Component!]!  # Selected components
+  references: [Document!]!   # Cross-document references
+  derivedFrom: [Document!]!  # Document lineage
 }
 
-type Cell {
-  id: String!
-  row: Int!
-  col: Int!
-  value: String!
-  modality: String
+type Component {
+  id: ID!                    # SHA1 stable identifier
+  type: String!              # Section type (API, Decision, etc.)
+  title: String!             # Section heading
+  anchor: String             # URL anchor
+  order: Int                 # Order within document
+  score: Int                 # Selection algorithm score (integer 0-10)
+  parent: Document!          # Parent document
 }
 
-type Operation {
-  id: String!
-  kind: String!
-  inputs: [String!]!
-  output: String!
-  timestamp: String!
-}
-```
-
-#### Queries
-```graphql
 type Query {
-  matrix(id: String!): Matrix
-  matrices(station: String, thread: String): [Matrix!]!
-  operation(id: String!): Operation
-  reasoning_trace(thread: String!): [Operation!]!
+  document(where: DocumentWhereOne!): Document
+  documents(where: DocumentWhere): [Document!]!
+  searchComponents(q: String!, limit: Int = 20): [Component!]!
 }
 ```
 
-#### Mutations
-```graphql
-type Mutation {
-  multiply(
-    matrixA: String!,
-    matrixB: String!, 
-    resolver: String!,
-    thread: String!
-  ): Matrix!
-  
-  interpret(
-    matrix: String!,
-    context: String!,
-    resolver: String!,
-    thread: String!
-  ): Matrix!
-  
-  elementwise(
-    matrixJ: String!,
-    matrixC: String!,
-    resolver: String!,
-    thread: String!
-  ): Matrix!
+**Query Examples**:
+
+**Get Document with Components and Relationships**:
+```bash
+curl -X POST http://localhost:3001/api/v1/graph/graphql \
+  -H "Authorization: Bearer dev-super-secret" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query GetDocument($id: ID!) { 
+      document(where: {id: $id}) { 
+        id title kind updatedAt
+        components { 
+          id title type anchor score 
+        }
+        references { 
+          id title kind 
+        }
+        derivedFrom { 
+          id title kind 
+        }
+      } 
+    }",
+    "variables": {"id": "DS:current"}
+  }'
+```
+
+**Search Components by Keyword**:
+```bash
+curl -X POST http://localhost:3001/api/v1/graph/graphql \
+  -H "Authorization: Bearer dev-super-secret" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query SearchComponents($q: String!) {
+      searchComponents(q: $q, limit: 10) {
+        id title type score
+        parent { id title kind }
+      }
+    }",
+    "variables": {"q": "API"}
+  }'
+```
+
+**Get All Documents Overview**:
+```bash
+curl -X POST http://localhost:3001/api/v1/graph/graphql \
+  -H "Authorization: Bearer dev-super-secret" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query AllDocuments {
+      documents {
+        id title kind updatedAt
+        components { id title score }
+      }
+    }"
+  }'
+```
+
+### Health and Monitoring
+
+#### GET /api/v1/graph/health
+**Graph system health check**
+
+Returns Neo4j connection status and database statistics.
+
+**Response**:
+```typescript
+{
+  status: "healthy" | "unhealthy",
+  neo4j: {
+    connected: boolean,
+    documents: number,        // Count of Document nodes
+    components: number        // Count of Component nodes
+  },
+  graph_enabled: boolean,     // Feature flag status
+  timestamp: string          // ISO timestamp
 }
 ```
 
-### Proposed Example Queries
+**Example**:
+```bash
+curl http://localhost:3001/api/v1/graph/health
 
-#### Semantic Multiplication (Future)
-```graphql
-mutation MultiplyMatrices {
-  multiply(
-    matrixA: "example:A:v1",
-    matrixB: "example:B:v1", 
-    resolver: "openai",
-    thread: "demo_thread"
-  ) {
-    id
-    name
-    cells {
-      row
-      col
-      value
+# Expected healthy response:
+{
+  "status": "healthy",
+  "neo4j": {
+    "connected": true,
+    "documents": 4,
+    "components": 12
+  },
+  "graph_enabled": true,
+  "timestamp": "2025-08-17T10:30:00Z"
+}
+```
+
+#### POST /api/v1/graph/validate
+**Component selection validation**
+
+Tests the component selection algorithm without writing to the graph.
+
+**Request**:
+```typescript
+{
+  bundle: {
+    DS?: Doc,
+    SP?: Doc, 
+    X?: Doc,
+    M?: Doc
+  }
+}
+```
+
+**Response**:
+```typescript
+{
+  docs: string[],                    // Document IDs that would be created
+  keepByDoc: Record<string, string[]>, // Components that would be kept per document
+  components: Array<{                 // Components that would be created
+    id: string,
+    docId: string
+  }>
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:3001/api/v1/graph/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bundle": {
+      "DS": {
+        "id": "DS:test",
+        "kind": "DS", 
+        "slug": "test",
+        "title": "Test Document",
+        "sections": [],
+        "raw": "# Test Document\n## API Integration\nSee [[SP:deploy]] and [[X:solution]] for implementation."
+      }
     }
-  }
+  }'
+
+# Response shows what would be selected:
+{
+  "docs": ["DS:test"],
+  "keepByDoc": {"DS:test": ["a1b2c3..."]},
+  "components": [{"id": "a1b2c3...", "docId": "DS:test"}]
 }
-```
-
-**Current Alternative**: Use CLI `multiply` command for same functionality
-
-#### Retrieve Reasoning Trace (Future)
-```graphql
-query GetReasoningTrace {
-  reasoning_trace(thread: "demo_thread") {
-    id
-    kind
-    inputs
-    output
-    timestamp
-  }
-}
-```
-
-**Current Alternative**: Results saved to output directory with `--output-dir` flag
-
-## Troubleshooting
-
-### CLI Issues
-
-#### Installation Problems
-**Symptom**: `ModuleNotFoundError` when running CLI commands
-**Solution**: 
-```bash
-# Ensure proper installation
-pip install -e .
-# Or install dependencies directly
-pip install -r requirements.txt
-```
-
-#### Permission Errors
-**Symptom**: Cannot write output files
-**Solution**: 
-```bash
-# Create output directory with proper permissions
-mkdir -p output
-chmod 755 output
-```
-
-#### Environment Variable Issues
-**Symptom**: OpenAI resolver fails with authentication error
-**Solution**:
-```bash
-# Check environment setup
-cat .env
-# Ensure OPENAI_API_KEY is set correctly
-export OPENAI_API_KEY="sk-your-key-here"
-```
-
-### Python SDK Issues
-
-#### Import Errors
-**Symptom**: Cannot import chirality modules
-**Solution**:
-```python
-# Ensure package is in Python path
-import sys
-sys.path.append('/path/to/chirality-semantic-framework')
-from chirality import Matrix, Cell
-```
-
-#### Resolver Configuration
-**Symptom**: OpenAIResolver initialization fails
-**Solution**:
-```python
-import os
-from chirality import OpenAIResolver
-
-# Verify API key setup
-api_key = os.getenv('OPENAI_API_KEY')
-if not api_key:
-    raise ValueError("OPENAI_API_KEY environment variable required")
-    
-resolver = OpenAIResolver(api_key=api_key)
-```
-
-### Common Integration Patterns
-
-#### Basic Error Handling
-```python
-from chirality import ValidationError, ResolverError
-
-try:
-    result = op_multiply("thread1", matrix_a, matrix_b, resolver)
-except ValidationError as e:
-    print(f"Matrix validation failed: {e}")
-except ResolverError as e:
-    print(f"Semantic resolution failed: {e}")
-```
-
-#### Retry Logic for LLM Operations
-```python
-import time
-from chirality import ResolverError
-
-def safe_semantic_operation(operation_func, *args, max_retries=3):
-    for attempt in range(max_retries):
-        try:
-            return operation_func(*args)
-        except ResolverError as e:
-            if attempt == max_retries - 1:
-                raise e
-            time.sleep(2 ** attempt)  # Exponential backoff
 ```
 
 ## Error Handling
 
-### Common Error Types
-- **ValidationError**: Invalid matrix format or content
-- **DimensionError**: Incompatible matrix dimensions for operation
-- **ResolverError**: Semantic interpolation failure
-- **NetworkError**: API or database connectivity issues
-
-### Error Response Format
-```json
+### Standard Error Response Format
+All endpoints return errors in a standardized envelope:
+```typescript
 {
-  "error": {
-    "type": "ValidationError",
-    "message": "Matrix A has invalid dimensions for multiplication",
-    "details": {
-      "matrix_id": "example:A:v1",
-      "expected_shape": [3, 4],
-      "actual_shape": [3, 3]
-    }
-  }
+  code: string,               // Machine-readable error code
+  message: string,            // Human-readable error message  
+  details?: object,           // Additional error context
+  graph_enabled?: boolean     // For graph endpoints when disabled
 }
 ```
 
-### Error Resolution Guide
+### Error Codes
+- `UNAUTHORIZED` - Missing or invalid authentication
+- `FORBIDDEN` - Valid auth but insufficient permissions
+- `RATE_LIMITED` - Rate limit exceeded
+- `GRAPH_DISABLED` - Graph system disabled via feature flag
+- `QUERY_TOO_COMPLEX` - GraphQL query exceeds depth/complexity limits
+- `VALIDATION_ERROR` - Invalid input parameters
+- `INTERNAL_ERROR` - Server-side error
+```
 
-| Error Type | Common Cause | Solution |
-|------------|--------------|----------|
-| ValidationError | Invalid matrix JSON | Check against [Matrix Format](#matrix-file-format) |
-| DimensionError | Incompatible shapes | Verify matrices match CF14 specification |
-| ResolverError | API key/network issues | Check environment variables and connectivity |
-| NetworkError | Neo4j connection | Verify database service and credentials |
+### HTTP Status Codes
+- `200` - Success
+- `400` - Bad Request (invalid input, malformed query)
+- `401` - Unauthorized (missing or invalid authentication)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found (resource doesn't exist)
+- `500` - Internal Server Error
+- `503` - Service Unavailable (graph system disabled or unhealthy)
 
-## Rate Limits and Quotas
+### Common Error Scenarios
 
-### API Limits
-- 100 requests/minute for semantic operations
-- 1000 requests/minute for read operations
-- 10 concurrent operations per API key
-
-### Matrix Size Limits
-- Maximum 10x10 matrices for semantic operations
-- Maximum 1MB per matrix file
-- Maximum 100 cells per matrix
-
-## Authentication
-
-### API Key Format
+**Document Generation Errors**:
 ```bash
-export OPENAI_API_KEY="sk-proj-your-key-here"
-export CF14_API_KEY="cf14-your-key-here"  # Future implementation
+# Problem not set
+curl -X POST http://localhost:3001/api/core/orchestrate
+# Returns: {"code": "VALIDATION_ERROR", "message": "Problem statement required"}
+
+# Invalid document kind  
+curl -X POST http://localhost:3001/api/core/run -d '{"kind": "INVALID"}'
+# Returns: {"code": "VALIDATION_ERROR", "message": "kind required (DS|SP|X|M)"}
 ```
 
-### Headers
-```
-Authorization: Bearer your-api-key
-Content-Type: application/json
-```
+**Graph API Errors**:
+```bash
+# Missing authentication
+curl -X POST http://localhost:3001/api/v1/graph/graphql -d '{"query": "{ documents { id } }"}'
+# Returns: {"code": "UNAUTHORIZED", "message": "Bearer token required"}
 
-## Version Compatibility
+# Graph system disabled
+curl http://localhost:3001/api/v1/graph/health  
+# Returns: {"code": "GRAPH_DISABLED", "message": "Graph system disabled", "graph_enabled": false}
 
-### CF14 Version Support Matrix
-
-| Feature | CF14.3.0.0 | CF14.2.x | Planned |
-|---------|------------|----------|---------|
-| CLI Interface | ✅ Full | ✅ Basic | - |
-| Python SDK Core | ✅ Full | ✅ Basic | - |
-| OpenAI Resolver | ✅ Full | ✅ Basic | - |
-| Echo Resolver | ✅ Full | ⚠️ Limited | - |
-| Neo4j Persistence | ✅ Full | ❌ None | - |
-| GraphQL API | ❌ None | ❌ None | 📋 CF14.4.0.0 |
-| Multi-Modal | ❌ None | ❌ None | 📋 CF14.5.0.0 |
-
-### API Breaking Changes
-
-#### CF14.3.0.0
-- Added `thread` parameter to all operations for lineage tracking
-- Changed matrix ID format to include content hashing
-- Neo4j persistence requires updated schema
-
-#### CF14.2.x → CF14.3.0.0 Migration
-```python
-# Old way
-result = op_multiply(matrix_a, matrix_b, resolver)
-
-# New way (CF14.3.0.0+)
-result = op_multiply("thread_id", matrix_a, matrix_b, resolver)
+# Rate limit exceeded
+curl -X POST http://localhost:3001/api/core/orchestrate
+# Returns: {"code": "RATE_LIMITED", "message": "Too many requests", "details": {"retry_after": 60}}
 ```
 
-### Dependencies
+## Rate Limiting and Security
 
-#### Required for All Features
-```txt
-python>=3.8
-openai>=1.0.0
-neo4j>=5.0.0
+### Authentication Requirements
+- **Document Generation API**: Protected mode recommended for production (bearer token) or dev-only mode via `DEV_MODE=true`
+- **Graph API**: Bearer token authentication required for all endpoints  
+- **GraphQL**: Bearer token required, CORS configured
+
+### Security Features
+- **Query Depth Limiting**: GraphQL queries limited to prevent abuse
+- **CORS Protection**: Configurable allowed origins for Graph API
+- **Feature Flagging**: Complete graph system can be disabled via environment
+- **Read-Only Access**: Graph API provides query-only access, no mutations
+
+### Configuration
+Environment variables for security configuration:
+```bash
+# Core settings
+FEATURE_GRAPH_ENABLED=true
+DEV_MODE=false  # Set to true for dev-only (disables Core API auth)
+
+# Graph API security
+GRAPHQL_BEARER_TOKEN=your-secure-token
+GRAPHQL_CORS_ORIGINS=http://localhost:3000  # Dev; use exact origins in prod
+
+# Rate limiting
+RATE_LIMIT_RPM=60
+RATE_LIMIT_BURST=120
 ```
 
-#### Optional Dependencies
-```txt
-pytest>=6.0.0  # For testing
-jupyter>=1.0.0  # For notebook examples
+## Integration Examples
+
+### Frontend Integration with Apollo Client
+```typescript
+import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
+import { setContext } from '@apollo/client/link/context';
+
+const httpLink = createHttpLink({
+  uri: 'http://localhost:3001/api/v1/graph/graphql'
+});
+
+const authLink = setContext((_, { headers }) => ({
+  headers: {
+    ...headers,
+    authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPHQL_TOKEN}`
+  }
+}));
+
+const client = new ApolloClient({
+  link: authLink.concat(httpLink),
+  cache: new InMemoryCache()
+});
+
+// Usage in React component
+const { data, loading, error } = useQuery(gql`
+  query GetDocuments {
+    documents {
+      id title kind
+      components { id title score }
+    }
+  }
+`);
 ```
+
+### Backend Integration
+```typescript
+// Document generation with automatic graph mirroring
+import { mirrorAfterWrite } from '@/lib/graph/integration';
+
+async function generateDocuments(problem: string) {
+  // Generate documents
+  const result = await orchestrateTwoPass(problem);
+  
+  // Save to files (source of truth)
+  writeState({ finals: result.pass2 });
+  
+  // Mirror to graph (async, non-blocking)
+  mirrorAfterWrite(result.pass2);
+  
+  return result;
+}
+```
+
+### Command Line Usage
+```bash
+# Complete workflow example
+# 1. Start services
+docker compose -f docker-compose.neo4j.yml up -d
+npm run dev
+
+# 2. Set problem and generate documents
+curl -X POST http://localhost:3001/api/core/state \
+  -H "Content-Type: application/json" \
+  -d '{"problem": {"statement": "implement user authentication"}}'
+
+curl -X POST http://localhost:3001/api/core/orchestrate
+
+# 3. Query generated documents via GraphQL
+curl -X POST http://localhost:3001/api/v1/graph/graphql \
+  -H "Authorization: Bearer dev-super-secret" \
+  -d '{"query": "{ documents { id title components { title score } } }"}'
+
+# 4. Search components
+curl -X POST http://localhost:3001/api/v1/graph/graphql \
+  -H "Authorization: Bearer dev-super-secret" \
+  -d '{"query": "query { searchComponents(q: \"API\") { title parent { title } } }"}'
+```
+
+## Development and Testing
+
+### Development Setup
+```bash
+# Install dependencies
+npm install
+
+# Environment configuration
+cp .env.example .env.local
+# Edit .env.local with required variables
+
+# Start development server
+npm run dev
+
+# Initialize graph database (if using)
+docker compose -f docker-compose.neo4j.yml up -d
+npm run tsx scripts/init-graph-constraints.ts
+```
+
+### Testing Endpoints
+```bash
+# Test document generation
+npm run tsx scripts/test-document-generation.ts
+
+# Test graph integration
+npm run tsx scripts/test-graph-integration.ts
+
+# Run full test suite
+npm test
+```
+
+### Debugging
+```bash
+# Check system health
+curl http://localhost:3001/api/healthz
+curl http://localhost:3001/api/v1/graph/health
+
+# View current state
+curl http://localhost:3001/api/core/state
+
+# Debug chat system
+curl http://localhost:3001/api/chat/debug
+```
+
+## Component Selection Configuration
+
+### Selection Algorithm Parameters
+The component selection algorithm uses configurable parameters in `config/selection.json`:
+
+```json
+{
+  "selection_v": "1.0.0",
+  "threshold": 3,                    // Minimum score for inclusion
+  "topKPerDoc": 12,                  // Max components per document
+  "maxNodesPerRun": 50,              // Global cap per mirror operation
+  "keywords": [                      // High-value section keywords
+    "API", 
+    "Dependency", 
+    "Integration", 
+    "Decision", 
+    "Risk", 
+    "Metric"
+  ],
+  "largeSectionCharLimit": 10000     // Size penalty threshold
+}
+```
+
+### Scoring Rules
+- **Cross-references**: +3 points for sections with 2+ references to other documents
+- **Keywords**: +2 points for section headings starting with high-value keywords  
+- **Size penalty**: -2 points for large sections (>10k chars) with few references
+- **Threshold**: Minimum score of 3 required for inclusion
+- **Caps**: Maximum 12 components per document, 50 total nodes per operation
+
+## Performance Characteristics
+
+### Response Times
+- **Document Generation**: 45-90 seconds for two-pass generation
+- **Single Document**: 15-30 seconds per document
+- **GraphQL Queries**: <500ms for typical relationship queries
+- **Health Checks**: <100ms
+- **Graph Mirroring**: 1-3 seconds (async, non-blocking)
+
+### Scalability
+- **Documents**: Tested up to 100 documents
+- **Components**: Up to 1200 components (12 per doc × 100 docs)
+- **Concurrent Users**: Single-user focused, multi-user support planned
+- **Memory Usage**: Minimal impact on application performance
+
+## API Versioning
+
+### Current Versions
+- **Document Generation API**: Unversioned (stable)
+- **Graph API**: v1 (stable)
+- **Selection Algorithm**: v1.0.0 (tracked in data)
+
+### Future Versioning Strategy
+- **Backward Compatibility**: Additive changes only for stable APIs
+- **Deprecation Policy**: 6-month notice for breaking changes
+- **Migration Support**: Automated migration tools for data format changes
 
 ---
 
-*API Documentation for CF14.3.0.0 - Updated with Phase 2 improvements January 2025*
+*API documentation reflects the actual implementation in chirality-ai-app with GraphQL Neo4j integration*
