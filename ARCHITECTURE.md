@@ -37,12 +37,12 @@ CF14 implements structured semantic computation through a multi-service architec
 
 The heart of the framework implementing structured semantic operations.
 
-#### Key Modules
-- **`types.py`**: Matrix, Cell, and operation type definitions
-- **`ops.py`**: Semantic operations (multiplication, addition, interpretation)
-- **`stations.py`**: Processing pipeline (S1→S2→S3 runners)
-- **`validate.py`**: Matrix validation and integrity checking
-- **`ids.py`**: Content-based deterministic ID generation
+#### Key Modules | ✅ **IMPLEMENTED**
+- **[`types.py`](chirality/core/types.py)**: Matrix, Cell, and operation type definitions
+- **[`ops.py`](chirality/core/ops.py)**: Semantic operations (multiplication, addition, interpretation)  
+- **[`stations.py`](chirality/core/stations.py)**: Processing pipeline (S1→S2→S3 runners)
+- **[`validate.py`](chirality/core/validate.py)**: Matrix validation and integrity checking
+- **[`ids.py`](chirality/core/ids.py)**: Content-based deterministic ID generation
 
 #### Semantic Operations
 ```python
@@ -57,20 +57,20 @@ def op_elementwise(J: Matrix, C: Matrix, resolver: Resolver) -> Matrix:
     """Element-wise combination: J ⊙ C → F"""
 ```
 
-#### Processing Stations
-- **S1Runner**: Problem formulation and input validation
-- **S2Runner**: Requirements analysis through semantic multiplication
-- **S3Runner**: Objective synthesis via interpretation and combination
+#### Processing Stations | ✅ **IMPLEMENTED**
+- **S1Runner**: Problem formulation and input validation ([`stations.py:20-45`](chirality/core/stations.py:20-45))
+- **S2Runner**: Requirements analysis through semantic multiplication ([`stations.py:47-72`](chirality/core/stations.py:47-72))
+- **S3Runner**: Objective synthesis via interpretation and combination ([`stations.py:74-110`](chirality/core/stations.py:74-110))
 
-### Resolver Architecture
-**Location**: `chirality/core/cell_resolver.py`
+### Resolver Architecture | ✅ **IMPLEMENTED**
+**Location**: [`chirality/core/cell_resolver.py`](chirality/core/cell_resolver.py)
 
 Pluggable strategy pattern for semantic interpolation.
 
 #### Resolver Types
-- **OpenAIResolver**: LLM-powered semantic interpolation
-- **EchoResolver**: Deterministic testing implementation
-- **Future**: Human, Local LLM, Ensemble resolvers
+- **OpenAIResolver**: LLM-powered semantic interpolation | ✅ **IMPLEMENTED**
+- **EchoResolver**: Deterministic testing implementation | ✅ **IMPLEMENTED**  
+- **Future**: Human, Local LLM, Ensemble resolvers | 📋 **PLANNED**
 
 #### Resolver Protocol
 ```python
@@ -83,8 +83,8 @@ class Resolver(Protocol):
                 context: Dict[str, Any]) -> List[List[str]]
 ```
 
-### Data Persistence
-**Location**: `chirality/adapters/neo4j_adapter.py`
+### Data Persistence | ✅ **IMPLEMENTED**
+**Location**: [`chirality/adapters/neo4j_adapter.py`](chirality/adapters/neo4j_adapter.py)
 
 Graph-based storage for semantic matrices and reasoning traces.
 
@@ -101,11 +101,11 @@ Graph-based storage for semantic matrices and reasoning traces.
 - Performance monitoring and optimization
 
 ### API Layer
-**Location**: GraphQL service (separate repository)
+**Location**: GraphQL service (separate repository) | 📋 **PLANNED** - Implementation in progress
 
 RESTful and GraphQL interfaces for semantic operations.
 
-#### GraphQL Schema
+#### GraphQL Schema (Proposed)
 ```graphql
 type Matrix {
   id: String!
@@ -123,8 +123,10 @@ type SemanticOperation {
 }
 ```
 
-### CLI Interface
-**Location**: `chirality/cli.py`
+**Current Status**: CLI interface fully implemented at [`chirality/cli.py`](chirality/cli.py:1-200). GraphQL service planned for multi-service architecture.
+
+### CLI Interface | ✅ **IMPLEMENTED**
+**Location**: [`chirality/cli.py`](chirality/cli.py)
 
 Command-line interface for semantic operations and pipeline execution.
 
@@ -252,19 +254,55 @@ Add new semantic operations following established patterns:
 - Security vulnerability scanning
 - Documentation consistency checks
 
+## Troubleshooting Architecture Issues
+
+### Common Implementation Problems
+
+#### Matrix Dimension Mismatches
+**Symptom**: ValidationError during semantic operations
+**Cause**: Incompatible matrix dimensions for multiplication
+**Solution**: Verify matrix shapes match CF14 specification in [`cf14_spec.json`](chirality/cf14_spec.json)
+
+#### Resolver Connection Failures  
+**Symptom**: ResolverError or timeout during operations
+**Cause**: OpenAI API key issues or network connectivity
+**Solution**: Check environment variables in [`.env.example`](.env.example), validate API key
+
+#### Neo4j Persistence Issues
+**Symptom**: Database connection errors during `--write-neo4j`
+**Cause**: Neo4j service not running or incorrect credentials
+**Solution**: Verify Neo4j service status, check connection string in environment
+
+#### Station Pipeline Failures
+**Symptom**: Incomplete semantic valley execution
+**Cause**: Missing dependencies between processing stations
+**Solution**: Review [`stations.py`](chirality/core/stations.py:1-150) for proper input validation
+
+### Performance Considerations
+
+#### Large Matrix Processing
+- **Current Limit**: 10x10 matrices tested effectively
+- **Memory Usage**: ~1MB per matrix with full provenance
+- **Optimization**: Use streaming processing for larger datasets
+
+#### LLM Resolution Latency
+- **OpenAI API**: 2-5 seconds per semantic operation
+- **Batching**: Multiple operations in single request reduces overhead
+- **Caching**: Content-based hashing prevents duplicate operations
+
 ## Future Architecture Evolution
 
-### Planned Enhancements
+### Planned Enhancements | 📋 **ROADMAP**
 - **Distributed Processing**: Cross-service semantic operations
 - **Advanced Caching**: Semantic similarity-based caching
 - **Auto-scaling**: Dynamic resource allocation based on load
 - **Multi-Modal**: Integration of image, audio, and video processing
 
-### Research Integration
+### Research Integration | 🔄 **IN_PROGRESS**
 - **RL Training**: Infrastructure for reasoning trace analysis
 - **Model Optimization**: Automated semantic operation tuning
 - **Quality Metrics**: Advanced semantic consistency measurement
 
 ---
 
-*Architecture documentation for CF14.3.0.0 - Updated January 2025*
+*Architecture documentation for CF14.3.0.0 - Updated with Phase 1 improvements January 2025*

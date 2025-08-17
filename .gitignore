@@ -79,6 +79,9 @@ docs/_build/
 *.p12
 config/secrets/
 
+# Development History (contains sensitive info)
+devhistory/
+
 # Neo4j
 neo4j-data/
 neo4j-logs/

@@ -1,38 +1,53 @@
 # Chirality Semantic Framework
 
-Clean, minimal implementation of the CF14 semantic protocol for traversing the "semantic valley" from problem to solution, built on rigorous category-theoretic foundations.
+Systematic semantic transformation framework that converts complex problems into structured solutions through matrix operations and LLM-guided reasoning.
 
-## Overview
+## What CF14 Does
 
-The Chirality Framework implements a deterministic semantic pipeline that transforms problems through requirements into objectives and solutions using matrix operations and LLM-guided semantic interpolation. The framework provides the first practical implementation of **semantic computation as category theory**, enabling formal verification, compositional reasoning, and systematic extensibility.
+The Chirality Framework provides a systematic approach to complex reasoning by:
 
-### Mathematical Foundations
+- **Structured Problem Decomposition**: Breaks complex problems into semantic matrices (A=axioms, B=basis)
+- **Systematic Semantic Operations**: Combines concepts through defined operations (multiply, interpret, elementwise)
+- **Complete Reasoning Traces**: Generates full audit trails from problem statement to solution
+- **Human-AI Collaboration**: Leverages human structure design with AI semantic interpolation
+- **Self-Referential Validation**: Can apply the methodology to analyze itself
 
-CF14 implements a **symmetric monoidal category** with:
-- **Objects**: Semantic matrices (A, B, C, D, F, J) with typed content and dimensional constraints
-- **Morphisms**: Semantic operations (*, +, ⊙, ×, interpret) preserving categorical structure
-- **Functors**: Station transformations (S1→S2→S3) mapping problem spaces to solution spaces
-- **Natural Transformations**: Resolver strategies (OpenAI, Echo) preserving semantic equivalence
+### Core Demonstration
 
-For implementation details, see:
-- [Architecture](ARCHITECTURE.md) - System design and technical implementation
-- [API Documentation](API.md) - Interface specifications and usage patterns  
-- [Speculative Claims](SPECULATIVE_CLAIMS.md) - Honest assessment of capabilities and potential
+CF14 transforms semantic concepts systematically:
+```
+"Values" * "Necessary" → "Essential Values"
+"Principles" * "Sufficient" → "Adequate Principles" 
+"Methods" * "Contingent" → "Adaptive Methods"
+```
 
-**Deprecated Documentation** (preserved for historical context):
-- ~~[Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md)~~ - Superseded by ARCHITECTURE.md
-- ~~[Categorical Implementation](CATEGORICAL_IMPLEMENTATION.md)~~ - Superseded by ARCHITECTURE.md
-- ~~[Theoretical Significance](THEORETICAL_SIGNIFICANCE.md)~~ - Superseded by SPECULATIVE_CLAIMS.md
+These aren't simple text combinations - they're semantic interpolations that produce meaningful, contextually appropriate results through the 11-station semantic valley progression.
 
-### Core Concepts
+### Quick Links
+- **[Get Started](#quick-start)** - Install and run your first semantic valley execution
+- **[API Documentation](API.md)** - Complete interface reference (CLI, Python SDK, GraphQL)
+- **[Architecture](ARCHITECTURE.md)** - System design and technical implementation
+- **[What's Real vs Speculative](SPECULATIVE_CLAIMS.md)** - Honest assessment of capabilities
 
-- **Semantic Valley**: The conceptual space traversed from problem to solution
-- **Stations (S1-S3)**: Processing stages in the pipeline
-  - S1: Problem formulation (A, B axioms)
-  - S2: Requirements analysis (C = A × B)
-  - S3: Objective synthesis (J, F, D outputs)
-- **Matrix Operations**: Semantic multiplication and addition operations
-- **Deterministic IDs**: Content-based hashing for reproducibility
+### Evidence Base
+CF14 capabilities are demonstrated through:
+- **Complete execution traces** showing 11-station problem→solution progression
+- **Self-referential validation** where the framework analyzes its own methodology
+- **Systematic semantic operations** with consistent, meaningful outputs
+- **Full audit trails** enabling reasoning process analysis
+
+### How It Works
+
+**Three-Stage Pipeline:**
+1. **S1 - Problem Formulation**: Validate input matrices A (axioms) and B (basis)
+2. **S2 - Requirements Analysis**: Generate requirements matrix C through semantic multiplication (A * B)
+3. **S3 - Objective Synthesis**: Create interpretation (J), functions (F), and objectives (D)
+
+**Key Components:**
+- **Semantic Matrices**: Structured problem representations with dimensional constraints
+- **Resolver Strategies**: Pluggable semantic interpolation (OpenAI LLM, Echo testing)
+- **Operation Pipeline**: Systematic transformation from problem to solution
+- **Audit Trails**: Complete provenance tracking for every semantic operation
 
 ## Installation
 
@@ -49,50 +64,45 @@ pip install -e .
 
 ## Quick Start
 
-### 1. Set up environment
-
+**30-Second Test Run** (no setup required):
 ```bash
-# Create .env file
-cat > .env << EOF
-OPENAI_API_KEY=sk-your-key-here
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=password
-EOF
-```
+# Clone and test immediately
+git clone [repository-url]
+cd chirality-semantic-framework
+pip install -r requirements.txt
 
-### 2. Run with test fixtures
-
-```bash
-# Using echo resolver (no OpenAI needed)
+# Run complete semantic valley with test data
 python -m chirality.cli run \
   --thread "demo:test" \
   --A chirality/tests/fixtures/A.json \
   --B chirality/tests/fixtures/B.json \
   --resolver echo
+```
 
-# Using OpenAI resolver
-python -m chirality.cli run \
-  --thread "demo:test" \
-  --A chirality/tests/fixtures/A.json \
-  --B chirality/tests/fixtures/B.json \
-  --resolver openai
+**With OpenAI Integration**:
+```bash
+# Set OpenAI API key
+export OPENAI_API_KEY="sk-your-key-here"
 
-# With Human-In-The-Loop
+# Run with LLM semantic interpolation
 python -m chirality.cli run \
-  --thread "demo:test" \
+  --thread "demo:openai" \
   --A chirality/tests/fixtures/A.json \
   --B chirality/tests/fixtures/B.json \
   --resolver openai \
-  --hitl
-
-# Write to Neo4j
-python -m chirality.cli run \
-  --thread "demo:test" \
-  --A chirality/tests/fixtures/A.json \
-  --B chirality/tests/fixtures/B.json \
-  --write-neo4j
+  --output-dir results/
 ```
+
+**What You'll See**:
+- Matrix A (problem axioms) + Matrix B (decision basis) → Matrix C (requirements)
+- Complete reasoning trace through 11 semantic valley stations
+- Generated matrices J (interpretation), F (functions), D (objectives)
+- Full audit trail of semantic operations
+
+**Next Steps**:
+- Review [API Documentation](API.md) for programmatic usage
+- Check `results/` directory for output matrices
+- Explore [SPECULATIVE_CLAIMS.md](SPECULATIVE_CLAIMS.md) for capability assessment
 
 ### 3. Programmatic usage
 
@@ -228,23 +238,30 @@ class CustomResolver(Resolver):
         }
 ```
 
+## Theoretical Foundations (Optional)
+
+For those interested in the mathematical underpinnings, CF14 implements structured semantic computation with category-theoretic foundations:
+
+### Mathematical Framework
+- **Objects**: Semantic matrices with typed content and dimensional constraints
+- **Morphisms**: Semantic operations preserving structural relationships
+- **Functors**: Station transformations mapping problem spaces to solution spaces
+- **Composition**: Systematic operation sequencing with validation
+
+### Research Applications
+- **Reasoning Trace Generation**: Structured data for reinforcement learning training
+- **Systematic Problem Decomposition**: Reproducible methodology for complex reasoning
+- **Human-AI Collaboration Patterns**: Structured approach to AI-assisted reasoning
+
+**Note**: While the mathematical framing provides structure, the practical value lies in systematic semantic processing and complete reasoning audit trails.
+
+## Historical Context
+
+**Deprecated Documentation** (preserved for reference):
+- [Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md) ⚠️ Superseded by practical focus
+- [Categorical Implementation](CATEGORICAL_IMPLEMENTATION.md) ⚠️ Superseded by ARCHITECTURE.md  
+- [Theoretical Significance](THEORETICAL_SIGNIFICANCE.md) ⚠️ Superseded by SPECULATIVE_CLAIMS.md
+
 ## License
 
 MIT License - See LICENSE file for details.
-
-## Key Concepts
-
-### CF14 Documentation
-- CF14 Protocol Specification
-- Chirality Framework Documentation  
-- Semantic Valley Methodology
-
-### Engineering Patterns
-- Structured data processing with matrix operations
-- Pipeline architecture for complex reasoning tasks
-- Strategy pattern for pluggable AI integration
-
-### AI Integration Practices
-- Structured prompting and schema validation
-- Multi-model orchestration patterns
-- Audit and compliance for AI systems

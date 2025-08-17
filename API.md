@@ -2,7 +2,14 @@
 
 ## Overview
 
-CF14 provides multiple interfaces for semantic operations: CLI, GraphQL API, and Python SDK. This document covers all programmatic access methods.
+CF14 provides multiple interfaces for semantic operations. This document covers all programmatic access methods with working examples and troubleshooting guidance.
+
+**Implementation Status:**
+- ✅ **CLI Interface** - Fully implemented and tested
+- ✅ **Python SDK** - Core functionality available  
+- 📋 **GraphQL API** - Planned for multi-service architecture
+
+**Quick Start**: Most users should begin with the [CLI Interface](#cli-interface) for immediate access to all CF14 capabilities.
 
 ## CLI Interface
 
@@ -378,14 +385,16 @@ objectives_matrix = final_result["D"]
 interpretation_matrix = final_result["J"]
 ```
 
-## GraphQL API
+## GraphQL API | 📋 **PLANNED**
 
-### Endpoint
+**Status**: Design phase - CLI provides full functionality for current use cases
+
+### Proposed Endpoint
 ```
 POST http://localhost:8080/graphql
 ```
 
-### Schema
+### Proposed Schema
 
 #### Types
 ```graphql
@@ -452,9 +461,9 @@ type Mutation {
 }
 ```
 
-### Example Queries
+### Proposed Example Queries
 
-#### Semantic Multiplication
+#### Semantic Multiplication (Future)
 ```graphql
 mutation MultiplyMatrices {
   multiply(
@@ -474,7 +483,9 @@ mutation MultiplyMatrices {
 }
 ```
 
-#### Retrieve Reasoning Trace
+**Current Alternative**: Use CLI `multiply` command for same functionality
+
+#### Retrieve Reasoning Trace (Future)
 ```graphql
 query GetReasoningTrace {
   reasoning_trace(thread: "demo_thread") {
@@ -485,6 +496,97 @@ query GetReasoningTrace {
     timestamp
   }
 }
+```
+
+**Current Alternative**: Results saved to output directory with `--output-dir` flag
+
+## Troubleshooting
+
+### CLI Issues
+
+#### Installation Problems
+**Symptom**: `ModuleNotFoundError` when running CLI commands
+**Solution**: 
+```bash
+# Ensure proper installation
+pip install -e .
+# Or install dependencies directly
+pip install -r requirements.txt
+```
+
+#### Permission Errors
+**Symptom**: Cannot write output files
+**Solution**: 
+```bash
+# Create output directory with proper permissions
+mkdir -p output
+chmod 755 output
+```
+
+#### Environment Variable Issues
+**Symptom**: OpenAI resolver fails with authentication error
+**Solution**:
+```bash
+# Check environment setup
+cat .env
+# Ensure OPENAI_API_KEY is set correctly
+export OPENAI_API_KEY="sk-your-key-here"
+```
+
+### Python SDK Issues
+
+#### Import Errors
+**Symptom**: Cannot import chirality modules
+**Solution**:
+```python
+# Ensure package is in Python path
+import sys
+sys.path.append('/path/to/chirality-semantic-framework')
+from chirality import Matrix, Cell
+```
+
+#### Resolver Configuration
+**Symptom**: OpenAIResolver initialization fails
+**Solution**:
+```python
+import os
+from chirality import OpenAIResolver
+
+# Verify API key setup
+api_key = os.getenv('OPENAI_API_KEY')
+if not api_key:
+    raise ValueError("OPENAI_API_KEY environment variable required")
+    
+resolver = OpenAIResolver(api_key=api_key)
+```
+
+### Common Integration Patterns
+
+#### Basic Error Handling
+```python
+from chirality import ValidationError, ResolverError
+
+try:
+    result = op_multiply("thread1", matrix_a, matrix_b, resolver)
+except ValidationError as e:
+    print(f"Matrix validation failed: {e}")
+except ResolverError as e:
+    print(f"Semantic resolution failed: {e}")
+```
+
+#### Retry Logic for LLM Operations
+```python
+import time
+from chirality import ResolverError
+
+def safe_semantic_operation(operation_func, *args, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return operation_func(*args)
+        except ResolverError as e:
+            if attempt == max_retries - 1:
+                raise e
+            time.sleep(2 ** attempt)  # Exponential backoff
 ```
 
 ## Error Handling
@@ -509,6 +611,15 @@ query GetReasoningTrace {
   }
 }
 ```
+
+### Error Resolution Guide
+
+| Error Type | Common Cause | Solution |
+|------------|--------------|----------|
+| ValidationError | Invalid matrix JSON | Check against [Matrix Format](#matrix-file-format) |
+| DimensionError | Incompatible shapes | Verify matrices match CF14 specification |
+| ResolverError | API key/network issues | Check environment variables and connectivity |
+| NetworkError | Neo4j connection | Verify database service and credentials |
 
 ## Rate Limits and Quotas
 
@@ -536,6 +647,51 @@ Authorization: Bearer your-api-key
 Content-Type: application/json
 ```
 
+## Version Compatibility
+
+### CF14 Version Support Matrix
+
+| Feature | CF14.3.0.0 | CF14.2.x | Planned |
+|---------|------------|----------|---------|
+| CLI Interface | ✅ Full | ✅ Basic | - |
+| Python SDK Core | ✅ Full | ✅ Basic | - |
+| OpenAI Resolver | ✅ Full | ✅ Basic | - |
+| Echo Resolver | ✅ Full | ⚠️ Limited | - |
+| Neo4j Persistence | ✅ Full | ❌ None | - |
+| GraphQL API | ❌ None | ❌ None | 📋 CF14.4.0.0 |
+| Multi-Modal | ❌ None | ❌ None | 📋 CF14.5.0.0 |
+
+### API Breaking Changes
+
+#### CF14.3.0.0
+- Added `thread` parameter to all operations for lineage tracking
+- Changed matrix ID format to include content hashing
+- Neo4j persistence requires updated schema
+
+#### CF14.2.x → CF14.3.0.0 Migration
+```python
+# Old way
+result = op_multiply(matrix_a, matrix_b, resolver)
+
+# New way (CF14.3.0.0+)
+result = op_multiply("thread_id", matrix_a, matrix_b, resolver)
+```
+
+### Dependencies
+
+#### Required for All Features
+```txt
+python>=3.8
+openai>=1.0.0
+neo4j>=5.0.0
+```
+
+#### Optional Dependencies
+```txt
+pytest>=6.0.0  # For testing
+jupyter>=1.0.0  # For notebook examples
+```
+
 ---
 
-*API Documentation for CF14.3.0.0 - Updated January 2025*
+*API Documentation for CF14.3.0.0 - Updated with Phase 2 improvements January 2025*
