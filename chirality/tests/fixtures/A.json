@@ -2,35 +2,38 @@
   "id": "cf14:demo:A:v1",
   "name": "A",
   "station": "problem",
-  "shape": [2, 2],
+  "shape": [
+    2,
+    2
+  ],
   "cells": [
     {
-      "id": "cf14:demo:A:v1:0:0:user_reqs",
+      "id": "cf14:demo:A:v1:0:0:ead11448f079",
       "row": 0,
       "col": 0,
-      "value": "User Requirements"
+      "value": "user_reqs"
     },
     {
-      "id": "cf14:demo:A:v1:0:1:sys_constraints",
+      "id": "cf14:demo:A:v1:0:1:51adfcb2d7d6",
       "row": 0,
       "col": 1,
-      "value": "System Constraints"
+      "value": "features"
     },
     {
-      "id": "cf14:demo:A:v1:1:0:perf_goals",
+      "id": "cf14:demo:A:v1:1:0:b12f58b062f1",
       "row": 1,
       "col": 0,
-      "value": "Performance Goals"
+      "value": "constraints"
     },
     {
-      "id": "cf14:demo:A:v1:1:1:quality_std",
+      "id": "cf14:demo:A:v1:1:1:39e294042736",
       "row": 1,
       "col": 1,
-      "value": "Quality Standards"
+      "value": "perf_targets"
     }
   ],
-  "hash": "a1b2c3d4",
+  "hash": "6acfeb6495bec45d",
   "metadata": {
-    "source": "test_fixture"
+    "source": "regenerated"
   }
 }

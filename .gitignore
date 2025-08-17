@@ -51,6 +51,9 @@ output/
 temp_*.json
 *.bundle
 
+# Development history (may contain sensitive data)
+devhistory/
+
 # Neo4j
 neo4j/
 
