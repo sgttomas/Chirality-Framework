@@ -1,17 +1,11 @@
 # Chirality Semantic Framework
 
-## Current Implementation: Two-Pass Document Generation with Graph Mirror
-
-**chirality-ai-app** implements the Chirality Framework through a streamlined document generation system with optional Neo4j graph mirroring for enhanced discovery.
 
 ### Key Features ✅ IMPLEMENTED
-- **Two-Pass Document Generation**: Sequential DS/SP/X/M generation followed by cross-referential refinement
-- **CF14 Semantic Matrix Integration**: Export A,B,C,D,F,J matrices to Neo4j for semantic context
-- **Dual Architecture**: CF14 semantic layer + document generation layer with shared Neo4j storage
-- **Graph-Enhanced UI**: CF14 context injection for semantically-informed document generation
-- **File-based Source of Truth**: Simple, reliable document storage in `store/state.json`
-- **GraphQL API**: Read-only access to CF14 matrices, semantic nodes, and document relationships
-- **RAG-Enhanced Chat**: Document-aware chat interface with automatic context injection
+
+- **Computational semantics** for procedurally generated ontologies
+- **GraphQL integration** with Neo4j database
+- **JSON schema** for context engineering in prompt generation
 
 ### Quick Start
 ```bash
