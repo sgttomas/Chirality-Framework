@@ -9,7 +9,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="chirality-framework",
-    version="14.3.0",
+    version="14.3.1",
     author="Chirality Framework Team",
     description="Clean implementation of CF14 semantic protocol",
     long_description=long_description,

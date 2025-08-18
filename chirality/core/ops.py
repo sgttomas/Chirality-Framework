@@ -16,7 +16,7 @@ import hashlib
 import unicodedata
 import re
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple, Literal, Protocol
+from typing import Dict, Any, Optional, List, Tuple, Literal, Protocol, Callable
 from datetime import datetime
 
 from .types import Cell, Matrix, MatrixType, Operation
@@ -44,6 +44,11 @@ class Resolver(Protocol):
         ...
 
 
+class _CellResolverProto(Protocol):
+    model: str
+    def multiply_terms(self, term_a: str, term_b: str, station: str, row_label: str = "", col_label: str = "") -> Dict[str, Any]: ...
+    def add_terms(self, products: List[str], station: str, row_label: str = "", col_label: str = "") -> Dict[str, Any]: ...
+    def interpret_term(self, summed_text: str, station: str, row_label: str = "", col_label: str = "") -> Dict[str, Any]: ...
 class EchoResolver:
     """Deterministic, zero-LLM dev resolver."""
     
@@ -51,34 +56,48 @@ class EchoResolver:
                 inputs: List[Matrix], system_prompt: str, user_prompt: str, 
                 context: Dict[str, Any]) -> List[List[str]]:
         """Return deterministic 2D array based on operation type."""
-        
-        if op == "*":  # Matrix multiplication
+        rows: int = 0
+        cols: int = 0
+        def _uninit(_r: int, _c: int) -> str:
+            raise RuntimeError("uninitialized op")
+        val: Callable[[int, int], str] = _uninit
+
+        if op == "*":
             A, B = inputs
             rows, cols = A.shape[0], B.shape[1]
-            def val(r, c): return f"*:{A.name}[{r},:]{B.name}[:,{c}]"
-        elif op == "+":  # Addition
+            def _val(r: int, c: int) -> str:
+                return f"*:{A.name}[{r},:]{B.name}[:,{c}]"
+            val = _val
+        elif op == "+":
             A, F = inputs
             rows, cols = A.shape
-            def val(r, c): return f"+:{A.name}[{r},{c}]⊕{F.name}[{r},{c}]"
-        elif op == "interpret":  # Interpretation
+            def _val(r: int, c: int) -> str:
+                return f"+:{A.name}[{r},{c}]⊕{F.name}[{r},{c}]"
+            val = _val
+        elif op == "interpret":
             (B,) = inputs
             rows, cols = B.shape
-            def val(r, c): return f"interp:{B.name}[{r},{c}]"
-        elif op == "⊙":  # Element-wise multiplication
+            def _val(r: int, c: int) -> str:
+                return f"interp:{B.name}[{r},{c}]"
+            val = _val
+        elif op == "⊙":
             J, C = inputs
             rows, cols = J.shape
-            def val(r, c): return f"⊙:{J.name}[{r},{c}]×{C.name}[{r},{c}]"
-        elif op == "×":  # Cross-product
+            def _val(r: int, c: int) -> str:
+                return f"⊙:{J.name}[{r},{c}]×{C.name}[{r},{c}]"
+            val = _val
+        elif op == "×":
             A, B = inputs
             rows = A.shape[0] * B.shape[0]
             cols = A.shape[1] * B.shape[1]
-            def val(r, c): 
+            def _val(r: int, c: int) -> str:
                 ar, ac = r // B.shape[0], c // B.shape[1]
                 br, bc = r % B.shape[0], c % B.shape[1]
                 return f"×:{A.name}[{ar},{ac}]⨂{B.name}[{br},{bc}]"
+            val = _val
         else:
             raise ValueError(f"Unknown op: {op}")
-        
+
         return [[val(r, c) for c in range(cols)] for r in range(rows)]
 
 
@@ -109,7 +128,7 @@ class OpenAIResolver:
     def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o", *, seed: int = 42):
         """Initialize OpenAI resolver."""
         try:
-            from openai import OpenAI
+            from openai import OpenAI  # type: ignore
         except ImportError:
             raise ImportError("OpenAI package required. Install with: pip install openai")
         
@@ -171,7 +190,6 @@ class OpenAIResolver:
                             "type": "array",
                             "minItems": 2, "maxItems": 2,
                             "items": {"type":"integer"},
-                            # Pin the exact target shape
                             "const": [rows, cols]
                         },
                         "cells": {
@@ -189,7 +207,6 @@ class OpenAIResolver:
             }
         }]
 
-        # Nudge in the prompt that shape is fixed; tool schema enforces it anyway.
         shape_hint = f"Target shape is [{rows}, {cols}]. Respond ONLY by calling emit_matrix."
         messages = [
             {"role": "system", "content": f"{system_prompt}\n{shape_hint}"},
@@ -217,9 +234,7 @@ class OpenAIResolver:
                     raise CF14ValidationError(f"Unexpected tool called: {call.function.name}")
 
                 args = json.loads(call.function.arguments)
-                # Final strict check; raises CF14ValidationError if wrong
                 grid = _ensure_grid(args)
-                # grid is a 2D list[str] with exact (rows, cols)
                 return grid
 
             except Exception as e:
@@ -227,6 +242,8 @@ class OpenAIResolver:
                     time.sleep(2 ** attempt)
                     continue
                 raise RuntimeError(f"OpenAI resolution failed after {max_retries} attempts: {e}")
+        # Fallback: if loop exits without return (shouldn't happen), raise.
+        raise RuntimeError("OpenAI resolution did not produce a tool call result")
 
 
 # ---------- Prompt Helpers (Private) ----------
@@ -388,7 +405,7 @@ def op_multiply(thread: str, A: Matrix, B: Matrix, resolver: Resolver) -> Tuple[
     
     return C, op
 
-def _op_multiply_cell_by_cell(thread: str, A: Matrix, B: Matrix, cell_resolver: 'CellResolver') -> Tuple[Matrix, Operation]:
+def _op_multiply_cell_by_cell(thread: str, A: Matrix, B: Matrix, cell_resolver: _CellResolverProto) -> Tuple[Matrix, Operation]:
     """Perform matrix multiplication using cell-by-cell semantic operations."""
     from .ids import matrix_id, cell_id
     
@@ -504,7 +521,7 @@ def op_interpret(thread: str, B: Matrix, resolver: Resolver) -> Tuple[Matrix, Op
     
     return J, op
 
-def _op_interpret_cell_by_cell(thread: str, B: Matrix, cell_resolver: 'CellResolver') -> Tuple[Matrix, Operation]:
+def _op_interpret_cell_by_cell(thread: str, B: Matrix, cell_resolver: _CellResolverProto) -> Tuple[Matrix, Operation]:
     """Perform interpretation using cell-by-cell semantic operations."""
     from .ids import matrix_id, cell_id
     
@@ -592,7 +609,7 @@ def op_elementwise(thread: str, J: Matrix, C: Matrix, resolver: Resolver) -> Tup
     
     return F, op
 
-def _op_elementwise_cell_by_cell(thread: str, J: Matrix, C: Matrix, cell_resolver: 'CellResolver') -> Tuple[Matrix, Operation]:
+def _op_elementwise_cell_by_cell(thread: str, J: Matrix, C: Matrix, cell_resolver: _CellResolverProto) -> Tuple[Matrix, Operation]:
     """Perform element-wise multiplication using cell-by-cell semantic operations."""
     from .ids import matrix_id, cell_id
     
@@ -686,7 +703,7 @@ def op_add(thread: str, A: Matrix, F: Matrix, resolver: Resolver) -> Tuple[Matri
     
     return D, op
 
-def _op_add_cell_by_cell(thread: str, A: Matrix, F: Matrix, cell_resolver: 'CellResolver') -> Tuple[Matrix, Operation]:
+def _op_add_cell_by_cell(thread: str, A: Matrix, F: Matrix, cell_resolver: _CellResolverProto) -> Tuple[Matrix, Operation]:
     """Perform semantic addition using cell-by-cell operations."""
     from .ids import matrix_id, cell_id
     
@@ -778,6 +795,7 @@ def semantic_multiply(resolver: Resolver, matrix_a: Matrix, matrix_b: Matrix,
     """Legacy compatibility wrapper for op_multiply."""
     from .ids import thread_id
     # Use existing thread_id if present, otherwise generate one
-    thread = context.get("thread_id") if context and "thread_id" in context else thread_id("default")
+    existing = context.get("thread_id") if context else None
+    thread: str = existing if isinstance(existing, str) and existing else thread_id("default")
     result, _ = op_multiply(thread, matrix_a, matrix_b, resolver)
     return result

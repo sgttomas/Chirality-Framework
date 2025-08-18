@@ -1,7 +1,10 @@
 import os
 from hashlib import sha1
 from typing import Any, Dict, Optional
-from neo4j import GraphDatabase
+try:
+    from neo4j import GraphDatabase  # type: ignore
+except Exception:  # pragma: no cover
+    GraphDatabase = None  # type: ignore
 from datetime import datetime
 
 def _sha(s: str) -> str:
@@ -23,6 +26,8 @@ class CF14Neo4jExporter:
         uri = uri or os.getenv("NEO4J_URI", "bolt://localhost:7687")
         user = user or os.getenv("NEO4J_USER", os.getenv("NEO4J_USERNAME", "neo4j"))
         pwd  = password or os.getenv("NEO4J_PASSWORD", "password")
+        if GraphDatabase is None:
+            raise ImportError("neo4j package required. Install with: pip install neo4j or use extra [neo4j]")
         self.driver = GraphDatabase.driver(uri, auth=(user, pwd))
         self._ensure_schema()
 
