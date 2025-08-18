@@ -330,13 +330,6 @@ For those interested in the mathematical underpinnings, CF14 implements structur
 
 **Note**: While the mathematical framing provides structure, the practical value lies in systematic semantic processing and complete reasoning audit trails.
 
-## Historical Context
-
-**Deprecated Documentation** (preserved for reference):
-- [Mathematical Foundations](MATHEMATICAL_FOUNDATIONS.md) ⚠️ Superseded by practical focus
-- [Categorical Implementation](CATEGORICAL_IMPLEMENTATION.md) ⚠️ Superseded by ARCHITECTURE.md  
-- [Theoretical Significance](THEORETICAL_SIGNIFICANCE.md) ⚠️ Superseded by SPECULATIVE_CLAIMS.md
-
 ## License
 
 MIT License - See LICENSE file for details.
