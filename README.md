@@ -11,8 +11,11 @@
 ```bash
 # Clone and install
 git clone [repository-url]
-cd chirality-ai-app
 npm install
+
+or
+
+pip install chirality-semantic-framework
 
 # Set up environment
 cp .env.example .env.local
