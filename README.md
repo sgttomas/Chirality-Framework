@@ -4,6 +4,8 @@
 
 **For detailed architecture and implementation details, see [ARCHITECTURE.md](ARCHITECTURE.md).**
 
+References to "CF14" are for the Chirality Framework version 14.
+
 ## Details of the Framework: Matrix-Based Semantic Operations
 
 The Chirality Semantic Framework provides systematic semantic transformation through matrix operations and LLM-guided reasoning.

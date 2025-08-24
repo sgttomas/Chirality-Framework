@@ -1,4 +1,7 @@
 # Troubleshooting Guide - Chirality Framework
+**Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
+References to "CF14" are for the Chirality Framework version 14.
 
 ## Common Issues and Solutions
 
@@ -419,12 +422,13 @@ MATCH (n) WHERE NOT (n)--() RETURN count(n);
 
 ### Check Existing Issues
 1. Search project issues on GitHub
-2. Check CURRENT_STATUS.md for known problems
+2. Check TROUBLESHOOTING.md (this document) for known problems
 3. Review CHANGELOG.md for recent changes
+4. Review CONTINUOUS_IMPROVEMENT_PLAN.md for proposals to fix known problems
 
 ### Reporting Problems
 Include:
-- CF14 version (`python -c "import chirality; print(chirality.__version__)"`)
+- Chirality Framework version (`python -c "import chirality; print(chirality.__version__)"`)
 - Python version (`python --version`)
 - Operating system
 - Complete error messages
@@ -439,4 +443,4 @@ Include:
 
 ---
 
-*Troubleshooting guide for CF14.3.0.0 - Updated January 2025*
+*Troubleshooting guide for CF14.3.0.0 - Updated August 24, 2025*

@@ -1,6 +1,9 @@
 # Agents in the Chirality Framework
 
-*Practical AI agent workflows for CF14 documentation maintenance and git integration*
+*Practical AI agent workflows for Chirality Framework documentation maintenance and git integration*
+**Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
+References to "CF14" are for the Chirality Framework version 14.
 
 ## Overview
 

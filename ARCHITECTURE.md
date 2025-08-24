@@ -2,6 +2,8 @@
 **Status Last Updated**: August 24, 2025 at 11:19h
 **Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
 
+References to "CF14" are for the Chirality Framework version 14.
+
 ## System Overview
 
 The Chirality Semantic Framework generates the semantic contents of components in the Chirality Framework.  It performs element-wise operations according to the definitions of semantic operations and then stores them in a graph database (Neo4j implementation).  The framework is then integrated with a front end (a separate project called "chirality-app") but none of that is present in this project.  It's a truly distinct backend / frontend configuration where neither directly interact with each other but instead both interact with the database.
