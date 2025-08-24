@@ -82,41 +82,4 @@ devhistory/
 └── detailed-analysis-chirality-semantic-framework.txt       # Codebase analysis
 ```
 
-## SEMANTIC_OPERATIONS_QUICK_REF
-- **op_multiply(A, B)**: Semantic intersection A * B → C (requirements from axioms)
-- **op_interpret(C)**: Stakeholder translation C → J (clarify requirements)  
-- **op_elementwise(J, C)**: Element combination J ⊙ C → F (merge interpretation)
-- **op_add(A, F)**: Semantic concatenation A + F → D (final objectives)
-- **Stations**: S1(validate) → S2(multiply) → S3(interpret+elementwise+add)
 
-## RESOLVER_STRATEGIES
-- **OpenAIResolver**: LLM semantic interpolation (production)
-- **EchoResolver**: Deterministic testing (development)
-- **Interface**: resolve(operation, inputs, prompts, context) → matrix_content
-
-## MATRIX_TYPES
-- **A**: Problem axioms (normative/operative/evaluative × guiding/applying/judging/reflecting)
-- **B**: Decision basis (data/info/knowledge/wisdom × determinacy/sufficiency/completeness/consistency)
-- **C**: Requirements (A * B semantic intersection)
-- **J**: Interpretation (stakeholder-friendly C)
-- **F**: Functions (J ⊙ C element-wise combination)
-- **D**: Objectives (A + F final synthesis)
-
-## KEY_PATTERNS
-- Content-based hashing for deterministic IDs
-- Matrix dimensional validation before operations
-- Complete operation provenance tracking in Neo4j
-- Human-in-the-loop validation at each station
-- Pluggable resolver strategy pattern
-- Structured prompt engineering for LLM semantic interpolation
-
-## STATUS_CF14_3_0_0
-- ✅ Complete semantic valley execution (11 stations)
-- ✅ Multi-service architecture with desktop orchestration
-- ✅ Reasoning trace generation for potential RL training
-- 🔄 Validation experiments across diverse problem domains
-- 🔄 Performance benchmarking vs direct LLM approaches
-- 📋 Documentation complete, ready for 4 Documents workflow
-
-## NEXT_PRIORITY
-Apply 4 Documents workflow to active documentation for systematic improvement and validation.

@@ -1,5 +1,5 @@
 # Chirality Semantic Framework v14.3.0
-
+ 
 ## CF14 Neo4j Integration Release
 
 This release introduces specialized CF14 semantic matrix export capabilities, enabling seamless integration with the chirality-ai-app document generation system.
