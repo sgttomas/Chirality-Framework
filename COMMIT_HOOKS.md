@@ -1,10 +1,13 @@
-# Git Commit Hooks for CF14 Documentation Review Cycle
+# Git Commit Hooks for CF (Chirality Framework) Documentation Review Cycle
 
 *Systematic integration of documentation improvements with git workflow*
+**Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
+References to "CF14" are for the Chirality Framework version 14.
 
 ## Purpose
 
-This document establishes the trigger mechanism for CF14 documentation review cycles through git commit workflow integration. It ensures that significant changes automatically initiate systematic documentation updates following CF14 methodology.
+This document establishes the trigger mechanism for CF (Chirality Framework) documentation review cycles through git commit workflow integration. It ensures that significant changes automatically initiate systematic documentation updates following CF (Chirality Framework) methodology.
 
 ## Commit Trigger Classification
 
@@ -37,7 +40,7 @@ When preparing commits that may trigger documentation review, include this analy
 ```
 [STANDARD COMMIT MESSAGE]
 
---- CF14 DOCUMENTATION ASSESSMENT ---
+--- CHIRALITY FRAMEWORK DOCUMENTATION ASSESSMENT ---
 Trigger Level: [MAJOR_OVERHAUL | STANDARD_UPDATE | NO_REVIEW]
 Affected Documentation Categories:
 - [ ] Primary User Documents (README, API, TROUBLESHOOTING)
@@ -63,18 +66,7 @@ Estimated Documentation Scope: [1-3 documents | 4-6 documents | 7+ documents | F
 git log -1 --pretty=format:"%B" | grep -A 20 "CF14 DOCUMENTATION ASSESSMENT"
 ```
 
-### Step 2: Generate CONSOLIDATED_IMPROVEMENT_PLAN
-If trigger level indicates documentation review needed:
-
-1. **Extract Matrix A (Current State)**: Parse commit changes and impact analysis
-2. **Define Matrix B (Methodology)**: Select appropriate improvement approach based on recommendation
-3. **Generate Requirements**: Apply CF14 semantic multiplication to create specific improvement requirements
-4. **Create Implementation Plan**: Convert CONTINUOUS_IMPROVEMENT_PLAN → CONSOLIDATED_IMPROVEMENT_PLAN with:
-   - Specific phases based on affected documentation categories
-   - Timeline based on estimated scope
-   - Success criteria based on impact analysis
-
-### Step 3: Execute Documentation Review Cycle
+### Step 2: Execute Documentation Review Cycle
 Follow the generated CONSOLIDATED_IMPROVEMENT_PLAN:
 - Update affected documents systematically
 - Track status through KEY_PROJECT_FILES.md
@@ -87,7 +79,7 @@ After documentation review cycle completion, create amended commit with updated 
 ```
 [ORIGINAL COMMIT MESSAGE]
 
---- CF14 DOCUMENTATION REVIEW COMPLETED ---
+--- CHIRALITY FRAMEWORK DOCUMENTATION REVIEW COMPLETED ---
 Review Cycle: [Date] - [CONSOLIDATED_IMPROVEMENT_PLAN reference]
 Documents Updated: [List of files with status changes]
 Methodology Applied: [4_DOCUMENTS | USER_JOURNEY | etc.]
@@ -103,77 +95,6 @@ Reasoning Trace: [Reference to complete audit trail]
 Next Review Trigger: [Conditions for next documentation cycle]
 ```
 
-## Implementation Guidelines
-
-### For Developers Making Commits
-
-#### Before Committing
-1. **Assess Documentation Impact**: Review changes against trigger classification
-2. **Include CF14 Assessment**: Add documentation assessment section to commit message
-3. **Flag for Review**: Use appropriate trigger level classification
-
-#### When Documentation Review Triggered
-1. **Pause Development**: Allow documentation review cycle to complete
-2. **Provide Context**: Clarify technical details for documentation updates
-3. **Validate Results**: Review updated documentation for accuracy
-
-### For Documentation Maintainers
-
-#### Monitoring Commits
-1. **Review Commit Messages**: Check for CF14 documentation assessments
-2. **Triage by Trigger Level**: Prioritize major overhauls over standard updates
-3. **Track Review Cycles**: Maintain documentation of all triggered reviews
-
-#### Executing Reviews
-1. **Generate Consolidated Plan**: Follow systematic CF14 methodology
-2. **Execute Systematically**: Implement improvements according to generated plan
-3. **Update Commit History**: Amend commits with review completion details
-
-## Automation Opportunities
-
-### Git Hooks Integration
-```bash
-# .git/hooks/prepare-commit-msg
-# Auto-prompt for CF14 documentation assessment
-
-# .git/hooks/post-commit  
-# Check for documentation review triggers and notify maintainers
-
-# .git/hooks/pre-push
-# Verify documentation review completion for flagged commits
-```
-
-### Tooling Integration
-- **Commit message templates** for CF14 assessment inclusion
-- **Automated documentation impact analysis** based on file changes
-- **Review cycle status tracking** integrated with project management tools
-
-## Quality Assurance
-
-### Review Cycle Validation
-- [ ] All triggered reviews follow CF14 systematic methodology
-- [ ] Complete reasoning traces maintained for each cycle
-- [ ] Commit messages accurately reflect documentation changes
-- [ ] Status tracking remains consistent across all documents
-
-### Process Improvement
-- **Cycle Metrics**: Track time from trigger to completion
-- **Quality Metrics**: Measure documentation improvement effectiveness  
-- **Feedback Integration**: Incorporate lessons learned into process refinement
-
-## Integration with Existing Workflow
-
-### Relationship to Other Documents
-- **CONTINUOUS_IMPROVEMENT_PLAN**: Provides ongoing process framework
-- **CONSOLIDATED_IMPROVEMENT_PLAN**: Generated for each review cycle
-- **KEY_PROJECT_FILES**: Status tracking throughout review process
-
-### Development Workflow Integration
-- **Feature Development**: Documentation assessment integrated with feature planning
-- **Release Process**: Documentation review completion required before releases
-- **Quality Gates**: Systematic documentation review as part of quality assurance
-
----
 
 ## Next Steps for Implementation
 
@@ -182,8 +103,8 @@ Next Review Trigger: [Conditions for next documentation cycle]
 3. **Tool Development**: Build automation for assessment analysis and plan generation
 4. **Team Training**: Establish understanding of documentation review cycle integration
 
-**This systematic approach ensures that documentation quality evolves continuously with the codebase, using CF14's own methodology to maintain systematic improvement through each development cycle.**
+**This systematic approach ensures that documentation quality evolves continuously with the codebase, using CF's own methodology to maintain systematic improvement through each development cycle.**
 
 ---
 
-*This document establishes the systematic integration of CF14 documentation review cycles with git workflow, ensuring that significant changes automatically trigger appropriate documentation improvements following the framework's own methodology.*
+*This document establishes the systematic integration of CF documentation review cycles with git workflow, ensuring that significant changes automatically trigger appropriate documentation improvements following the framework's own methodology.*

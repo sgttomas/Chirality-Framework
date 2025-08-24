@@ -1,6 +1,9 @@
 # Agents in the Chirality Framework
 
-*Practical AI agent workflows for CF14 documentation maintenance and git integration*
+*Practical AI agent workflows for Chirality Framework documentation maintenance and git integration*
+**Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
+References to "CF14" are for the Chirality Framework version 14.
 
 ## Overview
 
@@ -86,45 +89,6 @@ Git Commit → Commit Analysis Agent detects user impact
 
 ## Agent Implementation Architecture
 
-### Simple Agent Framework
-
-```python
-class CF14DocumentationAgent:
-    def __init__(self, agent_type: str):
-        self.agent_type = agent_type
-        self.reasoning_trace = []
-    
-    def execute(self, input_data: Dict) -> Dict:
-        # Execute specific agent function
-        # Maintain reasoning trace
-        # Return structured output
-        pass
-
-class CommitAnalysisAgent(CF14DocumentationAgent):
-    def execute(self, commit_message: str) -> Dict:
-        # Parse CF14 documentation assessment
-        # Extract Matrix A (current state)
-        # Identify affected document categories
-        return {
-            "trigger_level": str,
-            "affected_categories": List[str],
-            "methodology": str,
-            "matrix_a": Dict
-        }
-
-class PlanGenerationAgent(CF14DocumentationAgent):
-    def execute(self, analysis_result: Dict) -> Dict:
-        # Apply CF14 semantic multiplication
-        # Generate CONSOLIDATED_IMPROVEMENT_PLAN
-        # Create specific task breakdown
-        return {
-            "consolidated_plan": str,
-            "task_list": List[Dict],
-            "timeline": Dict,
-            "success_criteria": List[str]
-        }
-```
-
 ### Agent Orchestration
 
 ```python
@@ -145,21 +109,6 @@ class DocumentationReviewOrchestrator:
         pass
 ```
 
-## Integration with Existing Workflow
-
-### Git Hook Integration
-
-```bash
-#!/bin/sh
-# .git/hooks/post-commit
-# Trigger documentation review cycle for flagged commits
-
-if grep -q "CF14 DOCUMENTATION ASSESSMENT" .git/COMMIT_EDITMSG; then
-    echo "CF14 Documentation Review Triggered"
-    python scripts/documentation_review_agent.py --commit $(git rev-parse HEAD)
-fi
-```
-
 ### Automation Scope
 
 **What Agents Handle Automatically**:
@@ -175,63 +124,6 @@ fi
 - Reviewing complex technical accuracy updates
 - Final approval of updated commit messages
 
-## Quality Assurance
-
-### Agent Validation
-
-**Automated Validation**:
-- Code examples execute successfully
-- Internal links remain functional
-- Document formatting maintains consistency
-- Status tracking accurately reflects changes
-
-**Human Validation Points**:
-- Technical accuracy of updated content
-- User experience quality of improvements
-- Appropriateness of semantic operations applied
-- Overall coherence of systematic improvements
-
-### Error Handling
-
-**Agent Failure Scenarios**:
-- Commit message parsing errors → Manual review required
-- Documentation update conflicts → Human resolution needed
-- Status tracking inconsistencies → Manual correction required
-- Quality validation failures → Human review and approval
-
-## Implementation Roadmap
-
-### Phase 1: Basic Automation (Immediate)
-- [ ] Commit message parsing agent
-- [ ] Simple status tracking updates
-- [ ] Basic commit message revision
-- [ ] Manual validation workflows
-
-### Phase 2: Systematic Improvements (Next Month)
-- [ ] Plan generation following CF14 methodology
-- [ ] Automated documentation content updates
-- [ ] Complete reasoning trace maintenance
-- [ ] Quality validation integration
-
-### Phase 3: Advanced Integration (Next Quarter)
-- [ ] Full git workflow integration
-- [ ] Sophisticated error handling and recovery
-- [ ] Performance optimization and monitoring
-- [ ] User feedback integration for continuous improvement
-
-## Success Metrics
-
-### Automation Effectiveness
-- **Review Cycle Time**: From commit to completed documentation review
-- **Update Accuracy**: Percentage of automated updates requiring human correction
-- **Status Tracking Reliability**: Accuracy of KEY_PROJECT_FILES.md maintenance
-- **Workflow Integration**: Seamless integration with developer git workflows
-
-### Quality Maintenance
-- **Documentation Freshness**: Lag time between code changes and documentation updates
-- **Consistency Preservation**: Maintenance of cross-document consistency
-- **User Experience**: Improved documentation quality following automated reviews
-- **Developer Experience**: Reduced manual documentation maintenance overhead
 
 ---
 

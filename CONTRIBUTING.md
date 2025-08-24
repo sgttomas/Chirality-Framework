@@ -1,4 +1,7 @@
 # Contributing to Chirality Framework
+**Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
+References to "CF14" are for the Chirality Framework version 14.
 
 ## Overview
 
@@ -8,7 +11,7 @@ The Chirality Framework implements structured semantic computation through matri
 
 ### Prerequisites
 - Python 3.9+
-- Node.js 20.x (for frontend components)
+- Node.js 20.x (for Admin UI components)
 - Docker Desktop (for Neo4j)
 - OpenAI API key (for semantic operations)
 
@@ -36,11 +39,7 @@ python -m pytest chirality/tests/
 The framework performs systematic semantic transformations:
 - **Semantic Multiplication (*)**: Combines concepts (e.g., "Values * Necessary" → "Essential Values")
 - **Semantic Addition (+)**: Concatenates semantic elements
-- **Matrix Operations**: Structured combination of semantic content
-
-### Processing Stations
-11-station progression from problem to resolution:
-1. Problem Statement → 2. Requirements → 3. Objectives → ... → 11. Resolution
+- **Matrix Operations**: Structured combination of semantic content according to the pattern of regular matrix dot-product operation
 
 ### LLM Integration
 LLMs serve as "semantic interpolation engines" within structured operations, not as general reasoning tools.
@@ -91,9 +90,7 @@ LLMs serve as "semantic interpolation engines" within structured operations, not
 
 **Integration Tests**
 - Full semantic valley execution
-- Multi-service coordination
 - Error handling and recovery
-- Performance under load
 
 ## Development Workflow
 
@@ -200,18 +197,8 @@ Include:
 - Document limitations and known issues
 - Test thoroughly before contributing
 
-## Framework Philosophy
-
-Remember that CF14 is:
-- **Practical**: Focus on working implementations
-- **Systematic**: Structured approach to semantic processing  
-- **Honest**: Clear about capabilities vs speculation
-- **Collaborative**: Human-AI partnership in reasoning
-
-Contributions should align with these principles while advancing the framework's practical utility.
-
 ## Current Focus Areas
 
-See CURRENT_STATUS.md for active development priorities and ROADMAP.md for planned features.
+See CONSOLIDATED_IMPROVEMENT_PLAN.md for active development priorities and ROADMAP.md for planned features.
 
 Thank you for contributing to the Chirality Framework!

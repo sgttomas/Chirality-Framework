@@ -1,57 +1,18 @@
 # Chirality Semantic Framework
-
-
-### Key Features ✅ IMPLEMENTED
-- **Two-Pass Document Generation**: Sequential DS/SP/X/M generation followed by cross-referential refinement
-- **CF14 Semantic Matrix Integration**: Export A,B,C,D,F,J matrices to Neo4j for semantic context
-- **Dual Architecture**: CF14 semantic layer + document generation layer with shared Neo4j storage
-- **Graph-Enhanced UI**: CF14 context injection for semantically-informed document generation
-- **File-based Source of Truth**: Simple, reliable document storage in `store/state.json` (see ARCHITECTURE.md#core-principle-files-as-source-of-truth)
-- **GraphQL API**: Read-only access to CF14 matrices, semantic nodes, and document relationships
-- **RAG-Enhanced Chat**: Document-aware chat interface with automatic context injection
+**Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
 
 **For detailed architecture and implementation details, see [ARCHITECTURE.md](ARCHITECTURE.md).**
 
-### Quick Start
-```bash
-# Clone and install
-git clone [repository-url]
-npm install
+References to "CF14" are for the Chirality Framework version 14.
 
-or
+## Details of the Framework: Matrix-Based Semantic Operations
 
-pip install chirality-semantic-framework
+The Chirality Semantic Framework provides systematic semantic transformation through matrix operations and LLM-guided reasoning.
 
-# Set up environment
-cp .env.example .env.local
-# Add your OpenAI API key and optional Neo4j settings
+## What the Chirality Semantic Framework Does
 
-# Start development server
-npm run dev
-# Visit http://localhost:3001
-
-# Optional: Start Neo4j for graph features
-docker compose -f docker-compose.neo4j.yml up -d
-
-# Export CF14 matrices to Neo4j (from semantic framework)
-cd ../chirality-semantic-framework
-python -m chirality.cli run --thread "demo:test" \
-  --A chirality/tests/fixtures/A.json \
-  --B chirality/tests/fixtures/B.json \
-  --resolver echo --write-cf14-neo4j
-```
-
-See **[chirality-ai-app](../chirality-ai-app)** for complete implementation details.
-
----
-
-## Legacy CF14 Framework: Matrix-Based Semantic Operations
-
-The original Chirality Framework provides systematic semantic transformation through matrix operations and LLM-guided reasoning.
-
-## What CF14 Does
-
-The Chirality Framework provides a systematic approach to complex reasoning by:
+The Chirality Semantic Framework provides a systematic approach to complex reasoning by:
 
 - **Structured Problem Decomposition**: Breaks complex problems into semantic matrices (A=axioms, B=basis)
 - **Systematic Semantic Operations**: Combines concepts through defined operations (multiply, interpret, elementwise)
@@ -76,25 +37,17 @@ These aren't simple text combinations - they're semantic interpolations that pro
 - **[Architecture](ARCHITECTURE.md)** - System design and technical implementation
 - **[What's Real vs Speculative](SPECULATIVE_CLAIMS.md)** - Honest assessment of capabilities
 
-### Evidence Base
-CF14 capabilities are demonstrated through:
-- **Complete execution traces** showing 11-station problem→solution progression
-- **Self-referential validation** where the framework analyzes its own methodology
-- **Systematic semantic operations** with consistent, meaningful outputs
-- **Full audit trails** enabling reasoning process analysis
-
 ### How It Works
 
 **Three-Stage Pipeline:**
-1. **S1 - Problem Formulation**: Validate input matrices A (axioms) and B (basis)
-2. **S2 - Requirements Analysis**: Generate requirements matrix C through semantic multiplication (A * B)
-3. **S3 - Objective Synthesis**: Create interpretation (J), functions (F), and objectives (D)
+1. **S1 - Formulation**: Begin with axiomatic matrices A and B and perform the combinatorial aspects of the first operation A * B = C
+2. **S2 - Interpretation**: Interpret the new word strings according to the rules of semantic operations
+3. **S3 - Synthesis**: Ground the interpretation through the lenses of the row and column names, and the semantic valley station, then save the final results in the graph database (Neo4j)
 
 **Key Components:**
 - **Semantic Matrices**: Structured problem representations with dimensional constraints
 - **Resolver Strategies**: Pluggable semantic interpolation (OpenAI LLM, Echo testing)
 - **Operation Pipeline**: Systematic transformation from problem to solution
-- **Audit Trails**: Complete provenance tracking for every semantic operation
 
 ## Installation
 
@@ -108,43 +61,6 @@ pip install -r requirements.txt
 # Or install as package
 pip install -e .
 ```
-
-## Quick Start
-
-**30-Second Test Run** (no setup required):
-```bash
-# Clone and test immediately
-git clone [repository-url]
-cd chirality-semantic-framework
-pip install -r requirements.txt
-
-# Run complete semantic valley with test data
-python -m chirality.cli run \
-  --thread "demo:test" \
-  --A chirality/tests/fixtures/A.json \
-  --B chirality/tests/fixtures/B.json \
-  --resolver echo
-```
-
-**With OpenAI Integration**:
-```bash
-# Set OpenAI API key
-export OPENAI_API_KEY="sk-your-key-here"
-
-# Run with LLM semantic interpolation
-python -m chirality.cli run \
-  --thread "demo:openai" \
-  --A chirality/tests/fixtures/A.json \
-  --B chirality/tests/fixtures/B.json \
-  --resolver openai \
-  --output results/
-```
-
-**What You'll See**:
-- Matrix A (problem axioms) + Matrix B (decision basis) → Matrix C (requirements)
-- Complete reasoning trace through 11 semantic valley stations
-- Generated matrices J (interpretation), F (functions), D (objectives)
-- Full audit trail of semantic operations
 
 **Next Steps**:
 - Review [API Documentation](API.md) for programmatic usage
@@ -213,12 +129,12 @@ See API.md > Data Structures/Schema for the JSON matrix format and examples. Nor
 
 ## Neo4j Integration
 
-### CF14 Semantic Matrix Export (`--write-cf14-neo4j`)
+### Semantic Components Export (`--write-cf14-neo4j`)
 
-The framework includes a specialized CF14 exporter that creates semantic matrix nodes optimized for integration with the document generation system:
+The framework includes a specialized exporter that creates semantic matrix (array, matrix, and tensor are the major semantic components in the framework, but only matrices are implemented at this time) nodes optimized for integration with the document generation system:
 
 ```bash
-# Export CF14 matrices to Neo4j with semantic labels
+# Export matrices to Neo4j with semantic labels
 python -m chirality.cli run \
   --thread "demo:test" \
   --A chirality/tests/fixtures/A.json \
@@ -226,14 +142,14 @@ python -m chirality.cli run \
   --resolver echo --write-cf14-neo4j
 ```
 
-**CF14 Graph Schema:**
+**CF Graph Schema:**
 - `(:CFMatrix)` nodes with kind (A,B,C,D,F,J), name, creation timestamp
 - `(:CFNode)` nodes with semantic content, position coordinates, SHA1-based stable IDs
 - `[:CONTAINS]` relationships linking matrices to their semantic nodes
 - Idempotent operations using content-based hashing for consistent node IDs
 
 **GraphQL Integration:**
-The CF14 export integrates seamlessly with the chirality-ai-app GraphQL API for enhanced document generation with semantic context.
+The graph database export integrates seamlessly with the chirality-ai-app GraphQL API for enhanced document generation with semantic context.
 
 ### Legacy Neo4j Export (`--write-neo4j`)
 
@@ -248,7 +164,7 @@ The original Neo4j integration creates standard graph representations:
 **Query Examples:**
 
 ```cypher
-// Find CF14 matrices by type
+// Find CF matrices by type
 MATCH (m:CFMatrix {kind: "A"})
 RETURN m.name, m.createdAt
 
@@ -298,7 +214,7 @@ class CustomResolver(Resolver):
 
 ## Theoretical Foundations (Optional)
 
-For those interested in the mathematical underpinnings, CF14 implements structured semantic computation with category-theoretic foundations:
+For those interested in the mathematical underpinnings, CF implements structured semantic computation with category-theoretic foundations:
 
 ### Mathematical Framework
 - **Objects**: Semantic matrices with typed content and dimensional constraints
@@ -316,8 +232,9 @@ For those interested in the mathematical underpinnings, CF14 implements structur
 ## License
 
 MIT License - See LICENSE file for details.
+
 ## Correspondence
 
 - Consumes and contributes to: `projects/workflows/`
 - Mirror for rapid iteration: `projects/ai-env/workflows/`
-- Role: Methodology and SOPs. CF14 encodes semantics; workflows capture the operating procedure (stations, matrices, validation) and feed improvements back.
+- Role: Methodology and SOPs. CF encodes semantics; workflows capture the operating procedure (stations, matrices, validation) and feed improvements back.

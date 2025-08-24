@@ -1,188 +1,71 @@
 # Architecture - Chirality Framework
+**Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
+
+References to "CF14" are for the Chirality Framework version 14.
 
 ## System Overview
 
-The Chirality Semantic Framework implements two-pass document generation with optional graph mirroring for enhanced discovery. The architecture maintains files as the source of truth while providing Neo4j-based relationship tracking and GraphQL query capabilities.
+The Chirality Semantic Framework generates the semantic contents of components in the Chirality Framework.  It performs element-wise operations according to the definitions of semantic operations and then stores them in a graph database (Neo4j implementation).  The framework is then integrated with a front end (a separate project called "chirality-app") but none of that is present in this project.  It's a truly distinct backend / frontend configuration where neither directly interact with each other but instead both interact with the database.
 
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│          Chirality AI App (Next.js)          │
-│                                             │
-│  ┌─────────────────┐    ┌─────────────────┐  │
-│  │   Chat Interface│    │ Document Gen UI │  │
-│  │   (RAG-Enhanced)│    │ (/chirality-core)│  │
-│  └─────────────────┘    └─────────────────┘  │
-│                                             │
-│  ┌─────────────────────────────────────────┐  │
-│  │        API Routes (Next.js)             │  │
-│  │  /api/core/*  /api/chat/*  /api/v1/*   │  │
-│  └─────────────────────────────────────────┘  │
-└─────────────────────┬───────────────────────┘
-                      │
-    ┌─────────────────┴─────────────────┐
-    │      Two-Pass Generation          │
-    │   (DS → SP → X → M) + Refinement  │
-    └─────────────────┬─────────────────┘
-                      │
-    ┌─────────────────┴─────────────────┐
-    │      File Storage (SoT)           │
-    │      store/state.json             │
-    └─────────────────┬─────────────────┘
-                      │ (async mirror)
-    ┌─────────────────┴─────────────────┐
-    │    Component Selection            │
-    │   (Rule-based Algorithm)          │
-    └─────────────────┬─────────────────┘
-                      │
-    ┌─────────────────┴─────────────────┐
-    │      Neo4j Graph Mirror           │
-    │   (Metadata + Relationships)      │
-    │                                   │
-    │  ┌─────────────────────────────┐   │
-    │  │     GraphQL API (v1)        │   │
-    │  │   (Read-only Queries)       │   │
-    │  └─────────────────────────────┘   │
-    └───────────────────────────────────┘
+Basic operations (*, +, ⊙, ×, interpret) cover core semantic transformations
+
 ```
 
 ## Two-Pass Generation Architecture
 
 The Chirality Framework implements a novel two-pass document generation methodology that ensures cross-referential coherence and comprehensive problem coverage.
 
-### Architecture Overview
+## SEMANTIC_OPERATIONS_QUICK_REF
+- **op_multiply(A, B)**: Semantic intersection A * B → C (requirements from axioms)
+- **op_interpret(C)**: Stakeholder translation C → J (clarify requirements)  
+- **op_elementwise(J, C)**: Element combination J ⊙ C → F (merge interpretation)
+- **op_add(A, F)**: Semantic concatenation A + F → D (final objectives)
+- **Stations**: S1(validate) → S2(multiply) → S3(interpret+elementwise+add)
 
-```
-Pass 1: Sequential Generation    Pass 2: Cross-Referential Refinement
-┌─────────────────────────┐      ┌─────────────────────────────────┐
-│ DS → SP → X → M         │ ──►  │ DS' ← ─ ─ ─ ┐                  │
-│                         │      │ SP' ← ─ ─ ─ ┼ ─ ─ ► X'         │
-│ Linear problem solving  │      │ X'  ← ─ ─ ─ ┼ ─ ─ ► M'         │
-│ Individual documents    │      │ M'  ← ─ ─ ─ ┘                  │
-└─────────────────────────┘      │                                 │
-                                 │ Cross-referential refinement    │
-                                 │ Integrated solution synthesis   │
-                                 └─────────────────────────────────┘
-                                                  │
-                                 ┌─────────────────────────────────┐
-                                 │ Final Resolution: X''            │
-                                 │                                 │
-                                 │ Complete integrated solution    │
-                                 │ with validated cross-references │
-                                 └─────────────────────────────────┘
-```
+## RESOLVER_STRATEGIES
+- **OpenAIResolver**: LLM semantic interpolation (production)
+- **EchoResolver**: Deterministic testing (development)
+- **Interface**: resolve(operation, inputs, prompts, context) → matrix_content
 
-### Stage Details
+## MATRIX_TYPES
+- **A**: Problem axioms (normative/operative/evaluative × guiding/applying/judging/reflecting)
+- **B**: Decision basis (data/info/knowledge/wisdom × determinacy/sufficiency/completeness/consistency)
+- **C**: Requirements (A * B semantic intersection)
+- **J**: Interpretation (stakeholder-friendly C)
+- **F**: Functions (J ⊙ C element-wise combination)
+- **D**: Objectives (A + F final synthesis)
 
-**Pass 1 - Sequential Generation:**
-- **DS (Definition/Structure)**: Problem analysis and structural framework
-- **SP (Strategy/Process)**: Solution approach and implementation strategy  
-- **X (eXecution)**: Detailed implementation specifications
-- **M (Measurement/Monitoring)**: Success metrics and evaluation criteria
+## KEY_PATTERNS
+- Content-based hashing for deterministic IDs
+- Matrix dimensional validation before operations
+- Complete operation provenance tracking in Neo4j
+- Human-in-the-loop validation at each station
+- Pluggable resolver strategy pattern
+- Structured prompt engineering for LLM semantic interpolation
 
-**Pass 2 - Cross-Referential Refinement:**
-- **Cross-Reference Analysis**: Identify dependencies and conflicts between documents
-- **Integration Synthesis**: Resolve conflicts and enhance complementary elements
-- **Coherence Validation**: Ensure consistent messaging and approach across all documents
-- **Final Resolution**: Produce integrated X'' document with validated implementation
 
-### Implementation Flow
-
-```python
-# Simplified flow representation
-async def two_pass_generation(problem_context):
-    # Pass 1: Sequential generation
-    pass1 = await generate_sequential_documents(problem_context)
-    
-    # Pass 2: Cross-referential refinement  
-    cross_refs = await analyze_cross_references(pass1)
-    pass2 = await refine_with_cross_references(pass1, cross_refs)
-    
-    # Final resolution
-    final_solution = await resolve_integration(pass2)
-    
-    return final_solution
-```
-
-## Core Principle: Files as Source of Truth
-
-The Chirality Framework maintains a strict separation between persistent data storage and discovery enhancement systems.
-
-### Architectural Principle
-
-**Files serve as the single source of truth for all document content.** This principle ensures:
-
-- **Data Integrity**: All document modifications happen through file operations
-- **Portability**: Complete system state can be backed up as simple file copies
-- **Zero Dependencies**: Core functionality requires no external databases or services
-- **Atomic Operations**: File writes use atomic operations ensuring consistency
-- **Simple Recovery**: Failed operations leave files in consistent state
-
-### Graph Mirror Design
-
-The Neo4j graph serves as a **metadata-only mirror** that enhances discoverability without duplicating content:
-
-```
-Files (Source of Truth)          Neo4j (Metadata Mirror)
-┌─────────────────────┐         ┌──────────────────────┐
-│ store/state.json    │ ──────► │ :Document nodes      │
-│                     │  async  │   - title, updatedAt │
-│ Complete document   │  mirror │   - relationships    │
-│ bodies with full    │         │                      │
-│ content and history │         │ :Component nodes     │
-│                     │         │   - selected sections│
-│ Primary Operations: │         │   - cross-references │
-│ - Generate          │         │                      │
-│ - Edit              │         │ Query Operations:    │
-│ - Validate          │         │ - Search components  │
-│ - Export            │         │ - Find relationships │
-└─────────────────────┘         │ - Analyze patterns   │
-                                └──────────────────────┘
-```
-
-### Operational Guarantees
-
-1. **Non-Blocking**: Graph operations never block file operations
-2. **Eventually Consistent**: Graph mirror achieves consistency asynchronously
-3. **Graceful Degradation**: System functions fully even if graph mirror fails
-4. **Selective Mirroring**: Only high-value components mirrored to reduce complexity
-
-## Core Components
-
-### Document Generation Engine | ✅ **IMPLEMENTED**
-**Location**: `chirality-ai-app/src/chirality-core/`
-
-Two-pass semantic document generation with cross-referential refinement.
-
-### Graph Mirror Integration | ✅ **IMPLEMENTED**  
-**Location**: `chirality-ai-app/lib/graph/`
-
-Selective component mirroring to Neo4j with relationship tracking.
-
-### CF14 Semantic Engine (Legacy)
-**Location**: `chirality/core/`
-
-The original framework implementing structured semantic operations.
-
-#### Key Modules | ✅ **IMPLEMENTED**
+### Key Modules | ✅ **IMPLEMENTED**
 - **[`types.py`](chirality/core/types.py)**: Matrix, Cell, and operation type definitions
 - **[`ops.py`](chirality/core/ops.py)**: Semantic operations (multiplication, addition, interpretation)  
 - **[`stations.py`](chirality/core/stations.py)**: Processing pipeline (S1→S2→S3 runners)
 - **[`validate.py`](chirality/core/validate.py)**: Matrix validation and integrity checking
 - **[`ids.py`](chirality/core/ids.py)**: Content-based deterministic ID generation
 
-#### Semantic Operations
+### Semantic Operations
 ```python
 # Core semantic transformation
 def op_multiply(A: Matrix, B: Matrix, resolver: Resolver) -> Matrix:
-    """Semantic multiplication: A * B → C"""
+    """Semantic matrix multiplication: A * B → C"""
     
 def op_interpret(M: Matrix, resolver: Resolver) -> Matrix:
-    """Stakeholder interpretation: M → J"""
+    """Interpretive lens meaning resolution: M → J"""
     
 def op_elementwise(J: Matrix, C: Matrix, resolver: Resolver) -> Matrix:
-    """Element-wise combination: J ⊙ C → F"""
+    """Element-wise semantic multiplication: J ⊙ C → F"""
 ```
 
 #### Processing Stations | ✅ **IMPLEMENTED**
@@ -284,25 +167,11 @@ python -m chirality.cli validate --matrix matrix_C.json
 User Input → Matrix Validation → Semantic Operation → LLM Resolution → Result Validation → Persistence → Response
 ```
 
-### Reasoning Trace Generation
-Every operation generates complete audit trail:
-- Input matrices with content hashes
-- Operation parameters and context
-- LLM resolution process and results
-- Output validation and quality metrics
-- Timestamps and performance data
-
 ## Performance & Scalability
 
 This section consolidates all measured performance metrics and system limits.
 
 ### Measured Performance Benchmarks
-
-**Document Generation:**
-- Two-pass generation: 15-45 seconds (typical problem)
-- Pass 1 (sequential): 8-20 seconds 
-- Pass 2 (cross-referential): 7-25 seconds
-- File write operations: <100ms (atomic)
 
 **Graph Mirror Operations:**
 - Component selection: 200-800ms per document
@@ -310,7 +179,7 @@ This section consolidates all measured performance metrics and system limits.
 - GraphQL query response: <500ms (typical)
 - Health endpoint: <50ms
 
-**Matrix Operations (CF14 Legacy):**
+**Semantic Operations:**
 - Semantic multiplication (4x4): 2-5 seconds (OpenAI)
 - Matrix validation: <10ms
 - ID generation (SHA1): <1ms
@@ -325,7 +194,7 @@ This section consolidates all measured performance metrics and system limits.
 - Selection threshold: 3 points minimum
 - Components per document: 12 maximum
 
-**Matrix Processing (CF14):**
+**Semantic Component Processing:**
 - Maximum tested size: 10x10 matrices
 - Memory per matrix: ~1MB with full provenance
 - Concurrent operations: 5 parallel maximum
@@ -385,45 +254,6 @@ This section consolidates all measured performance metrics and system limits.
 - **chirality-ai-app**: Chat interface and document generation
 - **chirality-ai**: Desktop orchestration and deployment
 
-## Extension Points
-
-### Custom Resolvers
-Implement `Resolver` protocol for specialized semantic interpolation:
-- Domain-specific language models
-- Human-in-the-loop resolution
-- Ensemble methods combining multiple approaches
-
-### Custom Operations
-Add new semantic operations following established patterns:
-- Temporal reasoning operations
-- Uncertainty quantification
-- Multi-modal semantic processing
-
-### External Integrations
-- Vector databases for semantic search
-- ML frameworks for model training
-- Business intelligence tools for analytics
-
-## Quality Assurance
-
-### Testing Strategy
-- **Unit Tests**: Individual operation validation
-- **Integration Tests**: Complete semantic valley execution
-- **Performance Tests**: Load and stress testing
-- **Quality Tests**: Semantic consistency validation
-
-### Monitoring & Observability
-- Operation timing and success rates
-- Matrix quality metrics and trends
-- Resource utilization and optimization
-- Error rates and failure analysis
-
-### Continuous Integration
-- Automated testing on all commits
-- Performance regression detection
-- Security vulnerability scanning
-- Documentation consistency checks
-
 ## Troubleshooting Architecture Issues
 
 ### Common Implementation Problems
@@ -460,19 +290,7 @@ Add new semantic operations following established patterns:
 - **Batching**: Multiple operations in single request reduces overhead
 - **Caching**: Content-based hashing prevents duplicate operations
 
-## Future Architecture Evolution
-
-### Planned Enhancements | 📋 **ROADMAP**
-- **Distributed Processing**: Cross-service semantic operations
-- **Advanced Caching**: Semantic similarity-based caching
-- **Auto-scaling**: Dynamic resource allocation based on load
-- **Multi-Modal**: Integration of image, audio, and video processing
-
-### Research Integration | 🔄 **IN_PROGRESS**
-- **RL Training**: Infrastructure for reasoning trace analysis
-- **Model Optimization**: Automated semantic operation tuning
-- **Quality Metrics**: Advanced semantic consistency measurement
 
 ---
 
-*Architecture documentation for CF14.3.0.0 - Updated with Phase 1 improvements January 2025*
+*Architecture documentation for CF14.3.0.0 - Updated with Phase 1 improvements August 17, 2025*

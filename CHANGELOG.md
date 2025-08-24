@@ -1,11 +1,65 @@
 # Changelog
 
-All notable changes to the Chirality Framework will be documented in this file.
+All notable changes to the Chirality Framework will be documented in this file.  References "CF14" 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+**Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
+
+## Decision Entry: Matrix-Based Semantic Operations
+**Date**: August 24, 2025
+
+**Complete elements**: Basic operations (*, +, ⊙, ×, interpret) cover core semantic transformations
+
+---
+
+## Decision Entry: Neo4j for Graph Persistence
+**Date**: August 17, 2025
+
+### Necessity vs Contingency
+**Necessary**: Graph database for semantic relationship tracking and lineage
+**Contingent**: Neo4j specifically - could have chosen other graph databases
+
+### Sufficiency
+Neo4j handles matrix storage, relationships, and lineage tracking adequately
+
+### Completeness
+Full lineage tracking, relationship modeling, data persistence
+
+### Inconsistencies and Consistencies
+Graph model aligns with semantic relationship nature
+
+
+---
+
+## Decision Entry: Multi-Repository Architecture
+**Date**: August 17, 2025
+
+### Necessity vs Contingency
+Separation of concerns between framework, interfaces, and orchestration
+
+### Sufficiency
+**Sufficient**: Three-repo structure handles current development and deployment needs
+**Assessment**: Framework, chat interface, and orchestration work independently
+
+### Completeness
+**Complete elements**: Full separation of backend, frontend, and orchestration concerns
+**Incomplete elements**: Shared libraries, common utilities, unified testing
+**Missing**: Standardized APIs between repositories
+
+### Inconsistencies and Consistencies
+Repository boundaries align with functional responsibilities
+
+
+
 ## [Unreleased]
+
+### Removed - Duplications between the chirality-ai-app and the chirality-semantic-framework (August 24, 2025)
+- **chirality-ai-app segregation**: Complete segregation of frontend and backend functionality, with the graph database as the only point of contact.
+- **undoing much of the previous work**: Because of confusions around the working directory there was duplication of functionality from the frontend (chirality-ai-app) into the backend (chirality-semantic-framework)
+- **return to  [CF14.2.1.1] - Previous Release functionality**: The original implementation was the simple form of the backend that is to be developed further, however the previous version was not adequately retained in Github due to poor git management practices by the developer, so this functionality will have to be restored by recreating it.
 
 ### Added - Graph Mirror Integration (August 17, 2025)
 - **chirality-ai-app Implementation**: Complete two-pass document generation with graph mirroring
@@ -25,9 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - API Versioning: v1 endpoints with backward compatibility commitment
 
 ### Validation Results ✅
-- Zero impact on core document generation workflows
-- Enhanced discovery capabilities via relationship querying  
-- Operational reliability maintained with graceful degradation
 - Performance benchmarks: <500ms GraphQL queries, 1-3s mirror operations
 - Security validation: authenticated access, query protection, feature isolation
 
@@ -36,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Categorical Implementation documentation - superseded by practical architecture documentation  
 - Theoretical Significance documentation - superseded by honest capability assessment
 
-## [CF14.3.0.0] - 2025-01-17
+## [CF14.3.0.0] - 2025-08-17
 
 ### Added
 - Complete 11-station semantic valley execution capability
@@ -93,22 +144,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved from conceptual framework to working code
 - Implemented basic validation system
 
-## [Unreleased]
-
-### Planned for CF14.3.1.0
-- Domain generalization testing
-- Performance benchmarking suite
-- Reasoning trace quality metrics
-- RL training data preparation tools
-
-### Planned for CF14.4.0.0
-- Production-ready error handling
-- Performance optimization
-- Enhanced user interfaces
-- Complete API documentation
-
-### Under Consideration
-- Vector database integration for semantic search
-- Multi-modal semantic operations
-- Advanced validation metrics
-- External API integrations

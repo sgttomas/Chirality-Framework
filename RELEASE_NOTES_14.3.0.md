@@ -1,4 +1,6 @@
 # Chirality Semantic Framework v14.3.0
+ **Status Last Updated**: August 24, 2025 at 11:19h
+**Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
 
 ## CF14 Neo4j Integration Release
 
