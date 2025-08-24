@@ -16,6 +16,8 @@
 
 **Decision**: Metadata-Only Mirror with Component Selection
 
+See ARCHITECTURE.md#core-principle-files-as-source-of-truth for the canonical rationale and system design.
+
 **Rationale**:
 - **Reliability**: Files remain authoritative, eliminating synchronization complexity
 - **Performance**: Non-blocking async mirroring preserves document generation speed

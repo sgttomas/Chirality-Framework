@@ -63,7 +63,66 @@ First is ‘semantic multiplication’, second is ‘semantic addition’.
 
 ## Map of meaning 
 
-The Chirality Framework follows a  logical progression of stations along the path to generating reliable knowledge.
+The Chirality Framework follows a logical progression of stations along the path to generating reliable knowledge.
+
+### Complete 11-Station Semantic Valley
+
+**Station 1 - Problem Statement**
+- Operation: [A], [B] definition
+- Purpose: Establish problem axioms and decision basis
+- Output: Problem framing matrices
+
+**Station 2 - Problem Requirements**  
+- Operation: [A] * [B] = [C]
+- Purpose: Generate requirements through semantic multiplication
+- Output: Requirements matrix [C]
+
+**Station 3 - Solution Objectives**
+- Operation: [A] + [F] = [D] 
+- Purpose: Synthesize objectives combining axioms and functions
+- Output: Objectives matrix [D]
+
+**Station 4 - Verification Framework**
+- Operation: [K] * [J] = [X]
+- Purpose: Establish verification criteria and methods
+- Output: Verification matrix [X]
+
+**Station 5 - Validation**
+- Operation: [X] -> [Z]
+- Purpose: Transform verification into validation context
+- Output: Validation matrix [Z]
+
+**Station 6 - Evaluation**
+- Operation: [G] * [T] = [E]
+- Purpose: Evaluate against data/information/knowledge criteria
+- Output: Evaluation matrix [E]
+
+**Station 7 - Assessment**
+- Operation: [R] x [E] = [M]
+- Purpose: Assess deliverables through evaluation framework
+- Output: Assessment tensor [M]
+
+**Station 8 - Implementation**
+- Operation: [M] x [X] = [W]
+- Purpose: Apply verification to assessment for implementation
+- Output: Implementation tensor [W]
+
+**Station 9 - Integration**
+- Operation: [W] x [P] = [U]
+- Purpose: Integrate implementation with validity parameters
+- Output: Integration tensor [U]
+
+**Station 10 - Reflection**
+- Operation: [U] x [H] = [N]
+- Purpose: Apply consistency check through reflection
+- Output: Resolution tensor [N]
+
+**Station 11 - Resolution**
+- Operation: Final synthesis of [N]
+- Purpose: Complete knowledge generation cycle
+- Output: Reliable knowledge deliverable
+
+### Original Station Map (Reference)
 
 1. [A], [B] -> Problem Statement
 2. [A] * [B] = [C] -> Problem Requirements

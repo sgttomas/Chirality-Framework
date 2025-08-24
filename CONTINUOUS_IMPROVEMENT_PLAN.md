@@ -92,7 +92,6 @@ This document establishes the ongoing process for keeping CF14 documentation acc
 
 **Files**:
 - KEY_PROJECT_FILES.md
-- PROJECT_DIRECTORY.md
 - CONTINUOUS_IMPROVEMENT_PLAN.md
 - COMMIT_HOOKS.md
 - AGENTS.md

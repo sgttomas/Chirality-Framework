@@ -213,6 +213,40 @@ Provides flexible querying of document relationships and component search.
 **Authentication**: Bearer token required
 **CORS**: Configurable allowed origins
 
+### Data Structures/Schema
+
+#### JSON Matrix Format
+
+The framework uses standardized JSON matrix format for semantic operations. Matrix structure follows the specification in [`chirality/cf14_spec.json`](chirality/cf14_spec.json).
+
+**Example Matrix A (Problem Axioms)**:
+```json
+{
+  "name": "A",
+  "station": "Problem Statement",
+  "shape": [3, 4],
+  "column_names": ["Guiding", "Applying", "Judging", "Reviewing"],
+  "row_names": ["Normative", "Operative", "Evaluative"],
+  "elements": [
+    ["Direction", "Implementation", "Evaluation", "Assessment"],
+    ["Leadership", "Execution", "Decision-making", "Quality Control"],
+    ["Standards", "Performance", "Feedback", "Refinement"]
+  ],
+  "metadata": {
+    "created_at": "2025-01-17T12:00:00Z",
+    "content_hash": "a1b2c3d4e5f6...",
+    "domain": "general"
+  }
+}
+```
+
+**Matrix Validation Requirements**:
+- `shape` must match `elements` dimensions
+- `column_names` length must equal `shape[1]`
+- `row_names` length must equal `shape[0]`
+- All `elements` must be non-empty strings
+- `content_hash` must match SHA1 of elements content
+
 **Schema**:
 ```graphql
 type Document {
@@ -466,20 +500,53 @@ curl -X POST http://localhost:3001/api/core/orchestrate
 - **Read-Only Access**: Graph API provides query-only access, no mutations
 
 ### Configuration
-Environment variables for security configuration:
+
+Complete environment variable reference for all system components:
+
 ```bash
-# Core settings
-FEATURE_GRAPH_ENABLED=true
-DEV_MODE=false  # Set to true for dev-only (disables Core API auth)
+# Core System Settings
+FEATURE_GRAPH_ENABLED=true                    # Enable/disable graph mirror system
+DEV_MODE=false                                # Dev-only mode (disables Core API auth)
 
-# Graph API security
-GRAPHQL_BEARER_TOKEN=your-secure-token
-GRAPHQL_CORS_ORIGINS=http://localhost:3000  # Dev; use exact origins in prod
+# Neo4j Database Connection
+NEO4J_URI=bolt://localhost:7687               # Neo4j connection string
+NEO4J_USERNAME=neo4j                          # Database username
+NEO4J_PASSWORD=your-password                  # Database password
+NEO4J_MAX_POOL_SIZE=50                        # Connection pool size
 
-# Rate limiting
-RATE_LIMIT_RPM=60
-RATE_LIMIT_BURST=120
+# GraphQL API Security
+GRAPHQL_BEARER_TOKEN=your-secure-token        # Authentication token
+GRAPHQL_CORS_ORIGINS=http://localhost:3000    # Allowed origins (comma-separated)
+
+# Rate Limiting
+RATE_LIMIT_RPM=60                             # Requests per minute
+RATE_LIMIT_BURST=120                          # Burst capacity
+
+# CF14 Legacy Matrix Operations (if using)
+OPENAI_API_KEY=your-openai-key                # For LLM semantic operations
+OPENAI_MODEL=gpt-4                            # Model for matrix resolution
+
+# Application Settings
+PORT=3001                                     # Application port
+NODE_ENV=development                          # Environment mode
 ```
+
+### Configuration Validation
+
+The system validates required environment variables on startup:
+
+**Required for Graph API:**
+- `FEATURE_GRAPH_ENABLED=true`
+- `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`
+- `GRAPHQL_BEARER_TOKEN`
+
+**Required for CF14 Operations:**
+- `OPENAI_API_KEY` (for OpenAI resolver)
+
+**Optional Settings:**
+- `DEV_MODE=true` (disables auth for development)
+- `GRAPHQL_CORS_ORIGINS` (defaults to `*` in development)
+- Rate limiting variables (use defaults if not specified)
 
 ## Integration Examples
 

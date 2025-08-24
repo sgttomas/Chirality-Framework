@@ -70,11 +70,11 @@ Essential files for understanding, using, and contributing to the Chirality Fram
 
 ### For AI Integration
 - **[CLAUDE.md](CLAUDE.md)** - LLM role guidance and semantic interpolation focus | 🆕 **UPDATED** (Aug 17 - CF14 export workflow)
-- **[PROJECT_DIRECTORY.md](PROJECT_DIRECTORY.md)** - Machine-readable project structure | ✅ **CURRENT**
+- **Project structure** - See [KEY_PROJECT_FILES.md](KEY_PROJECT_FILES.md) (this document) | ✅ **CURRENT**
 
 ### Process Documents
 - **[CONTINUOUS_IMPROVEMENT_PLAN.md](CONTINUOUS_IMPROVEMENT_PLAN.md)** - Systematic documentation quality maintenance | ✅ **CURRENT** (Created Aug 17 + Enhanced with workflow)
-- **[CONSOLIDATED_IMPROVEMENT_PLAN.md](CONSOLIDATED_IMPROVEMENT_PLAN.md)** - Strategic improvement roadmap | ✅ **CURRENT** (Created Aug 17 + Enhanced with origin)
+- **[CONSOLIDATED_IMPROVEMENT_PLAN.md](CONSOLIDATED_IMPROVEMENT_PLAN.md)** - Current iteration of improvement roadmap | ✅ **CURRENT** (Enhanced with strategic vision moved to ROADMAP.md)
 - **[COMMIT_HOOKS.md](COMMIT_HOOKS.md)** - Git workflow integration for documentation review cycles | ✅ **CURRENT** (Created Aug 17)
 - **[AGENTS.md](AGENTS.md)** - AI agent workflows for automated documentation maintenance | ✅ **CURRENT** (Created Aug 17)
 - **[4_DOCUMENTS_ANALYSIS.md](4_DOCUMENTS_ANALYSIS.md)** - Analysis results from 4 Documents workflow | ✅ **CURRENT** (Created Aug 17)
@@ -133,7 +133,7 @@ Essential files for understanding, using, and contributing to the Chirality Fram
 
 ### "I'm an LLM working with this project"
 1. [CLAUDE.md](CLAUDE.md) - Your role and focus
-2. [PROJECT_DIRECTORY.md](PROJECT_DIRECTORY.md) - Project structure
+2. [KEY_PROJECT_FILES.md](KEY_PROJECT_FILES.md) - Project structure and file reference
 3. [chirality/core/](chirality/core/) - Core implementation files
 
 ## 📊 File Importance Matrix

@@ -2,10 +2,15 @@
 
 
 ### Key Features ✅ IMPLEMENTED
+- **Two-Pass Document Generation**: Sequential DS/SP/X/M generation followed by cross-referential refinement
+- **CF14 Semantic Matrix Integration**: Export A,B,C,D,F,J matrices to Neo4j for semantic context
+- **Dual Architecture**: CF14 semantic layer + document generation layer with shared Neo4j storage
+- **Graph-Enhanced UI**: CF14 context injection for semantically-informed document generation
+- **File-based Source of Truth**: Simple, reliable document storage in `store/state.json` (see ARCHITECTURE.md#core-principle-files-as-source-of-truth)
+- **GraphQL API**: Read-only access to CF14 matrices, semantic nodes, and document relationships
+- **RAG-Enhanced Chat**: Document-aware chat interface with automatic context injection
 
-- **Computational semantics** for procedurally generated ontologies
-- **GraphQL integration** with Neo4j database
-- **JSON schema** for context engineering in prompt generation
+**For detailed architecture and implementation details, see [ARCHITECTURE.md](ARCHITECTURE.md).**
 
 ### Quick Start
 ```bash
@@ -204,29 +209,7 @@ chirality/
 
 ## Matrix Format
 
-Matrices are JSON files with the following structure:
-
-```json
-{
-  "id": "matrix_A_demo",
-  "type": "A",
-  "dimensions": [2, 2],
-  "cells": [
-    {
-      "id": "cell_a00",
-      "row": 0,
-      "col": 0,
-      "content": {
-        "text": "Semantic content",
-        "description": "Optional metadata"
-      },
-      "modality": "axiom",
-      "provenance": {}
-    }
-  ],
-  "metadata": {}
-}
-```
+See API.md > Data Structures/Schema for the JSON matrix format and examples. Normative definitions reside in `chirality/cf14_spec.json`.
 
 ## Neo4j Integration
 
@@ -333,3 +316,8 @@ For those interested in the mathematical underpinnings, CF14 implements structur
 ## License
 
 MIT License - See LICENSE file for details.
+## Correspondence
+
+- Consumes and contributes to: `projects/workflows/`
+- Mirror for rapid iteration: `projects/ai-env/workflows/`
+- Role: Methodology and SOPs. CF14 encodes semantics; workflows capture the operating procedure (stations, matrices, validation) and feed improvements back.

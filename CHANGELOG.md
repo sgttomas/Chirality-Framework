@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive reasoning trace collection
 - Development status tracking system
 
+#### CF14 Neo4j Integration Release
+- New flag: `--write-cf14-neo4j` for CF14 export
+- Graph schema: `:CFMatrix` and `:CFNode` labels
+- Stable IDs: SHA1-based idempotent writes
+- GraphQL-ready for chirality-ai-app
+- Backward compatible with legacy `--write-neo4j`
+
 ### Changed
 - Major architecture shift from monolithic to multi-repository structure
 - CLI interface redesigned for matrix operations
