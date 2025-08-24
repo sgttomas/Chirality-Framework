@@ -1,4 +1,4 @@
-# Chirality Semantic Framework
+# Chirality Framework
 **Status Last Updated**: August 24, 2025 at 11:19h
 **Note**: Always ask user for current date/time when updating status - AI doesn't have real-time access
 
@@ -6,30 +6,134 @@
 
 References to "CF14" are for the Chirality Framework version 14.
 
-## Details of the Framework: Matrix-Based Semantic Operations
+## What is the Chirality Framework?
 
-The Chirality Semantic Framework provides systematic semantic transformation through matrix operations and LLM-guided reasoning.
+The Chirality Framework is a meta-ontological, system-agnostic methodology for mapping the solution space to a problem statement in the context of knowledge work.  It follows an ontological modality path - called the **semantic valley** (see below) - from a {problem statement} → Systematic → Process → Epistemic → Process → Epistemic → Alethic → Epistemic → Alethic → to the {resolution statements }
 
-## What the Chirality Semantic Framework Does
+## What is it used for?
 
-The Chirality Semantic Framework provides a systematic approach to complex reasoning by:
+It is used to create a structured set of semantic relationships that have coherent meaning across the problem solving process and can be used as “semantic anchors” to guide an LLM across stages of solving a problem, traversing a “semantic valley”.
 
-- **Structured Problem Decomposition**: Breaks complex problems into semantic matrices (A=axioms, B=basis)
-- **Systematic Semantic Operations**: Combines concepts through defined operations (multiply, interpret, elementwise)
-- **Complete Reasoning Traces**: Generates full audit trails from problem statement to solution
-- **Human-AI Collaboration**: Leverages human structure design with AI semantic interpolation
-- **Self-Referential Validation**: Can apply the methodology to analyze itself
+### Semantic Dot Product
 
-### Core Demonstration
+Define matrices [A], [B], and [C] to have this relationship:
 
-CF14 transforms semantic concepts systematically:
-```
-"Values" * "Necessary" → "Essential Values"
-"Principles" * "Sufficient" → "Adequate Principles" 
-"Methods" * "Contingent" → "Adaptive Methods"
-```
+[A] * [B] = [C]
 
-These aren't simple text combinations - they're semantic interpolations that produce meaningful, contextually appropriate results through the 11-station semantic valley progression.
+[A(1,1) * B(1,1) + A(1,2) * B(2,1) + A(1,3) * B(3,1) + A(1,4) * B(4,1)]
+[A(1,1) * B(1,2) + A(1,2) * B(2,2) + A(1,3) * B(3,2) + A(1,4) * B(4,2)]
+[A(1,1) * B(1,3) + A(1,2) * B(2,3) + A(1,3) * B(3,3) + A(1,4) * B(4,3)]
+[A(1,1) * B(1,4) + A(1,2) * B(2,4) + A(1,3) * B(3,4) + A(1,4) * B(4,4)]
+] 
+
+[A(2,1) * B(1,1) + A(2,2) * B(2,1) + A(2,3) * B(3,1) + A(2,4) * B(4,1)]
+[A(2,1) * B(1,2) + A(2,2) * B(2,2) + A(2,3) * B(3,2) + A(2,4) * B(4,2)]
+[A(2,1) * B(1,3) + A(2,2) * B(2,3) + A(2,3) * B(3,3) + A(2,4) * B(4,3)]
+[A(2,1) * B(1,4) + A(2,2) * B(2,4) + A(2,3) * B(3,4) + A(2,4) * B(4,4)]
+]
+
+[
+[A(3,1) * B(1,1) + A(3,2) * B(2,1) + A(3,3) * B(3,1) + A(3,4) * B(4,1)]
+[A(3,1) * B(1,2) + A(3,2) * B(2,2) + A(3,3) * B(3,2) + A(3,4) * B(4,2)]
+[A(3,1) * B(1,3) + A(3,2) * B(2,3) + A(3,3) * B(3,3) + A(3,4) * B(4,3)]
+[A(3,1) * B(1,4) + A(3,2) * B(2,4) + A(3,3) * B(3,4) + A(3,4) * B(4,4)]
+]
+
+To provide an interpretation of these semantic dot product operators use the following definitions. 
+
+## Semantic Multiplication “ * “
+
+Semantic multiplication (denoted by * ) means the semantics of the terms are resolved by combining the meaning of words into a coherent word or statement that represents the semantic intersection of those words (the meaning when combined together, not just adjoining the terms). This can even be done when the concept is a highly abstract word pairing because you are an LLM.
+
+Examples:
+"sufficient" * "reason" = "justification"
+“analysis” * “judgment” = “informed decision”
+"precision" * "durability" = "reliability"
+"probability" * "consequence" = "risk"
+
+## Semantic Addition “ + “
+
+Semantic addition (denoted by + ) means simply concatenating words or sentence fragments together to form a longer statement. 
+Example:
+"faisal" + "has" + "seven" + "balloons" = faisal has seven balloons
+
+## Order of Operations
+
+First is ‘semantic multiplication’, second is ‘semantic addition’.
+
+## Map of meaning 
+
+The Chirality Framework follows a logical progression of stations along the path to generating reliable knowledge.
+
+### The Semantic Valley
+
+**Station 1 - Problem Statement**
+- Operation: [A], [B] definition
+- Purpose: Establish problem axioms and decision basis
+- Output: Problem framing matrices
+
+**Station 2 - Problem Requirements**  
+- Operation: [A] * [B] = [C]
+- Purpose: Generate requirements through semantic multiplication
+- Output: Requirements matrix [C]
+
+**Station 3 - Solution Objectives**
+- Operation: [A] + [F] = [D] 
+- Purpose: Synthesize objectives combining axioms and functions
+- Output: Objectives matrix [D]
+
+**Station 4 - Verification Framework**
+- Operation: [K] * [J] = [X]
+- Purpose: Establish verification criteria and methods
+- Output: Verification matrix [X]
+
+**Station 5 - Validation**
+- Operation: [X] -> [Z]
+- Purpose: Transform verification into validation context
+- Output: Validation matrix [Z]
+
+**Station 6 - Evaluation**
+- Operation: [G] * [T] = [E]
+- Purpose: Evaluate against data/information/knowledge criteria
+- Output: Evaluation matrix [E]
+
+**Station 7 - Assessment**
+- Operation: [R] x [E] = [M]
+- Purpose: Assess deliverables through evaluation framework
+- Output: Assessment tensor [M]
+
+**Station 8 - Implementation**
+- Operation: [M] x [X] = [W]
+- Purpose: Apply verification to assessment for implementation
+- Output: Implementation tensor [W]
+
+**Station 9 - Integration**
+- Operation: [W] x [P] = [U]
+- Purpose: Integrate implementation with validity parameters
+- Output: Integration tensor [U]
+
+**Station 10 - Reflection**
+- Operation: [U] x [H] = [N]
+- Purpose: Apply consistency check through reflection
+- Output: Resolution tensor [N]
+
+**Station 11 - Resolution**
+- Operation: Final synthesis of [N]
+- Purpose: Complete knowledge generation cycle
+- Output: Reliable knowledge deliverable
+
+### Original Station Map (Reference)
+
+1. [A], [B] -> Problem Statement
+2. [A] * [B] = [C] -> Problem Requirements
+3. [A] + [F] = [D] -> Solution Objectives
+4. [K] * [J] = [X] -> Verification
+5. [X] ->  [Z] -> Validation
+6. [G] * [T] = [E]  -> Evaluation
+7. [R] x [E] = [M] -> Assessment
+8. [M] x [X] = [W] -> Implementation
+9. [W] x [P] = [U] -> Reflection
+10. [U] x [H] = [N] -> Resolution
 
 ### Quick Links
 - **[Get Started](#quick-start)** - Install and run your first semantic valley execution
