@@ -202,7 +202,7 @@
       "precedence": 1,
       "examples": [
         {"input": ["sufficient", "reason"], "output": "justification"},
-        {"input": ["analysis", "judgment"], "output": "informed decision"},
+        {"input": ["probability", "consequence"], "output": "risk"},
         {"input": ["precision", "durability"], "output": "reliability"}
       ]
     },
